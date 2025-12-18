@@ -18,7 +18,7 @@ class RabbitMQProvider(QueueProvider):
 
     @contextmanager
     def channel(self) -> Iterator[BlockingChannel]:
-        self.logger.info("Establishing RabbitMQ channel to %s", self.url)
+        #self.logger.debug("Establishing RabbitMQ channel to %s", self.url)
         connection = pika.BlockingConnection(pika.URLParameters(self.url))
         try:
             channel = connection.channel()
