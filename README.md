@@ -14,7 +14,7 @@ To start the docker container: `docker compose up -d`
 ### Database Setup
 
 ```bash
-docker exec -it postgres-rag psql -U admin -d rag
+docker exec -it postgres-ekh psql -U admin -d rag
 ```
 
 On first run ensure you have this table created:
@@ -37,7 +37,7 @@ CREATE TABLE documents (
 ```bash
 uv venv
 source .venv/bin/activate
-uv install
-# see scraping instructions below first..
+uv sync
+# see how to populate your .content/<kbprovider> folder first in the README.md there
 uv run fastapi dev main.py
 ```

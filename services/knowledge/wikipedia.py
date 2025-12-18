@@ -1,6 +1,5 @@
 import bz2
 from collections.abc import Iterator
-from contextlib import contextmanager
 from dataclasses import dataclass
 import os
 from pathlib import Path
@@ -44,12 +43,12 @@ class WikipediaKnowedgeService(KnowledgeService):
         """
         # Placeholder implementation for reading from Wikipedia
         for index_path in self._discover_index_files():
-            match = INDEX_FILENAME.match(index_path.name)
-            if not match:
-                self.logger.warning("Skipping index file with unknown pattern: %s", index_path.name)
-                continue
-            #TODO: handle case where file wasn't fully processed before a abort/restart for instance
             self.logger.info("Reading data from Wikipedia source: %s", index_path)
+            # Load already processed lines to support resuming
+            completed_lines = self._load_completed_lines(index_path)
+            if completed_lines:
+                self.logger.info("Resuming: found %d already processed lines for %s",
+                                 len(completed_lines), index_path.name)
             # Open up the index archive, and read line until you end up with a different byte offset (about 100 lines)
             # unzip the bites and for each articles (<page> items found in) send to the ingest queue
             temp_last_byteoffset: int | None = None
@@ -59,6 +58,11 @@ class WikipediaKnowedgeService(KnowledgeService):
                         last_byteoffset = temp_last_byteoffset
                         offset_str, _, _ = line.strip().split(":", 2)
                         offset = int(offset_str)
+
+                        if line in completed_lines:
+                            # already processed this line, skip it
+                            continue
+
                         # set the last byteoffset for the next iteration
                         temp_last_byteoffset = offset
                         if last_byteoffset is None:
@@ -70,6 +74,7 @@ class WikipediaKnowedgeService(KnowledgeService):
                         if last_byteoffset != offset:
                             # if the byteoffset is different here it means we hit a multistream chunk end,
                             # we need to extract it (or die trying), and yield the resulting individual <page> elements
+                            match = INDEX_FILENAME.match(index_path.name)
                             prefix = match.group("prefix")
                             chunk = match.group("chunk")
                             dump_name = f"{prefix}{chunk if chunk else ""}.xml.bz2"
@@ -82,19 +87,20 @@ class WikipediaKnowedgeService(KnowledgeService):
                                     xml_content = decompressed.decode("utf-8", errors="ignore")
                                     for page_match in re.finditer(r"<page>(.*?)</page>", xml_content, re.DOTALL):
                                         page_xml = page_match.group(0)
-                                        yield {"wiki_page_xml": page_xml}
+                                        if not self._should_ignore_page(page_xml):
+                                            yield {"wiki_page_xml": page_xml}
                                 except Exception as exc:
                                     self.logger.error(
                                         "Failed to decompress chunk from %s between offsets %s and %s: %s",
                                         dump_name, last_byteoffset, offset, exc
                                     )
-
-                            #decompressed = bz2.decompress(data)
-                            #yield decompressed.decode("utf-8", errors="ignore")
                     except ValueError:
                         self.logger.warning(
                             "Skipping malformed line in %s", index_path.name
                         )
+                    finally:
+                        # note this line as completed for this file, in case of restart later.
+                        self._mark_line_as_completed(index_path, line)
 
     def _discover_index_files(self) -> Iterator[Path]:
         """
@@ -106,12 +112,45 @@ class WikipediaKnowedgeService(KnowledgeService):
         for node in sorted(self._content_folder_path.rglob("*.txt*")):
             if not node.is_file():
                 continue
-            if node.suffix == DONE_SUFFIX:
+            match = INDEX_FILENAME.match(node.name)
+            if not match:
+                self.logger.debug("Skipping index file with unknown pattern: %s", node.name)
                 continue
             yield node
 
-    def _should_ignore_title(self, title: str) -> bool:
-        for prefix in self._ignored_title_prefixes:
-            if title.startswith(prefix):
-                return True
+    def _should_ignore_page(self, xml_page: str) -> bool:
+        """
+        This function will look at a <page> element and will exclude it
+        based on it's title or the type of page it is (e.g., redirects).
+        """
+        # Check for redirect pages
+        if re.search(r"<redirect\s", xml_page):
+            return True
+        # Extract title and check against ignored prefixes
+        title_match = re.search(r"<title>([^<]+)</title>", xml_page)
+        if title_match:
+            title = title_match.group(1)
+            for prefix in self._ignored_title_prefixes:
+                if title.startswith(prefix):
+                    return True
         return False
+
+    def _mark_line_as_completed(self, index_path: Path, line: str) -> None:
+        """
+        Mark a line as completed by appending it to a .done file.
+        """
+        done_path = index_path.with_suffix(index_path.suffix + DONE_SUFFIX)
+        with done_path.open('a') as done_file:
+            done_file.write(line)
+
+    def _load_completed_lines(self, index_path: Path) -> set[str]:
+        """
+        Load the set of already completed lines from the .done file.
+        Returns an empty set if no .done file exists.
+        """
+        done_path = index_path.with_suffix(index_path.suffix + DONE_SUFFIX)
+        if not done_path.exists():
+            return set()
+
+        with done_path.open('r') as done_file:
+            return set(done_file.readlines())
