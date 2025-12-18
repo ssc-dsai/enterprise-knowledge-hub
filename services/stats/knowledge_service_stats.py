@@ -53,18 +53,19 @@ class KnowledgeServiceStats:
         while timestamps and timestamps[0][0] < cutoff:
             timestamps.popleft()
 
-    def _calculate_rate(self, timestamps: deque) -> float:
-        """Calculate the rate per second from timestamps within the window."""
-        now = time.time()
-        cutoff = now - self.rate_window_seconds
-        # Cleanup old entries first
-        while timestamps and timestamps[0][0] < cutoff:
-            timestamps.popleft()
+    def _calculate_rate_from_timestamps(self, timestamps: deque, now: float) -> float:
+        """Calculate the rate per second from timestamps within the window.
 
-        if not timestamps:
+        Note: This method assumes the caller holds the lock and does NOT modify the deque.
+        """
+        cutoff = now - self.rate_window_seconds
+
+        # Sum only timestamps within the window (without modifying the deque)
+        total_in_window = sum(count for ts, count in timestamps if ts >= cutoff)
+
+        if total_in_window == 0:
             return 0.0
 
-        total_in_window = sum(count for _, count in timestamps)
         return total_in_window / self.rate_window_seconds
 
     def get_stats(self) -> dict:
@@ -72,24 +73,33 @@ class KnowledgeServiceStats:
         with self._lock:
             now = time.time()
 
-            add_rate = self._calculate_rate(self._added_timestamps)
-            process_rate = self._calculate_rate(self._processed_timestamps)
+            # Cleanup old timestamps first
+            self._cleanup_old_timestamps(self._added_timestamps, now)
+            self._cleanup_old_timestamps(self._processed_timestamps, now)
+
+            # Calculate rates (these don't modify the deques)
+            add_rate = self._calculate_rate_from_timestamps(self._added_timestamps, now)
+            process_rate = self._calculate_rate_from_timestamps(self._processed_timestamps, now)
 
             # Calculate pending (added - processed)
             pending = max(0, self._total_added - self._total_processed)
 
-            # Calculate ETA: pending / net_process_rate
-            # Net rate = process_rate - add_rate (if positive, we're catching up)
+            # Calculate ETA based on current rates
             eta_seconds: float | None = None
-            if pending > 0:
-                if process_rate > add_rate:
-                    # We're processing faster than adding
-                    net_rate = process_rate - add_rate
-                    eta_seconds = pending / net_rate
-                elif process_rate > 0 and add_rate == 0:
+            queue_growing = add_rate > process_rate
+            
+            if pending > 0 and process_rate > 0:
+                if add_rate == 0:
                     # No more items being added, just draining
                     eta_seconds = pending / process_rate
-                # If add_rate >= process_rate and add_rate > 0, ETA is infinite (None)
+                elif process_rate > add_rate:
+                    # We're processing faster than adding (catching up)
+                    net_rate = process_rate - add_rate
+                    eta_seconds = pending / net_rate
+                else:
+                    # Queue is growing - show ETA assuming adding stops now
+                    # This gives user an idea of how long to drain current backlog
+                    eta_seconds = pending / process_rate
             elif pending == 0:
                 eta_seconds = 0.0
 
@@ -99,11 +109,13 @@ class KnowledgeServiceStats:
                 "total_added": self._total_added,
                 "total_processed": self._total_processed,
                 "pending_in_queue": pending,
+                "queue_growing": queue_growing,
                 "add_rate_per_second": round(add_rate, 2),
                 "process_rate_per_second": round(process_rate, 2),
                 "rate_window_seconds": self.rate_window_seconds,
                 "eta_seconds": round(eta_seconds, 1) if eta_seconds is not None else None,
                 "eta_formatted": self._format_eta(eta_seconds),
+                "eta_note": "ETA assumes no new items added" if queue_growing else None,
                 "elapsed_seconds": round(elapsed, 1),
             }
 
