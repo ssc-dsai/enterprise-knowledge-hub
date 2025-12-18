@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 import logging
 from services.knowledge.models import KnowledgeItem
@@ -14,10 +15,14 @@ class KnowledgeService(ABC):
     service_name: str
 
     def run(self) -> None:
-        """Run the knowledge ingestion process."""
+        """Run the knowledge ingestion/processing in parallel threads."""
         self.logger.info("Running knowledge ingestion for %s", self.service_name)
-        self.queue_for_processing()
-        self.process()
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            queue_future = executor.submit(self.queue_for_processing)
+            process_future = executor.submit(self.process)
+            # Wait for both to complete and propagate any exceptions
+            queue_future.result()
+            process_future.result()
 
     @abstractmethod
     def fetch_from_source(self) -> Iterator[KnowledgeItem]:
@@ -25,7 +30,7 @@ class KnowledgeService(ABC):
         raise NotImplementedError("Subclasses must implement the read method.")
 
     @abstractmethod
-    def process_queue(self, knowledge_item: KnowledgeItem) -> None:
+    def process_queue(self, knowledge_item: dict[str, object]) -> None:
         """Process ingested data from the queue."""
         raise NotImplementedError("Subclasses must implement the process method.")
 
@@ -47,7 +52,6 @@ class KnowledgeService(ABC):
         try:
             for item in self.queue_service.read(self.service_name + ".ingest"):
                 self.process_queue(item)
-                self.logger.debug("Processed item: %s", item.name)
         except Exception as e:
             self.logger.exception("Error during processing for %s: %s", self.service_name, e)
         finally:

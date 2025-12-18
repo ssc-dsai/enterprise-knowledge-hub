@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from dataclasses import dataclass
 import logging
 from provider.queue.base import QueueProvider
@@ -8,8 +9,8 @@ class QueueService:
     queue_provider: QueueProvider
     logger: logging.Logger
 
-    def read(self, queue_name: str) -> dict[str, object]:
-        """Read the status of the specified queue."""
+    def read(self, queue_name: str) -> Iterator[dict[str, object]]:
+        """Read messages from the specified queue."""
         return self.queue_provider.read(queue_name)
 
     def write(self, queue_name: str, message: dict[str, object]) -> None:

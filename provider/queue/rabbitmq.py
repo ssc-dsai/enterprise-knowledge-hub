@@ -27,14 +27,15 @@ class RabbitMQProvider(QueueProvider):
             channel.close()
             connection.close()
 
-    @contextmanager
-    def read(self, queue_name: str) -> Any:
-        """Read from the specified RabbitMQ queue."""
+    def read(self, queue_name: str) -> Iterator[Any]:
+        """Read all messages from the specified RabbitMQ queue."""
         with self.channel() as channel:
             channel.queue_declare(queue=queue_name, durable=True)
-            method_frame, header_frame, body = channel.basic_get(queue=queue_name, auto_ack=True)
-            if method_frame:
-                yield {"method_frame": method_frame, "header_frame": header_frame, "body": body}
+            while True:
+                method_frame, header_frame, body = channel.basic_get(queue=queue_name, auto_ack=True)
+                if method_frame is None:
+                    break
+                yield json.loads(body.decode('utf-8'))
 
     def write(self, queue_name: str, message: dict[str, object]) -> None:
         """Write to the specified RabbitMQ queue."""

@@ -39,9 +39,10 @@ class WikipediaKnowedgeService(KnowledgeService):
     def __init__(self, queue_service, logger):
         super().__init__(queue_service=queue_service, logger=logger, service_name="wikipedia")
 
-    def process_queue(self, knowledge_item: WikipediaItem) -> None:
+    def process_queue(self, knowledge_item: dict[str, object]) -> None:
         """Process ingested WikipediaItem from the queue."""
-        self.logger.info("Processing Wikipedia item: %s", knowledge_item.title)
+        item: WikipediaItem = WikipediaItem(**knowledge_item)
+        #self.logger.debug("Processing Wikipedia item: %s", item.title)
         # add vector logic here.
 
 
