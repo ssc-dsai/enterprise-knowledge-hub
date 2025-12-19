@@ -120,6 +120,7 @@ class EmbeddingUtil:
                     print(f"OOM at batch_size={batch_size}")
                     # torch.cuda.empty_cache()
                     return False
+                return True
 
         # Phase 1: exponential search to find an upper bound where OOM happens
         low = 0
