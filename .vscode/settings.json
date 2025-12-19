@@ -8,5 +8,4 @@
     "pylint.args": [
         "--rcfile=.vscode/pylintrc"
     ],
-    "editor.renderWhitespace": "all"
 }
