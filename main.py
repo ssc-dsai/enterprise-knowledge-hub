@@ -1,3 +1,6 @@
+"""
+Contains the main FastAPI application for the Enterprise Knowledge Hub.
+"""
 import logging
 from fastapi import FastAPI
 

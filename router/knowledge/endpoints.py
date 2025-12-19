@@ -1,3 +1,6 @@
+"""
+Main endpoints for knowledge management (creation/delete/update).
+"""
 import logging
 import os
 from typing import Literal
@@ -59,7 +62,7 @@ def wikipedia_stats(
     """Return in-memory ingestion stats plus live queue depths."""
     # Update the rate window before getting stats
     _wikipedia_service.stats.set_rate_window(rate_window)
-    
+
     return {
         "running": _wikipedia_state.is_running(),
         "stats": _wikipedia_service.stats.get_stats()

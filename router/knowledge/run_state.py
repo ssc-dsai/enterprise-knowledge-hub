@@ -1,3 +1,4 @@
+"""Thread-safe run state management for knowledge operations."""
 from dataclasses import dataclass, field
 from threading import Lock
 

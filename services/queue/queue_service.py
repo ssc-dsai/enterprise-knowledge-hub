@@ -1,3 +1,4 @@
+"""Queue service to handle queue operations."""
 from collections.abc import Iterator
 from dataclasses import dataclass
 import logging

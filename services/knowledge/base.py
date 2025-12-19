@@ -1,3 +1,4 @@
+"""Base class for knowledge services."""
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor

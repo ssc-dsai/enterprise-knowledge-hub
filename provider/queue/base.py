@@ -1,3 +1,6 @@
+"""
+Base class for queue providers.
+"""
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass

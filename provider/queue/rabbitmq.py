@@ -1,3 +1,6 @@
+"""
+RabbitMQ queue configuration provider
+"""
 from collections.abc import Iterator
 import json
 import threading
@@ -54,7 +57,7 @@ class RabbitMQProvider(QueueProvider):
 
         while True:
             try:
-                method_frame, header_frame, body = channel.basic_get(queue=queue_name, auto_ack=True)
+                method_frame, _, body = channel.basic_get(queue=queue_name, auto_ack=True)
                 if method_frame is None:
                     break
                 yield json.loads(body.decode('utf-8'))

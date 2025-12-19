@@ -1,3 +1,7 @@
+"""Wikipedia knowledge service implementation.
+    has custom way of ingesting data (from wikimedia dumps in bz2 format).
+    has vectorization processing logic at the process step. to a vector db
+"""
 import bz2
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -42,7 +46,7 @@ class WikipediaKnowedgeService(KnowledgeService):
 
     def process_queue(self, knowledge_item: dict[str, object]) -> None:
         """Process ingested WikipediaItem from the queue."""
-        item: WikipediaItem = WikipediaItem(**knowledge_item)
+        #item: WikipediaItem = WikipediaItem(**knowledge_item)
         #self.logger.debug("Processing Wikipedia item: %s", item.title)
         # add vector logic here.
         time.sleep(0.05)  # Simulate processing time
@@ -57,83 +61,100 @@ class WikipediaKnowedgeService(KnowledgeService):
         for index_path in self._discover_index_files():
             self.logger.info("Reading data from Wikipedia source: %s", index_path)
 
-            # Derive dump path once
-            match = INDEX_FILENAME.match(index_path.name)
-            if not match:
-                continue
-            prefix = match.group("prefix")
-            chunk = match.group("chunk")
-            dump_name = f"{prefix}{chunk if chunk else ''}.xml.bz2"
-            dump_path = index_path.with_name(dump_name)
-
-            if not dump_path.exists():
-                self.logger.warning("Dump file not found: %s", dump_path)
+            dump_path = self._get_dump_path(index_path)
+            if dump_path is None:
                 continue
 
-            start_line = self._load_progress(index_path)
-            if start_line > 0:
-                self.logger.info("Resuming from line %d for %s", start_line, index_path.name)
+            yield from self._process_index_file(index_path, dump_path)
 
-            temp_last_byteoffset: int | None = None
-            current_line = 0
+    def _get_dump_path(self, index_path: Path) -> Path | None:
+        """Derive the dump file path from an index file path."""
+        match = INDEX_FILENAME.match(index_path.name)
+        if not match:
+            return None
 
-            # Open dump file ONCE for the entire index
-            with open(dump_path, 'rb') as dump_file, bz2.open(index_path, mode='rt') as index_file:
-                for line in index_file:
-                    current_line += 1
+        prefix = match.group("prefix")
+        chunk = match.group("chunk")
+        dump_name = f"{prefix}{chunk if chunk else ''}.xml.bz2"
+        dump_path = index_path.with_name(dump_name)
 
-                    # Parse the offset first
-                    try:
-                        offset_str, _, _ = line.strip().split(":", 2)
-                        offset = int(offset_str)
-                    except ValueError:
-                        self.logger.warning("Skipping malformed line %d in %s", current_line, index_path.name)
-                        continue
+        if not dump_path.exists():
+            self.logger.warning("Dump file not found: %s", dump_path)
+            return None
 
-                    # Skip already processed lines
-                    if current_line <= start_line:
-                        temp_last_byteoffset = offset
-                        continue
+        return dump_path
 
-                    # Process the line
-                    try:
-                        last_byteoffset = temp_last_byteoffset
-                        temp_last_byteoffset = offset
+    def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItem]:
+        """Process a single index file and yield WikipediaItems."""
+        start_line = self._load_progress(index_path)
+        if start_line > 0:
+            self.logger.info("Resuming from line %d for %s", start_line, index_path.name)
 
-                        if last_byteoffset is None:
-                            last_byteoffset = offset
-                            length = offset
-                        else:
-                            length = offset - last_byteoffset
+        current_line = 0
+        prev_offset: int | None = None
 
-                        if last_byteoffset != offset:
-                            # Reuse the already-open file handle
-                            dump_file.seek(last_byteoffset)
-                            data = dump_file.read(length)
-                            try:
-                                decompressed = bz2.decompress(data)
-                                xml_content = decompressed.decode("utf-8", errors="ignore")
-                                for page_match in re.finditer(r"<page>(.*?)</page>", xml_content, re.DOTALL):
-                                    page_xml = page_match.group(0)
-                                    if not self._should_ignore_page(page_xml):
-                                        item = self._parse_page_xml(page_xml)
-                                        if item:
-                                            yield item
-                            except Exception as exc:
-                                self.logger.error(
-                                    "Failed to decompress chunk from %s between offsets %s and %s: %s",
-                                    dump_name, last_byteoffset, offset, exc
-                                )
-                    except Exception as exc:
-                        self.logger.error("Error processing line %d in %s: %s", current_line, index_path.name, exc)
-                    finally:
-                        # Save progress periodically
-                        if current_line % self._progress_flush_interval == 0:
-                            self._save_progress(index_path, current_line)
+        with open(dump_path, 'rb') as dump_file, bz2.open(index_path, mode='rt') as index_file:
+            for line in index_file:
+                current_line += 1
+                offset = self._parse_line_offset(line, current_line, index_path.name)
+                if offset is None:
+                    continue
 
-                # Final progress save at end of file
-                self._save_progress(index_path, current_line)
-                self.logger.info("Completed %s at line %d", index_path.name, current_line)
+                # Skip already processed lines
+                if current_line <= start_line:
+                    prev_offset = offset
+                    continue
+
+                yield from self._process_chunk(dump_file, dump_path.name, prev_offset, offset)
+                prev_offset = offset
+
+                if current_line % self._progress_flush_interval == 0:
+                    self._save_progress(index_path, current_line)
+
+        self._save_progress(index_path, current_line)
+        self.logger.info("Completed %s at line %d", index_path.name, current_line)
+
+    def _parse_line_offset(self, line: str, line_num: int, filename: str) -> int | None:
+        """Parse the byte offset from an index line. Returns None if malformed."""
+        try:
+            offset_str, _, _ = line.strip().split(":", 2)
+            return int(offset_str)
+        except ValueError:
+            self.logger.warning("Skipping malformed line %d in %s", line_num, filename)
+            return None
+
+    def _process_chunk(
+        self, dump_file, dump_name: str, prev_offset: int | None, offset: int
+    ) -> Iterator[WikipediaItem]:
+        """Decompress and parse a chunk of the dump file."""
+        if prev_offset is None:
+            prev_offset = offset
+
+        if prev_offset == offset:
+            return
+
+        length = offset - prev_offset
+        dump_file.seek(prev_offset)
+        data = dump_file.read(length)
+
+        try:
+            decompressed = bz2.decompress(data)
+            xml_content = decompressed.decode("utf-8", errors="ignore")
+            yield from self._extract_pages_from_xml(xml_content)
+        except OSError as exc:
+            self.logger.error(
+                "Failed to decompress chunk from %s between offsets %s and %s: %s",
+                dump_name, prev_offset, offset, exc
+            )
+
+    def _extract_pages_from_xml(self, xml_content: str) -> Iterator[WikipediaItem]:
+        """Extract and parse all pages from XML content."""
+        for page_match in re.finditer(r"<page>(.*?)</page>", xml_content, re.DOTALL):
+            page_xml = page_match.group(0)
+            if not self._should_ignore_page(page_xml):
+                item = self._parse_page_xml(page_xml)
+                if item:
+                    yield item
 
     def _save_progress(self, index_path: Path, line_number: int) -> None:
         """Save current progress (line number) to a small file."""

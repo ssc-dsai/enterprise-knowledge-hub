@@ -1,3 +1,8 @@
+"""
+Knowledge service statistics tracking.
+  - only in memory at the moment but can be imroved later
+  - curntly doesn't carry from run to run either, it's just to get live stats
+"""
 import threading
 import time
 from collections import deque
@@ -87,7 +92,7 @@ class KnowledgeServiceStats:
             # Calculate ETA based on current rates
             eta_seconds: float | None = None
             queue_growing = add_rate > process_rate
-            
+
             if pending > 0 and process_rate > 0:
                 if add_rate == 0:
                     # No more items being added, just draining
@@ -100,7 +105,7 @@ class KnowledgeServiceStats:
                     # Queue is growing - show ETA assuming adding stops now
                     # This gives user an idea of how long to drain current backlog
                     eta_seconds = pending / process_rate
-            elif pending == 0:
+            if pending == 0:
                 eta_seconds = 0.0
 
             elapsed = now - self._start_time if self._start_time else 0
@@ -137,7 +142,6 @@ class KnowledgeServiceStats:
 
         if hours > 0:
             return f"{hours}h {minutes}m {seconds}s"
-        elif minutes > 0:
+        if minutes > 0:
             return f"{minutes}m {seconds}s"
-        else:
-            return f"{seconds}s"
+        return f"{seconds}s"
