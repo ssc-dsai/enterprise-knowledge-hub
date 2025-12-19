@@ -1,12 +1,15 @@
 import os
 import torch
+from typing import List
 import numpy as np
 from transformers import AutoTokenizer, AutoModel
-from typing import List
 from provider.embedding.base import EmbeddingBackendProvider
 
 
 class TorchEmbeddingBackend(EmbeddingBackendProvider):
+    """
+    Torch implementations for embedding backend.  safetensors files
+    """
     def __init__(self, model_name: str, device: str = "cuda", max_seq_len: int = 512):
         self.model_name = model_name
         self.device = device
@@ -39,7 +42,7 @@ class TorchEmbeddingBackend(EmbeddingBackendProvider):
             return_tensors="pt",
         ).to(self.device)
 
-        with torch.no_grad():
+        with torch.no_grad(): # pylint: disable=no-member
             outputs = self.model(**inputs)
 
         # simple mean pooling

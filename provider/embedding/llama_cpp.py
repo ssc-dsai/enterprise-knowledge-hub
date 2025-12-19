@@ -1,8 +1,12 @@
 import os
-from provider.embedding.base import EmbeddingBackendProvider
 from transformers import AutoTokenizer, AutoModel
+from provider.embedding.base import EmbeddingBackendProvider
+
 
 class LlamaCPPEmbeddingBackend(EmbeddingBackendProvider):
+    """
+    Llama_CPP implementations for embedding backend.  GGUF files
+    """
     def __init__(self, model_name: str, device: str = "cuda", max_seq_len: int = 512):
         self.model_name = model_name
         self.device = device
@@ -18,7 +22,7 @@ class LlamaCPPEmbeddingBackend(EmbeddingBackendProvider):
         
         self.model.eval()
         
-    def setDevice(self, device: str):
+    def set_device(self, device: str):
         self.device = device        
         
         

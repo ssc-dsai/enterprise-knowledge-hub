@@ -1,14 +1,21 @@
-from contextlib import contextmanager
-import numpy as np
+"""
+Embedding Provider base
+"""
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import List
+import numpy as np
 
 class EmbeddingBackendProvider(ABC):
+    """
+    Embedding Provider base
+    """
     model_name: str
     device: str
     max_seq_length: int
 
     @abstractmethod
-    def embed(text: List[str]) -> np.ndarray:
+    def embed(self, text: List[str]) -> np.ndarray:
+        """
+        embedding abstract method
+        """
         raise NotImplementedError
