@@ -38,7 +38,7 @@ class WikipediaKnowedgeService(KnowledgeService):
 
     _content_folder_path: Path = Path(os.getenv("WIKIPEDIA_CONTENT_FOLDER",
                                     "./content/wikipedia")).expanduser().resolve()
-
+    _process_only_first_n_paragraphs: int = int(os.getenv("WIKIPEDIA_PROCESS_ONLY_FIRST_N_PARAGRAPHS", "0"))
     _progress_flush_interval: int = 1000 # for the .progress file we track line number we stpped.
 
     def __init__(self, queue_service, logger):
@@ -215,6 +215,12 @@ class WikipediaKnowedgeService(KnowledgeService):
         # Extract content (wiki markup text)
         text_match = re.search(r"<text[^>]*>([^<]*(?:<(?!/text>)[^<]*)*)</text>", xml_page, re.DOTALL)
         content = text_match.group(1) if text_match else ""
+
+        if self._process_only_first_n_paragraphs > 0:
+            # untested bit of code ... to be tweaked, online it says a line is needed for markdown to do a
+            # paragraph break, so just using \n for this ...
+            paragraphs = re.split(r'\n{2,}', content)
+            content = '\n\n'.join(paragraphs[:self._process_only_first_n_paragraphs])
 
         # Extract last modified date (timestamp)
         timestamp_match = re.search(r"<timestamp>([^<]+)</timestamp>", xml_page)
