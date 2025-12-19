@@ -13,6 +13,12 @@ class EmbeddingBackendProvider(ABC):
     device: str
     max_seq_length: int
 
+    def set_device(self, device: str):
+        """
+        Set device type
+        """
+        raise NotImplementedError
+
     @abstractmethod
     def embed(self, text: List[str]) -> np.ndarray:
         """

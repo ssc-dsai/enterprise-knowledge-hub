@@ -3,3 +3,6 @@ disable=W0718
 
 [FORMAT]
 max-line-length=120
+
+[TYPECHECK]
+generated-members=torch.*,numpy.*

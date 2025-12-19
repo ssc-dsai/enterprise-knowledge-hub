@@ -2,7 +2,6 @@
 Utility class
 """
 from typing import Dict, Iterable
-import os
 from transformers import PreTrainedTokenizerBase, AutoTokenizer, AutoModel
 import torch
 
@@ -11,7 +10,7 @@ class EmbeddingUtil:
     Provides utility functions for embedding
     """
     @staticmethod
-    def chunk_text_by_tokens(text: str, 
+    def chunk_text_by_tokens(text: str,
                              tokenizer: PreTrainedTokenizerBase, max_tokens: int = 512, overlap_tokens: int = 64):
         """
         This module provides functions for calculating basic arithmetic operations.
@@ -51,7 +50,7 @@ class EmbeddingUtil:
                     "chunk_index": i,
                 },
             }
-                  
+
     @staticmethod
     def batched (iterable: Iterable[Dict], batch_size: int):
         """
@@ -65,10 +64,10 @@ class EmbeddingUtil:
                 batch = []
         if batch:
             yield batch
-          
+
     @staticmethod
     def detect_max_batch_size_torch(
-        # model_name: str,
+        model_name: str,
         max_seq_len: int = 512,
         device: str = "cuda",
         start_batch: int = 1,
@@ -77,19 +76,21 @@ class EmbeddingUtil:
         """
         Embedding Provider base
         """
-        # tokenizer = AutoTokenizer.from_pretrained(model_name)
-        # model = AutoModel.from_pretrained(model_name)
-        
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModel.from_pretrained(model_name)
+
         # if default and device is cpu, then lower batch cap
         if max_batch_cap == 4096 and device == 'cpu':
-            max_batch_cap: 1024
-        
-        
-        local_dir = os.path.expanduser("~/.cache/huggingface/hub/models--Qwen--Qwen3-Embedding-0.6B-GGUF/snapshots/370f27d7550e0def9b39c1f16d3fbaa13aa67728/")
-        tokenizer = AutoTokenizer.from_pretrained(local_dir, gguf_file="Qwen3-Embedding-0.6B-Q8_0.gguf",
-                                                  local_files_only=True)
-        model = AutoModel.from_pretrained(local_dir, gguf_file="Qwen3-Embedding-0.6B-Q8_0.gguf", local_files_only=True)
-        
+            max_batch_cap = 1024
+
+        # for testing lcoal
+        # local_dir = os.path.expanduser("~/.cache/huggingface/hub/models--Qwen--Qwen3-Embedding-0.6B-GGUF/snapshots/
+        # 370f27d7550e0def9b39c1f16d3fbaa13aa67728/")
+        # tokenizer = AutoTokenizer.from_pretrained(local_dir, gguf_file="Qwen3-Embedding-0.6B-Q8_0.gguf",
+        #                                           local_files_only=True)
+        # model = AutoModel.from_pretrained(local_dir, gguf_file="Qwen3-Embedding-0.6B-Q8_0.gguf",
+        # local_files_only=True)
+
         model.to(device)
         model.eval()
 
@@ -110,22 +111,15 @@ class EmbeddingUtil:
                 torch.cuda.reset_peak_memory_stats(device=device)
                 with torch.no_grad():
                     _ = model(**inputs)
-
-                #test logic
-                # if batch_size < 10: 
-                #     return True
-                # else:
-                #     raise RuntimeError("out of memory")
+                return True
             except RuntimeError as e:
                 print ('runtime======' + str(e).lower())
                 if "out of memory" in str(e).lower():
-                    
+
                     # Clear OOM state
                     print(f"OOM at batch_size={batch_size}")
                     # torch.cuda.empty_cache()
                     return False
-                else:
-                    raise
 
         # Phase 1: exponential search to find an upper bound where OOM happens
         low = 0
