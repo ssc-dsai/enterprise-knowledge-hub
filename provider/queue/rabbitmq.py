@@ -50,17 +50,17 @@ class RabbitMQProvider(QueueProvider):
             declared.add(queue_name)
             self._local.declared_queues = declared
 
-    def read(self, queue_name: str) -> Iterator[Any]:
+    def read(self, queue_name: str) -> Iterator[(Any, BlockingChannel)]:
         """Read all messages from the specified RabbitMQ queue using persistent connection."""
         channel = self._get_channel()
         self._ensure_queue_declared(channel, queue_name)
 
         while True:
             try:
-                method_frame, _, body = channel.basic_get(queue=queue_name, auto_ack=True)
+                method_frame, _, body = channel.basic_get(queue=queue_name)
                 if method_frame is None:
                     break
-                yield json.loads(body.decode('utf-8'))
+                yield json.loads(body.decode('utf-8')), channel
             except AMQPConnectionError:
                 # Reconnect and retry
                 self.logger.warning("Connection lost during read, reconnecting...")

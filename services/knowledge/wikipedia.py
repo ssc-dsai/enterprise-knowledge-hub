@@ -15,7 +15,7 @@ from sentence_transformers import SentenceTransformer
 
 import torch
 from services.knowledge.base import KnowledgeService
-from services.knowledge.models import WikipediaItem
+from services.knowledge.models import DatabaseWikipediaItem, WikipediaItem
 
 load_dotenv()
 
@@ -26,8 +26,9 @@ INDEX_FILENAME = re.compile(r"(?P<prefix>.+)-index(?P<chunk>\d*)\.txt\.bz2")
 # Load the model
 #model = SentenceTransformer("Qwen/Qwen3-Embedding-8B")
 #    model_kwargs={"attn_implementation": "flash_attention_2", "device_map": "auto"},
+MODEL=os.getenv("WIKIPEDIA_EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-0.6B")
 model = SentenceTransformer(
-    "Qwen/Qwen3-Embedding-8B",
+    MODEL,
     model_kwargs={"device_map": "auto"},# use 16 on gpu, 32 on cpu (ai recommendation?)
     tokenizer_kwargs={"padding_side": "left"},
 )
@@ -59,12 +60,23 @@ class WikipediaKnowedgeService(KnowledgeService):
     def __init__(self, queue_service, logger):
         super().__init__(queue_service=queue_service, logger=logger, service_name="wikipedia")
 
-    def process_queue(self, knowledge_item: dict[str, object]) -> None:
+    def process_queue(self, knowledge_item: dict[str, object]) -> DatabaseWikipediaItem:
         """Process ingested WikipediaItem from the queue."""
-        item: WikipediaItem = WikipediaItem(**knowledge_item)
-        document_embeddings = model.encode(item.content)
-        self.logger.debug("Done processing Wikipedia item: %s", item.title)
-
+        try:
+            item = WikipediaItem.from_dict(knowledge_item)
+            document_embeddings = model.encode(item.content)
+            self.logger.debug("Done processing Wikipedia item: %s", item.title)
+            return DatabaseWikipediaItem(
+                name=item.name,
+                title=item.title,
+                content=item.content,
+                last_modified_date=item.last_modified_date,
+                pid=item.pid,
+                embeddings=document_embeddings
+            )
+        except Exception as e:
+            self.logger.error("Error processing Wikipedia item: %s", e)
+            return None
 
     def fetch_from_source(self) -> Iterator[WikipediaItem]:
         """Read data from Wikipedia index.txt.bz2 source.

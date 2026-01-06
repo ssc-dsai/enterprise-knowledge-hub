@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from torch import Tensor
+
 
 @dataclass
 class KnowledgeItem(ABC):
@@ -24,6 +26,13 @@ class WikipediaItem(KnowledgeItem):
     last_modified_date: datetime | None = field(default=None)
     pid: int = field(default=0)  # Page ID
 
+    @classmethod
+    def from_dict(cls, data: dict[str, object]) -> "WikipediaItem":
+        """Create WikipediaItem from dictionary (queue deserialization)."""
+        if data.get("last_modified_date"):
+            data["last_modified_date"] = datetime.fromisoformat(data["last_modified_date"])
+        return cls(**data)
+
     def to_dict(self) -> dict[str, object]:
         """Convert to dictionary for queue serialization."""
         return {
@@ -33,3 +42,14 @@ class WikipediaItem(KnowledgeItem):
             "last_modified_date": self.last_modified_date.isoformat() if self.last_modified_date else None,
             "pid": self.pid,
         }
+
+@dataclass
+class DatabaseWikipediaItem(WikipediaItem):
+    """Knowledge item representing a Wikipedia page stored in a database."""
+    embeddings: Tensor | None = field(default=None)
+
+    def to_dict(self) -> dict[str, object]:
+        """Convert to dictionary for queue serialization."""
+        base_dict = super().to_dict()
+        base_dict.update({"embeddings": self.embeddings.__dict__ if self.embeddings is not None else None})
+        return base_dict
