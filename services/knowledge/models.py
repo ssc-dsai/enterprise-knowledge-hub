@@ -29,6 +29,7 @@ class WikipediaItem(KnowledgeItem):
     @classmethod
     def from_dict(cls, data: dict[str, object]) -> "WikipediaItem":
         """Create WikipediaItem from dictionary (queue deserialization)."""
+        data = data.copy()  # Don't mutate the input
         if data.get("last_modified_date"):
             data["last_modified_date"] = datetime.fromisoformat(data["last_modified_date"])
         return cls(**data)

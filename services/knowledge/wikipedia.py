@@ -32,7 +32,6 @@ model = SentenceTransformer(
     model_kwargs={"device_map": "auto"},# use 16 on gpu, 32 on cpu (ai recommendation?)
     tokenizer_kwargs={"padding_side": "left"},
 )
-
 if torch.cuda.is_available():
     torch.cuda.empty_cache()
 
@@ -64,7 +63,8 @@ class WikipediaKnowedgeService(KnowledgeService):
         """Process ingested WikipediaItem from the queue."""
         try:
             item = WikipediaItem.from_dict(knowledge_item)
-            document_embeddings = model.encode(item.content)
+            self.logger.debug("Generating embeddings for %s", item.title)
+            document_embeddings = model.encode(item.content, batch_size=32)
             return DatabaseWikipediaItem(
                 name=item.name,
                 title=item.title,
@@ -74,7 +74,7 @@ class WikipediaKnowedgeService(KnowledgeService):
                 embeddings=document_embeddings
             )
         except Exception as e:
-            self.logger.error("Error processing Wikipedia item: %s", e)
+            self.logger.error("Error processing embedding for Wikipedia item: %s", e)
             return None
 
     def fetch_from_source(self) -> Iterator[WikipediaItem]:

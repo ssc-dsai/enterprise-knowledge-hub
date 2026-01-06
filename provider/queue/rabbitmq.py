@@ -60,7 +60,7 @@ class RabbitMQProvider(QueueProvider):
                 method_frame, _, body = channel.basic_get(queue=queue_name)
                 if method_frame is None:
                     break
-                yield json.loads(body.decode('utf-8')), channel
+                yield json.loads(body.decode('utf-8')), method_frame.delivery_tag
             except AMQPConnectionError:
                 # Reconnect and retry
                 self.logger.warning("Connection lost during read, reconnecting...")

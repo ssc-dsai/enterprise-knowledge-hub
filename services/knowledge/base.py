@@ -74,7 +74,8 @@ class KnowledgeService(ABC):
                         self.queue_service.read_ack(delivery_tag, successful=True)
                     except Exception as e:
                         self.logger.exception("Error processing item in %s: %s", self.service_name, e)
-                        self.queue_service.read_ack(delivery_tag, successful=False)
+                        if delivery_tag is not None:
+                            self.queue_service.read_ack(delivery_tag, successful=False)
                 # Queue is empty - check if we should exit or wait
                 if self._producer_done.is_set():
                     break  # Producer done and queue empty
