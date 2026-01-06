@@ -27,11 +27,13 @@ INDEX_FILENAME = re.compile(r"(?P<prefix>.+)-index(?P<chunk>\d*)\.txt\.bz2")
 #model = SentenceTransformer("Qwen/Qwen3-Embedding-8B")
 #    model_kwargs={"attn_implementation": "flash_attention_2", "device_map": "auto"},
 MODEL=os.getenv("WIKIPEDIA_EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-0.6B")
+MODEL_MAX_LENGHTH=int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH", "32768"))
 model = SentenceTransformer(
     MODEL,
-    model_kwargs={"device_map": "auto"},# use 16 on gpu, 32 on cpu (ai recommendation?)
+    model_kwargs={"attn_implementation": "flash_attention_2", "device_map": "auto"},# use 16 on gpu, 32 on cpu (ai recommendation?)
     tokenizer_kwargs={"padding_side": "left"},
 )
+model.max_seq_length = MODEL_MAX_LENGHTH
 if torch.cuda.is_available():
     torch.cuda.empty_cache()
 
@@ -64,14 +66,27 @@ class WikipediaKnowedgeService(KnowledgeService):
         try:
             item = WikipediaItem.from_dict(knowledge_item)
             self.logger.debug("Generating embeddings for %s", item.title)
-            document_embeddings = model.encode(item.content, batch_size=32)
+
+            # Encode all chunks. Returns tensor of shape [num_chunks, embedding_dim]
+            embeddings = model.encode(
+                sentences=item.content,
+                batch_size=1, # Low batch size to prevent OOM
+                convert_to_tensor=True
+            )
+
+            # Aggressive cleanup for MPS
+            if torch.backends.mps.is_available():
+                torch.mps.empty_cache()
+            elif torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
             return DatabaseWikipediaItem(
                 name=item.name,
                 title=item.title,
                 content=item.content,
                 last_modified_date=item.last_modified_date,
                 pid=item.pid,
-                embeddings=document_embeddings
+                embeddings=embeddings
             )
         except Exception as e:
             self.logger.error("Error processing embedding for Wikipedia item: %s", e)
