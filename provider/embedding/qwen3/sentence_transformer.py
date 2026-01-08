@@ -28,7 +28,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         self.logger.debug("Model max sequence length: %d", self.model.max_seq_length)
 
     def embed(self, sentences: str, instruction: Union[str, None] = None, dim: int = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_DIM", "1024"))) -> np.ndarray:
-        chunks = super().chunk_text_by_tokens(sentences, max_tokens=self.model.max_seq_length)
+        chunks = self.chunk_text_by_tokens(sentences, max_tokens=self.model.max_seq_length)
         self.logger.debug("Split into %d chunks", len(chunks))
 
         # Encode the string chunks
@@ -48,3 +48,32 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
                 torch.cuda.empty_cache()
 
         return embeddings
+
+    def chunk_text_by_tokens(self, text: str, max_tokens: int = None, overlap_tokens: int = 200) -> list[str]:
+        """Split text into chunks based on token count with overlap."""
+        if max_tokens is None:
+            max_tokens = self.model.max_seq_length
+
+        # Tokenize the entire text
+        tokens = self.model.tokenizer.encode(text, add_special_tokens=False)
+
+        # If text fits in one chunk, return as-is
+        if len(tokens) <= max_tokens:
+            return [text]
+
+        chunks = []
+        start_idx = 0
+
+        while start_idx < len(tokens):
+            # Get chunk of tokens
+            end_idx = min(start_idx + max_tokens, len(tokens))
+            chunk_tokens = tokens[start_idx:end_idx]
+
+            # Decode back to text
+            chunk_text = self.model.tokenizer.decode(chunk_tokens, skip_special_tokens=True)
+            chunks.append(chunk_text)
+
+            # Move forward with overlap
+            start_idx += max_tokens - overlap_tokens
+
+        return chunks

@@ -5,9 +5,9 @@ from typing import Union
 import numpy as np
 import torch
 from dotenv import load_dotenv
+from llama_cpp import Llama
 
 from provider.embedding.base import EmbeddingBackendProvider
-from llama_cpp import Llama
 
 load_dotenv()
 
@@ -16,27 +16,31 @@ class Qwen3LlamaCpp(EmbeddingBackendProvider):
     Qwen3 Sentence Transformer embedding provider.
     """
     def __init__(self):
+        self.max_seq_length = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH", "4096"))
         self.model = Llama.from_pretrained(
             repo_id="Qwen/Qwen3-Embedding-0.6B-GGUF",
             filename="Qwen3-Embedding-0.6B-Q8_0.gguf",
-            embedding=True)
-        self.model.max_seq_length = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH", "4096"))
+            embedding=True,
+            n_ctx=self.max_seq_length,
+        )
         self.logger = logging.getLogger(__name__)
-        self.logger.debug("Model loaded on device: %s", self.model.device)
-        self.logger.debug("Model max sequence length: %d", self.model.max_seq_length)
+        self.logger.debug("Model max sequence length: %d", self.max_seq_length)
 
     def embed(self, sentences: str, instruction: Union[str, None] = None, dim: int = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_DIM", "1024"))) -> np.ndarray:
-        chunks = super().chunk_text_by_tokens(sentences, max_tokens=self.model.max_seq_length)
+        chunks = self.chunk_text_by_tokens(sentences, max_tokens=self.max_seq_length)
         self.logger.debug("Split into %d chunks", len(chunks))
 
-        # Encode the string chunks
-        embeddings = self.model.encode(
-            chunks,
-            convert_to_tensor=False,
-            show_progress_bar=bool(os.getenv("MODEL_SHOW_PROGRESS", "True").lower() == "true"),
-            batch_size=int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_BATCH_SIZE", "1")),  # Lower batch size for potentially large chunks
-            truncate_dim=dim
+        # Encode the string chunks (llama-cpp takes raw text, not tensors)
+        raw_embeddings = self.model.embed(
+            chunks if len(chunks) > 1 else chunks[0],
+            truncate=True,
         )
+
+        # Standardize shape: always return 2D array [num_chunks, dim]
+        if raw_embeddings and isinstance(raw_embeddings[0], (list, tuple)):
+            embeddings = np.asarray(raw_embeddings, dtype=np.float32)
+        else:
+            embeddings = np.asarray([raw_embeddings], dtype=np.float32)
 
         # Aggressive cleanup for MPS
         if os.getenv("WIKIPEDIA_EMBEDDING_MODEL_CLEANUP", "False").lower() == "true":
@@ -46,3 +50,35 @@ class Qwen3LlamaCpp(EmbeddingBackendProvider):
                 torch.cuda.empty_cache()
 
         return embeddings
+
+    def chunk_text_by_tokens(self, text: str, max_tokens: int = None, overlap_tokens: int = 200) -> list[str]:
+        """Split text into chunks based on token count with overlap."""
+        if max_tokens is None:
+            max_tokens = self.max_seq_length
+
+        # Tokenize the entire text via llama-cpp
+        tokens = self.model.tokenize(text.encode("utf-8"), add_bos=False, special=False)
+
+        # If text fits in one chunk, return as-is
+        if len(tokens) <= max_tokens:
+            return [text]
+
+        chunks = []
+        start_idx = 0
+        stride = max(max_tokens - overlap_tokens, 1)  # prevent infinite loop when overlap >= max_tokens
+
+        while start_idx < len(tokens):
+            # Get chunk of tokens
+            end_idx = min(start_idx + max_tokens, len(tokens))
+            chunk_tokens = tokens[start_idx:end_idx]
+
+            # Decode back to text
+            chunk_text = self.model.detokenize(chunk_tokens).decode("utf-8", errors="ignore")
+            chunks.append(chunk_text)
+
+            # Move forward with overlap
+            if end_idx >= len(tokens):
+                break
+            start_idx += stride
+
+        return chunks
