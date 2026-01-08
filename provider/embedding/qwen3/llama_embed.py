@@ -1,20 +1,20 @@
+"""Qwen3 embeddings using llama.cpp backend."""
+
+# pylint: disable=duplicate-code
 import logging
 import os
-from typing import Union
 
 import numpy as np
 import torch
 from dotenv import load_dotenv
-from llama_cpp import Llama
+from llama_cpp import Llama  # pylint: disable=no-name-in-module
 
 from provider.embedding.base import EmbeddingBackendProvider
 
 load_dotenv()
 
 class Qwen3LlamaCpp(EmbeddingBackendProvider):
-    """
-    Qwen3 Llama CPP embedding provider.
-    """
+    """Qwen3 Llama CPP embedding provider."""
     def __init__(self):
         self.max_seq_length = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH", "4096"))
         self.model = Llama.from_pretrained(
@@ -28,15 +28,17 @@ class Qwen3LlamaCpp(EmbeddingBackendProvider):
         self.logger = logging.getLogger(__name__)
         self.logger.debug("Model max sequence length: %d", self.max_seq_length)
 
-    def embed(self, sentences: str, instruction: Union[str, None] = None, dim: int = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_DIM", "1024"))) -> np.ndarray:
-        chunks = self.chunk_text_by_tokens(sentences, max_tokens=self.max_seq_length)
+    def embed(self, text: str) -> np.ndarray:
+        """Generate embeddings for the provided text, chunking if necessary."""
+        chunks = self.chunk_text_by_tokens(text, max_tokens=self.max_seq_length)
         self.logger.debug("Split into %d chunks", len(chunks))
 
         # Encode the string chunks
         raw_embeddings = self.model.embed(chunks)
 
         # Standardize shape: always return 2D array [num_chunks, dim]
-        embeddings = raw_embeddings if isinstance(raw_embeddings, np.ndarray) else np.asarray(raw_embeddings, dtype=np.float32)
+        embeddings = raw_embeddings if isinstance(raw_embeddings,
+                                                   np.ndarray) else np.asarray(raw_embeddings, dtype=np.float32)
         if embeddings.ndim == 1:
             embeddings = embeddings.reshape(1, -1)
 

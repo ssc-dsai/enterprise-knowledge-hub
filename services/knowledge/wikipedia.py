@@ -5,11 +5,12 @@
 import bz2
 import os
 import re
-import numpy as np
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+
+import numpy as np
 
 from dotenv import load_dotenv
 from services.knowledge.base import KnowledgeService

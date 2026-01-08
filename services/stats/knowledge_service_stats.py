@@ -3,12 +3,12 @@ Knowledge service statistics tracking.
   - only in memory at the moment but can be imroved later
   - curntly doesn't carry from run to run either, it's just to get live stats
 """
+# pylint: disable=duplicate-code
 import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Literal
-
 
 @dataclass
 class KnowledgeServiceStats:

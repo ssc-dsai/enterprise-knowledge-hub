@@ -1,9 +1,12 @@
-import numpy as np
+"""Base interface for embedding backends."""
+
 from abc import ABC, abstractmethod
-from typing import List
 from typing import Any
 
+import numpy as np
+
 class EmbeddingBackendProvider(ABC):
+    """Contract for embedding providers to implement."""
     model: Any
     model_name: str
     device: str

@@ -30,6 +30,7 @@ class WikipediaDbRecord:
 
     @classmethod
     def from_item(cls, item: DatabaseWikipediaItem) -> "WikipediaDbRecord":
+        """Build a record from a domain object, coercing embeddings to floats."""
         embedding = cls._to_floats(item.embeddings)
         return cls(
             pid=item.pid,
@@ -42,6 +43,7 @@ class WikipediaDbRecord:
         )
 
     def as_mapping(self) -> dict[str, object]:
+        """Return a mapping compatible with psycopg executemany parameters."""
         return {
             "pid": self.pid,
             "chunk_index": self.chunk_index,
@@ -75,6 +77,7 @@ class WikipediaPgRepository:
         pool_size: int = 5,
         batch_size: int = 500,
     ) -> None:
+        """Initialize the repository and open a connection pool."""
         self._table_name = table_name
         self._batch_size = batch_size
         self._pool = ConnectionPool(
@@ -88,6 +91,13 @@ class WikipediaPgRepository:
 
     @classmethod
     def from_env(cls) -> "WikipediaPgRepository":
+        """
+        Docstring for from_env
+        
+        :param cls: Description
+        :return: Description
+        :rtype: WikipediaPgRepository
+        """
         host = os.getenv("POSTGRES_HOST", "localhost")
         port = int(os.getenv("POSTGRES_PORT", "5432"))
         dbname = os.getenv("POSTGRES_DB", "postgres")
@@ -125,5 +135,6 @@ class WikipediaPgRepository:
             conn.commit()
 
     def close(self) -> None:
+        """Close the underlying connection pool."""
         if self._pool:
             self._pool.close()
