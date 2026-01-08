@@ -83,7 +83,7 @@ class WikipediaKnowedgeService(KnowledgeService):
             for idx, (chunk_text, vec) in enumerate(zip(chunks, arr), start=1):
                 results.append(
                     DatabaseWikipediaItem(
-                        name=f"{item.name}-chunk-{idx}",
+                        name=item.name,
                         title=f"{item.title} (chunk {idx}/{num_chunks})",
                         content=chunk_text,
                         last_modified_date=item.last_modified_date,

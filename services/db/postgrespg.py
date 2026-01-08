@@ -22,7 +22,6 @@ class WikipediaDbRecord:
     """Serializable record for Postgres storage."""
     pid: int
     chunk_index: int
-    file_name: str
     name: str
     title: str
     content: str
@@ -35,7 +34,6 @@ class WikipediaDbRecord:
         return cls(
             pid=item.pid,
             chunk_index=item.chunk_index,
-            file_name=item.name,  # keep stable per chunk; name already suffixed with -chunk-<n>
             name=item.name,
             title=item.title,
             content=item.content,
@@ -47,7 +45,6 @@ class WikipediaDbRecord:
         return {
             "pid": self.pid,
             "chunk_index": self.chunk_index,
-            "file_name": self.file_name,
             "name": self.name,
             "title": self.title,
             "content": self.content,
@@ -109,10 +106,9 @@ class WikipediaPgRepository:
 
         insert_sql = sql.SQL(
             """
-            INSERT INTO {table} (pid, chunk_index, file_name, name, title, content, last_modified_date, embedding)
-            VALUES (%(pid)s, %(chunk_index)s, %(file_name)s, %(name)s, %(title)s, %(content)s, %(last_modified_date)s, %(embedding)s)
+            INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding)
+            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s, %(last_modified_date)s, %(embedding)s)
             ON CONFLICT (pid, chunk_index) DO UPDATE SET
-                file_name = EXCLUDED.file_name,
                 name = EXCLUDED.name,
                 title = EXCLUDED.title,
                 content = EXCLUDED.content,

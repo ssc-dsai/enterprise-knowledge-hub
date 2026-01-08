@@ -27,7 +27,6 @@ CREATE TABLE documents (
    name TEXT,
    chunk_index INT,
    title TEXT,
-   file_name TEXT NOT NULL,
    content TEXT,
    last_modified_date DATE,
    embedding VECTOR(512),
