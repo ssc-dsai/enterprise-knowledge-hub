@@ -19,3 +19,22 @@ dependencies = [
 dev = [
     "pylint>=4.0.4",
 ]
+
+[tool.uv]
+# DOC: https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#installation
+# llama-cpp-python build configuration
+# Uncomment ONE of the following extra-build-variables lines based on your hardware:
+# follow up with (if rebuilding):
+# uv sync --upgrade --no-cache --reinstall-package llama-cpp-python
+
+# CPU only (default) - no extra args needed
+# extra-build-variables = {}
+
+# CUDA support (NVIDIA GPU)
+extra-build-variables = { llama-cpp-python = { CMAKE_ARGS = "-DGGML_CUDA=on -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc" } }
+
+# Metal support (Apple Silicon)
+# extra-build-variables = { llama-cpp-python = { CMAKE_ARGS = "-DGGML_METAL=on" } }
+
+# OpenBLAS support
+# extra-build-variables = { llama-cpp-python = { CMAKE_ARGS = "-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS" } }

@@ -41,3 +41,7 @@ uv sync
 # see how to populate your .content/<kbprovider> folder first in the README.md there
 uv run fastapi dev main.py
 ```
+
+### CUDA Support
+
+https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=WSL-Ubuntu&target_version=2.0&target_type=deb_local

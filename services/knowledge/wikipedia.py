@@ -12,7 +12,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from services.knowledge.base import KnowledgeService
-from services.knowledge.models import DatabaseWikipediaItem, WikipediaItem
+from services.knowledge.models import DatabaseWikipediaItem, KnowledgeItem, WikipediaItem
 
 load_dotenv()
 
@@ -105,6 +105,13 @@ class WikipediaKnowedgeService(KnowledgeService):
             return None
 
         return dump_path
+
+    def store_item(self, item: DatabaseWikipediaItem) -> None:
+        """Store the processed knowledge item into the knowledge base."""
+        # Implementation depends on the specific database or storage system being used.
+        # This is a placeholder for actual storage logic.
+        self.logger.debug("Storing Wikipedia item: %s", item.title)
+        # Example: self.database.save(item)
 
     def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItem]:
         """Process a single index file and yield WikipediaItems."""

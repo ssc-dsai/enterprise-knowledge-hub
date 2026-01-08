@@ -47,6 +47,11 @@ class KnowledgeService(ABC):
         """Process ingested data from the queue."""
         raise NotImplementedError("Subclasses must implement the process method.")
 
+    @abstractmethod
+    def store_item(self, item: KnowledgeItem) -> None:
+        """Store the processed knowledge item into the knowledge base."""
+        raise NotImplementedError("Subclasses must implement the store_item method.")
+
     def queue_for_processing(self) -> None:
         """Ingest data into the knowledge base."""
         self.logger.info("Ingesting data into the knowledge base. (%s)", self.service_name)
@@ -70,6 +75,7 @@ class KnowledgeService(ABC):
                 for item, delivery_tag in self.queue_service.read(queue_name):
                     try:
                         item_with_embedding = self.process_queue(item)
+                        self.store_item(item_with_embedding)
                         self._stats.record_processed()
                         self.queue_service.read_ack(delivery_tag, successful=True)
                     except Exception as e:
