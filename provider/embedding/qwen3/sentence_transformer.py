@@ -21,7 +21,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         if torch.cuda.is_available():
             torch.cuda.set_per_process_memory_fraction(float(os.getenv("PYTORCH_CUDA_GPU_CAP", "0.8")))
         # Reduce allocator chunk size to limit 4 GB blocks
-        os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "max_split_size_mb:128,garbage_collection_threshold:0.6,expandable_segments:False")
+        os.environ.setdefault("PYTORCH_ALLOC_CONF", "max_split_size_mb:128,garbage_collection_threshold:0.6,expandable_segments:False")
 
         dtype_env = os.getenv("WIKIPEDIA_EMBEDDING_MODEL_DTYPE", "float16").lower()
         dtype_map = {"float16": torch.float16, "float32": torch.float32}
@@ -33,7 +33,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         if torch.backends.mps.is_available():
             dtype = torch.float32
 
-        model_device = torch.device("mps") if torch.backends.mps.is_available() else "auto"
+        model_device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else "auto" #pylint: disable=line-too-long
 
         self.model = SentenceTransformer(
             "Qwen/Qwen3-Embedding-0.6B",

@@ -141,6 +141,7 @@ class WikipediaKnowedgeService(KnowledgeService):
         record = WikipediaDbRecord.from_item(item)
         self._pending.append(record)
         if len(self._pending) >= self._batch_size:
+            self.logger.debug("Flushing %d pending records to the database", len(self._pending))
             self._flush_pending()
 
     def finalize_processing(self) -> None:
@@ -149,7 +150,6 @@ class WikipediaKnowedgeService(KnowledgeService):
     def _flush_pending(self) -> None:
         if not self._pending:
             return
-        self.logger.debug("Flushing %d wikipedia records to Postgres", len(self._pending))
         self._repository.insert_many(self._pending)
         self._pending.clear()
 

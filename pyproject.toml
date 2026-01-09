@@ -6,9 +6,12 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "accelerate>=1.12.0",
+    "bitsandbytes>=0.49.1",
     "fastapi[standard]>=0.124.4",
+    "flash-attn>=2.8.3",
     "langchain>=1.2.1",
     "llama-cpp-python>=0.3.16",
+    "ninja>=1.13.0",
     "pgvector>=0.2.5",
     "pika>=1.3.2",
     "psycopg[binary,pool]>=3.2",
@@ -23,17 +26,15 @@ dev = [
 ]
 
 [tool.uv]
+no-build-isolation-package = ["flash-attn"]
 # DOC: https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#installation
 # llama-cpp-python build configuration
 # Uncomment ONE of the following extra-build-variables lines based on your hardware:
 # follow up with (if rebuilding):
 # uv sync --upgrade --no-cache --reinstall-package llama-cpp-python
 
-# CPU only (default) - no extra args needed
-extra-build-variables = {}
-
 # CUDA support (NVIDIA GPU)
-# extra-build-variables = { llama-cpp-python = { CMAKE_ARGS = "-DGGML_CUDA=on -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc" } }
+#extra-build-variables = { llama-cpp-python = { CMAKE_ARGS = "-DGGML_CUDA=on -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc" }}
 
 # Metal support (Apple Silicon)
 # extra-build-variables = { llama-cpp-python = { CMAKE_ARGS = "-DGGML_METAL=on" } }
