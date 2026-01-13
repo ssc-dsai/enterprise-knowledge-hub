@@ -98,15 +98,17 @@ class WikipediaPgRepository:
         :return: Description
         :rtype: WikipediaPgRepository
         """
-        host = os.getenv("POSTGRES_HOST", "localhost")
+        host = os.getenv("POSTGRES_HOST", "172.16.123.217")
         port = int(os.getenv("POSTGRES_PORT", "5432"))
         dbname = os.getenv("POSTGRES_DB", "postgres")
         user = os.getenv("POSTGRES_USER", "postgres")
-        password = os.getenv("POSTGRES_PASSWORD", "postgres")
+        password = os.getenv("POSTGRES_PASSWORD", "posconninfotgres")
         table_name = os.getenv("WIKIPEDIA_TABLE", "documents")
         pool_size = int(os.getenv("POSTGRES_POOL_SIZE", "5"))
         batch_size = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
         conninfo = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
+        print('==================conn info')
+        print(conninfo)
         return cls(conninfo=conninfo, table_name=table_name, pool_size=pool_size, batch_size=batch_size)
 
     def insert_many(self, rows: Sequence[WikipediaDbRecord]) -> None:
@@ -133,6 +135,20 @@ class WikipediaPgRepository:
                 batch = params[i : i + self._batch_size]
                 cur.executemany(insert_sql.as_string(conn), batch)
             conn.commit()
+            
+    def get_record(self):
+        query_sql = sql.SQL(
+            """
+            SELECT * FROM {table}
+            ORDER BY id ASC LIMIT 5
+            """
+        ).format(table=sql.Identifier(self._table_name))
+        
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql)
+            rows = cur.fetchall()
+            
+        return rows
 
     def close(self) -> None:
         """Close the underlying connection pool."""
