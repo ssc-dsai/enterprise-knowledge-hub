@@ -36,6 +36,10 @@ CREATE TABLE documents (
 -- Recommended ANN index for pgvector
 CREATE INDEX IF NOT EXISTS documents_embedding_idx
    ON documents USING ivfflat (embedding vector_l2_ops) WITH (lists = 100);
+
+-- Readonly user created
+CREATE USER readonly_user WITH PASSWORD 'readonly';
+GRANT pg_read_all_data TO readonly_user;
 ```
 
 ### Running locally
