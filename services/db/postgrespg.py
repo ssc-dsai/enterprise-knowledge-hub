@@ -104,7 +104,7 @@ class WikipediaPgRepository:
         port = int(os.getenv("POSTGRES_PORT", "5432"))
         dbname = os.getenv("POSTGRES_DB", "postgres")
         user = os.getenv("POSTGRES_USER", "postgres")
-        # For running local connected to DB use "postconninfotgres" instead 
+        # For running local connected to DB use "postconninfotgres" instead
         password = os.getenv("POSTGRES_PASSWORD", "postgres")
         table_name = os.getenv("WIKIPEDIA_TABLE", "documents")
         pool_size = int(os.getenv("POSTGRES_POOL_SIZE", "5"))
