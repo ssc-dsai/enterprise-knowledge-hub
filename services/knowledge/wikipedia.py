@@ -28,6 +28,7 @@ if os.getenv("WIKIPEDIA_EMBEDDING_MODEL_BACKEND", "LLAMA").upper() == "SENTENCE_
 else:
     from provider.embedding.qwen3.llama_embed import Qwen3LlamaCpp
     embedder = Qwen3LlamaCpp()
+
 @dataclass
 class WikipediaKnowedgeService(KnowledgeService):
     """Knowledge service for Wikipedia ingestion."""
@@ -61,9 +62,7 @@ class WikipediaKnowedgeService(KnowledgeService):
             item = WikipediaItem.from_dict(knowledge_item)
             self.logger.debug("Generating embeddings for %s", item.title)
 
-            max_tokens = getattr(embedder, "max_seq_length", None)
-            if max_tokens is None:
-                max_tokens = getattr(getattr(embedder, "model", None), "max_seq_length", None)
+            max_tokens = embedder.max_seq_length
 
             chunks = embedder.chunk_text_by_tokens(item.content, max_tokens=max_tokens)
             embeddings = embedder.embed(item.content)

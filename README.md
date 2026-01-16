@@ -54,3 +54,19 @@ uv run fastapi dev main.py
 ### CUDA Support
 
 https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=WSL-Ubuntu&target_version=2.0&target_type=deb_local
+
+### L40 GPU configurations
+
+Those are the configs we used for our first run on the L40 GPU
+
+```bash
+WIKIPEDIA_EMBEDDING_MODEL_BACKEND=SENTENCE_TRANSFORMER
+WIKIPEDIA_EMBEDDING_MODEL_CLEANUP=False
+WIKIPEDIA_EMBEDDING_MODEL_BATCH_SIZE=8
+WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH=4096
+WIKIPEDIA_EMBEDDING_MODEL_MAX_DIM=512 #do not change, tied to DB PgVector column config
+POSTGRES_BATCH_SIZE=1000
+PYTORCH_ALLOC_CONF="max_split_size_mb:128,garbage_collection_threshold:0.6,expandable_segments:True"
+PYTORCH_CUDA_GPU_CAP=0.9
+MODEL_SHOW_PROGRESS=False
+```

@@ -60,7 +60,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
             model_kwargs=model_kwargs,
             tokenizer_kwargs={"padding_side": "left"},
         )
-        self.model.max_seq_length = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH", "4096"))
+        self.max_seq_length = self.model.max_seq_length = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH", "4096"))
         self.logger.debug("Model loaded on device: %s", self.model.device)
         self.logger.debug("Model max sequence length: %d", self.model.max_seq_length)
 
@@ -96,7 +96,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
     def chunk_text_by_tokens(self, text: str, max_tokens: int = None, overlap_tokens: int = 200) -> list[str]:
         """Split text into chunks based on token count with overlap."""
         if max_tokens is None:
-            max_tokens = self.model.max_seq_length
+            max_tokens = self.max_seq_length
 
         # Tokenize the entire text
         tokens = self.model.tokenizer.encode(text, add_special_tokens=False)

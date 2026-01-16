@@ -32,11 +32,12 @@ dev = [
 
 [tool.uv]
 no-build-isolation-package = ["flash-attn"]
-# DOC: https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#installation
+
 # llama-cpp-python build configuration
-# Uncomment ONE of the following extra-build-variables lines based on your hardware:
-# follow up with (if rebuilding):
-# uv sync --upgrade --no-cache --reinstall-package llama-cpp-python
+#   DOC: https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#installation
+#   Uncomment ONE of the following extra-build-variables lines based on your hardware:
+#   follow up with (if rebuilding):
+#   uv sync --upgrade --no-cache --reinstall-package llama-cpp-python
 
 # CUDA support (NVIDIA GPU)
 #extra-build-variables = { llama-cpp-python = { CMAKE_ARGS = "-DGGML_CUDA=on -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc" }}

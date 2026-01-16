@@ -74,11 +74,11 @@ class KnowledgeService(ABC):
                 # Drain all available messages
                 for item, delivery_tag in self.queue_service.read(queue_name):
                     try:
-                        processed = self.process_queue(item)
+                        processed = self.process_queue(item) # GPU work happens here
                         items = processed if isinstance(processed, list) else [processed]
                         for item_with_embedding in items:
                             self.store_item(item_with_embedding)
-                            self._stats.record_processed()
+                        self._stats.record_processed()
                         self.queue_service.read_ack(delivery_tag, successful=True)
                     except Exception as e:
                         self.logger.exception("Error processing item in %s: %s", self.service_name, e)
