@@ -14,6 +14,16 @@ from provider.embedding.base import EmbeddingBackendProvider
 
 load_dotenv()
 
+def _is_flash_attn_available() -> bool:
+    """Check if flash-attn is installed and CUDA is available."""
+    if not torch.cuda.is_available():
+        return False
+    try:
+        import flash_attn  # pylint: disable=import-outside-toplevel,unused-import
+        return True
+    except ImportError:
+        return False
+
 class Qwen3SentenceTransformer(EmbeddingBackendProvider):
     """Qwen3 Sentence Transformer embedding provider."""
     def __init__(self):
@@ -35,13 +45,18 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
 
         model_device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else "auto" #pylint: disable=line-too-long
 
+        # Use flash_attention_2 only if flash-attn package is installed and CUDA is available
+        attn_impl = "flash_attention_2" if _is_flash_attn_available() else None
+        model_kwargs = {
+            "device_map": model_device,
+            "dtype": dtype,
+        }
+        if attn_impl:
+            model_kwargs["attn_implementation"] = attn_impl
+
         self.model = SentenceTransformer(
             "Qwen/Qwen3-Embedding-0.6B",
-            model_kwargs={
-                "device_map": model_device,
-                "dtype": dtype,
-                "attn_implementation": "flash_attention_2" if torch.cuda.is_available() else "",
-            },
+            model_kwargs=model_kwargs,
             tokenizer_kwargs={"padding_side": "left"},
         )
         self.model.max_seq_length = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH", "4096"))

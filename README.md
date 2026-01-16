@@ -45,7 +45,8 @@ CREATE INDEX IF NOT EXISTS documents_embedding_idx
 ```bash
 uv venv
 source .venv/bin/activate
-uv sync
+# IF YOUR MACHINE DOESN'T SUPPORT CUDA skip the --extra flag
+uv sync --extra cuda
 # see how to populate your .content/<kbprovider> folder first in the README.md there
 uv run fastapi dev main.py
 ```
