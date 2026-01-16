@@ -24,7 +24,7 @@ class QueryService():
         query_embedding = self.embedder.embed(query)
         results = self._repository.search_by_embedding(query_embedding, limit)
         return results
-    
+
     def get_article_content_by_title(self, title: str) -> list[DocumentRecord]:
         """Get article contentn based on title"""
 
