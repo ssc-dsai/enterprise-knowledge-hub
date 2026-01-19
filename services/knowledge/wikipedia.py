@@ -22,6 +22,7 @@ load_dotenv()
 
 PROGRESS_SUFFIX: str = ".progress"
 INDEX_FILENAME = re.compile(r"(?P<prefix>.+)-index(?P<chunk>\d*)\.txt\.bz2")
+QUEUE_BATCH_NAME = "wikipedia_embeddings_sink"
 
 @dataclass
 class WikipediaKnowedgeService(KnowledgeService):
@@ -136,14 +137,17 @@ class WikipediaKnowedgeService(KnowledgeService):
 
         return dump_path
 
-    def store_item(self, item: DatabaseWikipediaItem) -> None:
+    def store_item(self, item: DatabaseWikipediaItem, queue_name: str = "wikipedia_embedding_sink") -> None:
         """Store the processed knowledge item into the knowledge base."""
-        record = WikipediaDbRecord.from_item(item)
-        self._pending.append(record)
-        if len(self._pending) >= self._batch_size:
-            self.logger.debug("Flushing %d pending records to the database", len(self._pending))
-            self._flush_pending()
-
+        # record = WikipediaDbRecord.from_item(item)
+        # self._pending.append(record)
+        # if len(self._pending) >= self._batch_size:
+        #     self.logger.debug("Flushing %d pending records to the database", len(self._pending))
+        #     self._flush_pending()
+            
+    def process_embedding_sink() -> None:
+        return ""        
+        
     def finalize_processing(self) -> None:
         self._flush_pending()
 
