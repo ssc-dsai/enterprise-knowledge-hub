@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Search and Retrieve</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2em;
+        }
+        #results {
+            margin-top: 2em;
+        }
+        .result {
+            margin-bottom: 1em;
+            padding: 1em;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .file-content {
+            margin-top: 0.5em;
+            padding: 1em;
+            border: 1px dashed #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            max-width: 100%;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            box-sizing: border-box;
+        }
+        input[type="text"] {
+            width: 300px;
+            padding: 0.5em;
+        }
+        button {
+            padding: 0.5em 1em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Enterprise Knowledge Hub Endpoint test</h1>
+    <form id="searchForm">
+        <input type="text" id="query" placeholder="Please enter your search query..." required />
+        <button type="submit">Search</button>
+    </form>
+    <div id="results"></div>
+    <script>
+        document.getElementById('searchForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const query = document.getElementById('query').value;
+    const resultsDiv = document.getElementById('results');
+    resultsDiv.innerHTML = 'Searching...';
+
+    try {
+        const response = await fetch('/database/search?query=' + encodeURIComponent(query), {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) throw new Error('Search failed');
+
+        // Parse the response JSON (expects a list of tuples)
+        const results = await response.json();
+        console.log('Search results:', results);
+
+        if (results.length === 0) {
+            resultsDiv.innerHTML = '<em>No results found.</em>';
+        } else {
+            // Create HTML for each result by extracting file path and relevance score
+            console.log(typeof(results.results));
+            resultsDiv.innerHTML = results.results.map(([filePath, score], i) => {
+        // const fileName = filePath.split('/').pop(); // Extract the file name from the path
+        return `
+            <div class="result">
+                <button class="retrieveButton" data-id="${filePath}">
+                    <strong>Result ${i + 1}:</strong> ${filePath} (Score: ${score.toFixed(2)})
+                </button>
+                <div class="file-content" id="file-content-${i}" style="display: none;"></div>
+            </div>
+        `;
+        }).join('');
+
+            // Attach event listeners to each retrieve button
+            document.querySelectorAll('.retrieveButton').forEach(button => {
+                button.addEventListener('click', async function () {
+                    const filePath = this.getAttribute('data-id'); // Get the file path
+                    const fileContentDiv = this.nextElementSibling; // The <div> below the button
+                    fileContentDiv.style.display = 'block';
+                    fileContentDiv.innerHTML = 'Retrieving document...'; // Show loading message
+
+                    try {
+                        // Perform a fetch here to the /retrieve endpoint using the file path as a query parameter
+                        // console.log('Retrieving document for filePath:', filePath);
+                        fileName = filePath.split("/").pop();
+                        console.log('FILENAME',fileName)
+                        const response = await fetch(`/database/retrieve/${encodeURIComponent(fileName)}`, {
+                            method: 'GET',
+                            headers: { 'Accept': 'text/html' } // Request HTML instead of JSON
+                        });
+                        if (!response.ok) throw new Error('Failed to retrieve document');
+
+                        const documentContents = await response.text(); // Get the document content as text
+                        fileContentDiv.innerHTML = `
+                            <strong>Content of ${filePath}:</strong><br>
+                            <pre>${documentContents}</pre>
+                        `;
+                    } catch (err) {
+                        fileContentDiv.innerHTML = '<span style="color:red">' + err.message + '</span>';
+                    }
+                });
+            });
+        }
+    } catch (err) {
+        resultsDiv.innerHTML = '<span style="color:red">' + err.message + '</span>';
+    }
+});
+    </script>
+</body>
+</html>
