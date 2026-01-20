@@ -53,3 +53,13 @@ class WikipediaItem(KnowledgeItem):
 class DatabaseWikipediaItem(WikipediaItem):
     """Knowledge item representing a Wikipedia page stored in a database."""
     embeddings: np.ndarray | Tensor | None = field(default=None)
+    testing: str = "toooo"
+    
+    def to_dict(self) -> dict[str, object]: 
+        """Convert to dictionary for queue serialization."""
+        result = super().to_dict()
+        
+        result.update({
+            "embeddings": self.testing
+        })
+        return result

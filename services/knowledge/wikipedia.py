@@ -137,25 +137,32 @@ class WikipediaKnowedgeService(KnowledgeService):
 
         return dump_path
 
-    def store_item(self, item: DatabaseWikipediaItem, queue_name: str = "wikipedia_embedding_sink") -> None:
+    def store_item(self, item: DatabaseWikipediaItem, queue_name: str = QUEUE_BATCH_NAME) -> None:
         """Store the processed knowledge item into the knowledge base."""
-        # record = WikipediaDbRecord.from_item(item)
-        # self._pending.append(record)
-        # if len(self._pending) >= self._batch_size:
-        #     self.logger.debug("Flushing %d pending records to the database", len(self._pending))
-        #     self._flush_pending()
-            
-    def process_embedding_sink() -> None:
-        return ""        
+        record = WikipediaDbRecord.from_item(item)
+        self.queue_service.write(queue_name, record) # need to serialize
+        # no batch, just insert one by one
         
-    def finalize_processing(self) -> None:
-        self._flush_pending()
+    # def finalize_processing(self) -> None:
+    #     self._flush_pending()
 
-    def _flush_pending(self) -> None:
-        if not self._pending:
-            return
-        self._repository.insert_many(self._pending)
-        self._pending.clear()
+    def process_wikipedia_sink(self) -> None:
+        self.logger.info("Processing wikipedia embedding sink data. (%s)", self.service_name)
+        try:
+            while True:
+                # Drain all available messages
+                for item, delivery_tag in self.queue_service.read(QUEUE_BATCH_NAME):
+                    try:
+                        self.logger.info("insert here")
+                        # insert into db
+                        # make sure ack after.
+                    except Exception as e:
+                        self.logger.exception("Error processing item in %s: %s", self.service_name, e)
+                        # if delivery_tag is not None:
+                        #     self.queue_service.read_ack(delivery_tag, successful=False)
+                # Queue is empty - check if we should exit or wait
+        except Exception as e:
+            self.logger.exception("Error during processing for wikipedia embedding sink %s: %s", self.service_name, e)
 
     def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItem]:
         """Process a single index file and yield WikipediaItems."""
