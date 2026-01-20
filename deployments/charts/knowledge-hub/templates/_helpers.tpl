@@ -50,13 +50,3 @@ app.kubernetes.io/name: {{ include "knowledge-hub.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
-{{/*
-Create the name of the service account to use
-*/}}
-{{- define "knowledge-hub.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "knowledge-hub.fullname" .) .Values.serviceAccount.name }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name }}
-{{- end }}
-{{- end }}

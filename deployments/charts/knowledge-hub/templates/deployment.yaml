@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "knowledge-hub.fullname" . }}
+  labels:
+    {{- include "knowledge-hub.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "knowledge-hub.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "knowledge-hub.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+          {{- end }}
+          env:
+            - name: PYTORCH_ALLOC_CONF
+              value: {{ .Values.pytorch.allocConf | quote }}
+            {{- with .Values.wikiEmbeddingModel }}
+            - name: WIKIPEDIA_EMBEDDING_MODEL_BACKEND
+              value: {{ .backend | quote }}
+            - name: WIKIPEDIA_EMBEDDING_MODEL_CLEANUP
+              value: {{ .cleanup | quote }}
+            - name: WIKIPEDIA_EMBEDDING_MODEL_BATCH_SIZE
+              value: {{ .batchSize | quote }}
+            - name: WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH
+              value: {{ .maxLength | quote }}
+            - name: WIKIPEDIA_EMBEDDING_MODEL_MAX_DIM
+              value: {{ .maxDim | quote }}
+            - name: WIKIPEDIA_EMBEDDING_MODEL_DTYPE
+              value: {{ .dtype | quote }}
+            {{- end }}
+            {{- with .Values.postgresql }}
+            - name: POSTGRES_USER
+              value: {{ .user | quote }}
+            - name: POSTGRES_DB
+              value: {{ .name | quote }}
+            - name: POSTGRES_HOST
+              value: {{ .host | quote }}
+            - name: POSTGRES_PORT
+              value: {{ .port | quote }}
+            - name: POSTGRES_BATCH_SIZE
+              value: {{ .batchSize | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  {{- if kindIs "string" .password }}
+                  name: {{include "knowledge-hub.fullname" .}}-postgresql-secret
+                  key: POSTGRES_PASSWORD
+                  {{- else if and (kindIs "map" .password) (.password.valueFrom.secretKeyRef.name) (.password.valueFrom.secretKeyRef.key) }}
+                  name: {{ .password.valueFrom.secretKeyRef.name }}
+                  key: {{ .password.valueFrom.secretKeyRef.key }}
+                  {{- else }}
+                  {{ fail "Error occurred while templating .postgresql.password. Please ensure it is either a string or a map referencing valueFrom.secretKeyRef" }}
+                  {{- end }}
+            {{- end }}
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  {{- if kindIs "string" .Values.rabbitmq.url }}
+                  name: {{include "knowledge-hub.fullname" .}}-rabbitmq-url-secret
+                  key: RABBITMQ_URL
+                  {{- else if and (kindIs "map" .Values.rabbitmq.url) (.Values.rabbitmq.url.valueFrom.secretKeyRef.name) (.Values.rabbitmq.url.valueFrom.secretKeyRef.key) }}
+                  name: {{ .Values.rabbitmq.url.valueFrom.secretKeyRef.name }}
+                  key: {{ .Values.rabbitmq.url.valueFrom.secretKeyRef.key }}
+                  {{- else }}
+                  {{ fail "Error occurred while templating .rabbitmq.url. Please ensure it is either a string or a map referencing valueFrom.secretKeyRef" }}
+                  {{- end }}
+         resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
