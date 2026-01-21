@@ -43,80 +43,119 @@
     <h1>Enterprise Knowledge Hub Endpoint test</h1>
     <form id="searchForm">
         <input type="text" id="query" placeholder="Please enter your search query..." required />
-        <button type="submit">Search</button>
+        <label for="limit" style="margin-left:0.5em;">Results: <span id="limitValue">5</span></label>
+        <input type="range" id="limit" name="limit" min="1" max="20" value="5" style="vertical-align:middle; margin-left:0.5em;" />
+        <button type="submit" style="margin-left:0.75em;">Search</button>
     </form>
     <div id="results"></div>
     <script>
-        document.getElementById('searchForm').addEventListener('submit', async function (e) {
-    e.preventDefault();
-    const query = document.getElementById('query').value;
-    const resultsDiv = document.getElementById('results');
-    resultsDiv.innerHTML = 'Searching...';
-
-    try {
-        const response = await fetch('/database/search?query=' + encodeURIComponent(query), {
-            method: 'GET',
-            headers: { 'Accept': 'application/json' }
+        // update displayed slider value
+        document.getElementById('limit').addEventListener('input', function (e) {
+            document.getElementById('limitValue').textContent = e.target.value;
         });
 
-        if (!response.ok) throw new Error('Search failed');
+        document.getElementById('searchForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const query = document.getElementById('query').value;
+            const limit = document.getElementById('limit').value;
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = 'Searching...';
 
-        // Parse the response JSON (expects a list of tuples)
-        const results = await response.json();
-        console.log('Search results:', results);
+            try {
+                const response = await fetch('/database/search?query=' + encodeURIComponent(query) + '&limit=' + encodeURIComponent(limit), {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' }
+                });
 
-        if (results.length === 0) {
-            resultsDiv.innerHTML = '<em>No results found.</em>';
-        } else {
-            // Create HTML for each result by extracting file path and relevance score
-            console.log(typeof(results.results));
-            resultsDiv.innerHTML = results.results.map(([filePath, content, node, score], i) => {
-        // const fileName = filePath.split('/').pop(); // Extract the file name from the path
-        return `
+                if (!response.ok) throw new Error('Search failed');
+
+                // Parse the response JSON and normalize to an array of items
+                const raw = await response.json();
+                console.log('Search raw results:', raw);
+
+                const items = Array.isArray(raw) ? raw : (raw && raw.results) ? raw.results : (raw && raw.items) ? raw.items : [];
+
+                if (!items || items.length === 0) {
+                    resultsDiv.innerHTML = '<em>No results found.</em>';
+                    return;
+                }
+
+                // Map each item to a consistent shape and render
+                resultsDiv.innerHTML = items.map((item, i) => {
+                    let filePath = '';
+                    let content = '';
+                    let node = '';
+                    let score = 0;
+
+                    if (Array.isArray(item)) {
+                        [filePath, content, node, score] = item;
+                    } else if (item && typeof item === 'object') {
+                        filePath = item.name || item.title || item.path || item.filePath || '';
+                        content = item.content || item.snippet || item.excerpt || '';
+                        node = item.chunk_index ?? item.node ?? '';
+                        score = item.similarity ?? item.score ?? 0;
+                    } else {
+                        // fallback stringify
+                        content = String(item);
+                    }
+
+                    const scoreText = (typeof score === 'number') ? score.toFixed(2) : score;
+
+                    return `
             <div class="result">
-                <button class="retrieveButton" data-id="${filePath}">
-                    <strong>Result ${i + 1}:</strong> ${filePath} (node ${node}) (Score: ${score.toFixed(2)})
+                <button class="retrieveButton" data-id="${escapeHtml(filePath)}">
+                    <strong>Result ${i + 1}:</strong> ${escapeHtml(filePath)} (node ${escapeHtml(node)}) (Score: ${escapeHtml(scoreText)})
                 </button>
-                // <p>Snippet: ${content}</p>
+                <p>${escapeHtml(content)}</p>
                 <div class="file-content" id="file-content-${i}" style="display: none;"></div>
             </div>
         `;
-        }).join('');
+                }).join('');
 
-            // Attach event listeners to each retrieve button
-            document.querySelectorAll('.retrieveButton').forEach(button => {
-                button.addEventListener('click', async function () {
-                    const filePath = this.getAttribute('data-id'); // Get the file path
-                    const fileContentDiv = this.nextElementSibling; // The <div> below the button
-                    fileContentDiv.style.display = 'block';
-                    fileContentDiv.innerHTML = 'Retrieving document...'; // Show loading message
+                // Attach event listeners to each retrieve button
+                document.querySelectorAll('.retrieveButton').forEach(button => {
+                    button.addEventListener('click', async function () {
+                        const filePath = this.getAttribute('data-id'); // Get the file path/title
+                        const parent = this.parentElement;
+                        const fileContentDiv = parent.querySelector('.file-content');
+                        if (!fileContentDiv) return;
+                        fileContentDiv.style.display = 'block';
+                        fileContentDiv.innerHTML = 'Retrieving document...'; // Show loading message
 
-                    try {
-                        // Perform a fetch here to the /retrieve endpoint using the file path as a query parameter
-                        // console.log('Retrieving document for filePath:', filePath);
-                        fileName = filePath.split("/").pop();
-                        console.log('FILENAME',fileName)
-                        const response = await fetch(`/database/retrieve/${encodeURIComponent(fileName)}`, {
-                            method: 'GET',
-                            headers: { 'Accept': 'text/html' } // Request HTML instead of JSON
-                        });
-                        if (!response.ok) throw new Error('Failed to retrieve document');
+                        try {
+                            // Derive a document identifier (use last segment if a path)
+                            const fileName = (filePath || '').split('/').pop();
+                            const response = await fetch(`/database/retrieve/${encodeURIComponent(fileName)}`, {
+                                method: 'GET',
+                                headers: { 'Accept': 'text/html' }
+                            });
+                            if (!response.ok) throw new Error('Failed to retrieve document');
 
-                        const documentContents = await response.text(); // Get the document content as text
-                        fileContentDiv.innerHTML = `
-                            <strong>Content of ${filePath}:</strong><br>
-                            <pre>${documentContents}</pre>
+                            const documentContents = await response.text(); // Get the document content as text
+                            fileContentDiv.innerHTML = `
+                            <strong>Content of ${escapeHtml(filePath)}:</strong><br>
+                            <pre>${escapeHtml(documentContents)}</pre>
                         `;
-                    } catch (err) {
-                        fileContentDiv.innerHTML = '<span style="color:red">' + err.message + '</span>';
-                    }
+                        } catch (err) {
+                            fileContentDiv.innerHTML = '<span style="color:red">' + escapeHtml(err.message || 'Unknown error') + '</span>';
+                        }
+                    });
                 });
-            });
+            } catch (err) {
+                resultsDiv.innerHTML = '<span style="color:red">' + escapeHtml(err.message || 'Search error') + '</span>';
+            }
+        });
+
+        // Small helper to avoid injecting raw HTML
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
-    } catch (err) {
-        resultsDiv.innerHTML = '<span style="color:red">' + err.message + '</span>';
-    }
-});
     </script>
 </body>
 </html>
