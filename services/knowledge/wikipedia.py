@@ -54,6 +54,7 @@ class WikipediaKnowedgeService(KnowledgeService):
     _process_only_first_n_paragraphs: int = int(os.getenv("WIKIPEDIA_PROCESS_ONLY_FIRST_N_PARAGRAPHS", "0"))
     _progress_flush_interval: int = 1000 # for the .progress file we track line number we stpped.
     _batch_size: int = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
+    _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
 
     def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None):
         super().__init__(queue_service=queue_service, logger=logger, service_name="wikipedia")
@@ -230,6 +231,21 @@ class WikipediaKnowedgeService(KnowledgeService):
         """Extract and parse all pages from XML content."""
         for page_match in re.finditer(r"<page>(.*?)</page>", xml_content, re.DOTALL):
             page_xml = page_match.group(0)
+
+            # optional write to disk for debug purposes
+            if self._debug_extraction:
+                try:
+                    title_match = re.search(r"<title>([^<]+)</title>", page_xml)
+                    title = title_match.group(1) if title_match else "unknown_title"
+                    safe_title = re.sub(r'[\\/:"*?<>|]+', '_', title)  # Sanitize filename
+                    debug_path = self._content_folder_path / "debug_extracted_pages"
+                    debug_path.mkdir(parents=True, exist_ok=True)
+                    file_path = debug_path / f"{safe_title}.xml"
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(page_xml)
+                except Exception as exc:
+                    self.logger.debug("Failed to write extracted page xml: %s", exc)
+
             if not self._should_ignore_page(page_xml):
                 item = self._parse_page_xml(page_xml)
                 if item:
