@@ -178,9 +178,9 @@ class WikipediaKnowedgeService(KnowledgeService):
                         if delivery_tag is not None:
                             self.queue_service.read_ack(delivery_tag, successful=False)
                 # Queue is empty - check if we should exit or wait
-                if self._producer_done.is_set():
-                    break  # Producer done and queue empty
-                time.sleep(self._poll_interval)
+                # if self._producer_done.is_set():
+                #     break  # Producer done and queue empty.  This stops this queue altogether
+                # time.sleep(self._poll_interval)
         except Exception as e:
             self.logger.exception("Error during processing for wikipedia embedding sink %s: %s", self.service_name, e)
 
