@@ -11,12 +11,13 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
-
 from dotenv import load_dotenv
-from services.knowledge.base import KnowledgeService
-from services.knowledge.models import DatabaseWikipediaItem, WikipediaItem
-from services.db.postgrespg import WikipediaDbRecord, WikipediaPgRepository
+from wikitextparser import remove_markup
+
 from provider.embedding.qwen3.embedder_factory import get_embedder
+from services.db.postgrespg import WikipediaDbRecord, WikipediaPgRepository
+from services.knowledge.base import KnowledgeService
+from services.knowledge.models import DatabaseWikipediaItem, Source, WikipediaItem
 
 load_dotenv()
 
@@ -36,7 +37,16 @@ class WikipediaKnowedgeService(KnowledgeService):
             "Catégorie:",
             "Fichier:",
             "Wikipédia:",
-            "Portal:"
+            "Portal:",
+            "Portail:",
+            "Template:",
+            "Modèle:",
+            "Help:",
+            "Aide:",
+            "User:",
+            "Utilisateur:",
+            "Project:",
+            "Projet:",
         )
 
     _content_folder_path: Path = Path(os.getenv("WIKIPEDIA_CONTENT_FOLDER",
@@ -44,6 +54,7 @@ class WikipediaKnowedgeService(KnowledgeService):
     _process_only_first_n_paragraphs: int = int(os.getenv("WIKIPEDIA_PROCESS_ONLY_FIRST_N_PARAGRAPHS", "0"))
     _progress_flush_interval: int = 1000 # for the .progress file we track line number we stpped.
     _batch_size: int = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
+    _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
 
     def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None):
         super().__init__(queue_service=queue_service, logger=logger, service_name="wikipedia")
@@ -162,6 +173,9 @@ class WikipediaKnowedgeService(KnowledgeService):
         current_line = 0
         prev_offset: int | None = None
 
+        source_name = index_path.name .split("-")[0]
+        source = Source.WIKIPEDIA_EN if source_name == "enwiki" else Source.WIKIPEDIA_FR if source_name == "frwiki" else None #pylint: disable=line-too-long
+
         with open(dump_path, 'rb') as dump_file, bz2.open(index_path, mode='rt') as index_file:
             for line in index_file:
                 current_line += 1
@@ -174,7 +188,7 @@ class WikipediaKnowedgeService(KnowledgeService):
                     prev_offset = offset
                     continue
 
-                yield from self._process_chunk(dump_file, dump_path.name, prev_offset, offset)
+                yield from self._process_chunk(dump_file, dump_path.name, prev_offset, offset, source)
                 prev_offset = offset
 
                 if current_line % self._progress_flush_interval == 0:
@@ -192,8 +206,8 @@ class WikipediaKnowedgeService(KnowledgeService):
             self.logger.warning("Skipping malformed line %d in %s", line_num, filename)
             return None
 
-    def _process_chunk(
-        self, dump_file, dump_name: str, prev_offset: int | None, offset: int
+    def _process_chunk( #pylint: disable=too-many-arguments,too-many-positional-arguments
+        self, dump_file, dump_name: str, prev_offset: int | None, offset: int, source: Source | None
     ) -> Iterator[WikipediaItem]:
         """Decompress and parse a chunk of the dump file."""
         if prev_offset is None:
@@ -209,20 +223,36 @@ class WikipediaKnowedgeService(KnowledgeService):
         try:
             decompressed = bz2.decompress(data)
             xml_content = decompressed.decode("utf-8", errors="ignore")
-            yield from self._extract_pages_from_xml(xml_content)
+            yield from self._extract_pages_from_xml(xml_content, source)
         except OSError as exc:
             self.logger.error(
                 "Failed to decompress chunk from %s between offsets %s and %s: %s",
                 dump_name, prev_offset, offset, exc
             )
 
-    def _extract_pages_from_xml(self, xml_content: str) -> Iterator[WikipediaItem]:
+    def _extract_pages_from_xml(self, xml_content: str, source: Source | None) -> Iterator[WikipediaItem]:
         """Extract and parse all pages from XML content."""
         for page_match in re.finditer(r"<page>(.*?)</page>", xml_content, re.DOTALL):
             page_xml = page_match.group(0)
+
+            # optional write to disk for debug purposes
+            if self._debug_extraction:
+                try:
+                    title_match = re.search(r"<title>([^<]+)</title>", page_xml)
+                    title = title_match.group(1) if title_match else "unknown_title"
+                    safe_title = re.sub(r'[\\/:"*?<>|]+', '_', title)  # Sanitize filename
+                    debug_path = self._content_folder_path / "debug_extracted_pages"
+                    debug_path.mkdir(parents=True, exist_ok=True)
+                    file_path = debug_path / f"{safe_title}.xml"
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(page_xml)
+                except Exception as exc:
+                    self.logger.debug("Failed to write extracted page xml: %s", exc)
+
             if not self._should_ignore_page(page_xml):
                 item = self._parse_page_xml(page_xml)
                 if item:
+                    item.source = source
                     yield item
 
     def _save_progress(self, index_path: Path, line_number: int) -> None:
@@ -257,8 +287,15 @@ class WikipediaKnowedgeService(KnowledgeService):
 
     def _should_ignore_page(self, xml_page: str) -> bool:
         """Check if a page should be ignored based on title or type."""
+
+        #Namespace detection: https://en.wikipedia.org/wiki/Wikipedia:Namespace
+        if not re.search(r"<ns>0</ns>", xml_page):
+            return True
+
         if re.search(r"<redirect\s", xml_page):
             return True
+
+        # last resort, extra title checking
         title_match = re.search(r"<title>([^<]+)</title>", xml_page)
         if title_match:
             title = title_match.group(1)
@@ -280,6 +317,10 @@ class WikipediaKnowedgeService(KnowledgeService):
         # Extract content (wiki markup text)
         text_match = re.search(r"<text[^>]*>([^<]*(?:<(?!/text>)[^<]*)*)</text>", xml_page, re.DOTALL)
         content = text_match.group(1) if text_match else ""
+
+        # REMOVE WIKI MARKUP (note: one of those 2 methods might be faster than the other?? they yeild the same results)
+        content = remove_markup(content)
+        #content = parse(content).plain_text()
 
         if self._process_only_first_n_paragraphs > 0:
             # untested bit of code ... to be tweaked, online it says a line is needed for markdown to do a

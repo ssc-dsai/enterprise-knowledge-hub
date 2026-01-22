@@ -17,6 +17,7 @@ dependencies = [
     "sentence-transformers>=5.2.0",
     "torch>=2.9.1",
     "transformers>=4.57.3",
+    "wikitextparser>=0.56.4",
 ]
 
 [project.optional-dependencies]
@@ -33,6 +34,7 @@ dev = [
 [tool.uv]
 no-build-isolation-package = ["flash-attn"]
 
+[tool.uv.extra-build-variables]
 # llama-cpp-python build configuration
 #   DOC: https://github.com/abetlen/llama-cpp-python?tab=readme-ov-file#installation
 #   Uncomment ONE of the following extra-build-variables lines based on your hardware:
@@ -40,10 +42,10 @@ no-build-isolation-package = ["flash-attn"]
 #   uv sync --upgrade --no-cache --reinstall-package llama-cpp-python
 
 # CUDA support (NVIDIA GPU)
-#extra-build-variables = { llama-cpp-python = { CMAKE_ARGS = "-DGGML_CUDA=on -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc" }}
+#llama-cpp-python = { CMAKE_ARGS = "-DGGML_CUDA=on -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc" }
 
 # Metal support (Apple Silicon)
-# extra-build-variables = { llama-cpp-python = { CMAKE_ARGS = "-DGGML_METAL=on" } }
+# llama-cpp-python = { CMAKE_ARGS = "-DGGML_METAL=on" }
 
 # OpenBLAS support
-# extra-build-variables = { llama-cpp-python = { CMAKE_ARGS = "-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS" } }
+# llama-cpp-python = { CMAKE_ARGS = "-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS" }

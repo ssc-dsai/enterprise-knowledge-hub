@@ -3,6 +3,7 @@ Contains the main FastAPI application for the Enterprise Knowledge Hub.
 """
 import logging
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 
 from router.knowledge.endpoints import KNOWLEDGE_BASE
 from router.knowledge.endpoints import router as endpoints
@@ -25,3 +26,9 @@ app.include_router(db_endpoints, prefix="/database", tags=["database interaction
 def hp():
     """Health check endpoint."""
     return {"status": "Healthy"}
+
+# Serve index.html at root
+@app.get("/")
+def read_index():
+    """Serve the index.html file."""
+    return FileResponse("index.html")

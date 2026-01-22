@@ -5,6 +5,11 @@ from typing import Any
 
 import numpy as np
 
+# Qwen3 embedding models require instruction prefixes for queries
+# See: https://huggingface.co/Qwen/Qwen3-Embedding-0.6B
+QWEN3_QUERY_INSTRUCTION = "Instruct: Given a query, retrieve relevant Wikipedia passages that answer the query\nQuery: "
+
+
 class EmbeddingBackendProvider(ABC):
     """Contract for embedding providers to implement."""
     model: Any
@@ -13,8 +18,15 @@ class EmbeddingBackendProvider(ABC):
     max_seq_length: int
 
     @abstractmethod
-    def embed(self, text: str) -> np.ndarray:
-        """used to create embeddings for a text input"""
+    def embed(self, text: str, is_query: bool = False) -> np.ndarray:
+        """Generate embeddings for text.
+
+        Args:
+            text: The text to embed.
+            is_query: If True, prepend query instruction for asymmetric retrieval.
+                     Documents should be embedded with is_query=False.
+                     Queries should be embedded with is_query=True.
+        """
         raise NotImplementedError
 
     @abstractmethod

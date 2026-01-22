@@ -2,16 +2,16 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from torch import Tensor
 import numpy as np
 
-class Source(Enum):
+class Source(StrEnum):
     """Enumeration of knowledge item sources."""
     WIKIPEDIA_EN = "enwiki"
     WIKIPEDIA_FR = "frwiki"
-    MYSSCPLUS = "mysscplus"
+    #MYSSCPLUS = "mysscplus"
 
 
 @dataclass
@@ -33,7 +33,7 @@ class WikipediaItem(KnowledgeItem):
     content: str = field(default="")  # Wiki markup content
     last_modified_date: datetime | None = field(default=None)
     pid: int = field(default=0)  # Page ID
-    source: Source = field(default=Source.WIKIPEDIA_EN)
+    source: Source | None = field(default=Source.WIKIPEDIA_EN)
     chunk_index: int = field(default=1)
     chunk_count: int = field(default=1)
 

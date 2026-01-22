@@ -20,7 +20,7 @@ from services.knowledge.models import DatabaseWikipediaItem
 load_dotenv()
 
 @dataclass(slots=True)
-class WikipediaDbRecord:
+class WikipediaDbRecord: #pylint: disable=too-many-instance-attributes
     """Serializable record for Postgres storage."""
     pid: int
     chunk_index: int
@@ -29,6 +29,7 @@ class WikipediaDbRecord:
     content: str
     last_modified_date: datetime | None
     embedding: list[float]
+    source: str | None = None
 
     @classmethod
     def from_item(cls, item: DatabaseWikipediaItem) -> "WikipediaDbRecord":
@@ -42,6 +43,7 @@ class WikipediaDbRecord:
             content=item.content,
             last_modified_date=item.last_modified_date,
             embedding=embedding,
+            source=item.source,
         )
 
     def as_mapping(self) -> dict[str, object]:
@@ -54,6 +56,7 @@ class WikipediaDbRecord:
             "content": self.content,
             "last_modified_date": self.last_modified_date,
             "embedding": self.embedding,
+            "source": self.source,
         }
 
     @staticmethod
@@ -125,14 +128,15 @@ class WikipediaPgRepository:
 
         insert_sql = sql.SQL(
             """
-            INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding)
-            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s, %(last_modified_date)s, %(embedding)s)
+            INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
+            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s, %(last_modified_date)s, %(embedding)s, %(source)s) #pylint: disable=line-too-long
             ON CONFLICT (pid, chunk_index) DO UPDATE SET
                 name = EXCLUDED.name,
                 title = EXCLUDED.title,
                 content = EXCLUDED.content,
                 last_modified_date = EXCLUDED.last_modified_date,
-                embedding = EXCLUDED.embedding
+                embedding = EXCLUDED.embedding,
+                source = EXCLUDED.source
             """
         ).format(table=sql.Identifier(self._table_name))
 
@@ -143,21 +147,42 @@ class WikipediaPgRepository:
                 cur.executemany(insert_sql.as_string(conn), batch)
             conn.commit()
 
-    def search_by_embedding(self, embedding: list[float], limit: int =10) -> list[dict]:
-        """Search for similar embeddings using pgvector's <=> operator."""
-        # THE FOLLOWING QUERY ASSUMES NO INDEX USED YET!! (CHECK Search Endpoint issue)
+    def search_by_embedding(
+        self,
+        embedding: list[float],
+        limit: int = 100,
+        probes: int = 100,
+    ) -> list[dict]:
+        """Search for similar embeddings using pgvector's <=> operator.
+
+        Args:
+            embedding: The query embedding vector.
+            limit: Maximum number of results to return (acts as a safety cap).
+            probes: Number of IVFFlat lists to search. Higher = better recall but slower.
+                    With 3464 lists, recommended range is 60-350 (sqrt(lists) to lists/10).
+        """
         embedding_vector = embedding[0] if isinstance(embedding[0], (list, tuple, np.ndarray)) else embedding
+
+        # SET doesn't support parameterized values, so format directly (int is safe)
+        set_probes_sql = sql.SQL("SET LOCAL ivfflat.probes = {}").format(sql.Literal(probes))
+
+        # Use a larger limit for index scan, then filter by similarity threshold
+        # The WHERE clause filters after the index scan finds candidates
         query_sql = sql.SQL(
             """
-            SELECT name, 1 - (embedding <=> %s::vector)
-            AS similarity FROM {table}
-            ORDER BY similarity DESC LIMIT %s;
+            SELECT name, content, chunk_index, 1 - (embedding <=> %s::vector) AS similarity
+            FROM {table}
+            ORDER BY embedding <=> %s::vector
+            LIMIT %s
             """
         ).format(table=sql.Identifier(self._table_name))
 
-        with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, (embedding_vector, limit))
-            rows = cur.fetchall()
+        with self._pool.connection() as conn:
+            with conn.transaction():
+                with conn.cursor() as cur:
+                    cur.execute(set_probes_sql)
+                    cur.execute(query_sql, (embedding_vector, embedding_vector, limit))
+                    rows = cur.fetchall()
         return rows
 
     def get_record_content(self, title: str) -> list[DocumentRecord]:
