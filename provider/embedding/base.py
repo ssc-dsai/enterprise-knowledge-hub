@@ -13,7 +13,7 @@ class EmbeddingBackendProvider(ABC):
     max_seq_length: int
 
     @abstractmethod
-    def embed(self, text: str) -> np.ndarray:
+    def embed(self, text: list[str]) -> np.ndarray:
         """used to create embeddings for a text input"""
         raise NotImplementedError
 
