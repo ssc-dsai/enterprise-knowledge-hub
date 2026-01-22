@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 from dotenv import load_dotenv
-from wikitextparser import parse, remove_markup
+from wikitextparser import remove_markup
 
 from provider.embedding.qwen3.embedder_factory import get_embedder
 from services.db.postgrespg import WikipediaDbRecord, WikipediaPgRepository
@@ -38,7 +38,15 @@ class WikipediaKnowedgeService(KnowledgeService):
             "Fichier:",
             "Wikipédia:",
             "Portal:",
+            "Portail:",
             "Template:",
+            "Modèle:",
+            "Help:",
+            "Aide:",
+            "User:",
+            "Utilisateur:",
+            "Project:",
+            "Projet:",
         )
 
     _content_folder_path: Path = Path(os.getenv("WIKIPEDIA_CONTENT_FOLDER",
@@ -259,8 +267,14 @@ class WikipediaKnowedgeService(KnowledgeService):
 
     def _should_ignore_page(self, xml_page: str) -> bool:
         """Check if a page should be ignored based on title or type."""
+                #Namespace detection: https://en.wikipedia.org/wiki/Wikipedia:Namespace
+        if not re.search(r"<ns>0</ns>", xml_page):
+            return True
+
         if re.search(r"<redirect\s", xml_page):
             return True
+
+        # last resort, extra title checking
         title_match = re.search(r"<title>([^<]+)</title>", xml_page)
         if title_match:
             title = title_match.group(1)
@@ -282,9 +296,10 @@ class WikipediaKnowedgeService(KnowledgeService):
         # Extract content (wiki markup text)
         text_match = re.search(r"<text[^>]*>([^<]*(?:<(?!/text>)[^<]*)*)</text>", xml_page, re.DOTALL)
         content = text_match.group(1) if text_match else ""
-        # REMOVE WIKI MARKUP
-        #content = remove_markup(content)
-        content = parse(content).plain_text()
+
+        # REMOVE WIKI MARKUP (note: one of those 2 methods might be faster than the other?? they yeild the same results)
+        content = remove_markup(content)
+        #content = parse(content).plain_text()
 
         if self._process_only_first_n_paragraphs > 0:
             # untested bit of code ... to be tweaked, online it says a line is needed for markdown to do a
