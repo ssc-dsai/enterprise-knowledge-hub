@@ -182,11 +182,10 @@ class WikipediaKnowedgeService(KnowledgeService):
                         wiki_item = DatabaseWikipediaItem.from_rabbitqueue_dict(item)
                         record_to_insert = WikipediaDbRecord.from_item(wiki_item)
                         self._repository.insert(record_to_insert.as_mapping())
-                        self.queue_service.read_ack(delivery_tag, successful=True)
+                        self._ack_message(delivery_tag, successful=True)
                     except Exception as e:
                         self.logger.exception("Error processing item in %s: %s", self.service_name, e)
-                        if delivery_tag is not None:
-                            self.queue_service.read_ack(delivery_tag, successful=False)
+                        self._ack_message(delivery_tag, successful=False)
                     #Think about how to stop this worker
         except Exception as e:
             self.logger.exception("Error during processing for wikipedia embedding sink %s: %s", self.service_name, e)

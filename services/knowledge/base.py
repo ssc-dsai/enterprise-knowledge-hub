@@ -71,11 +71,10 @@ class KnowledgeService(ABC):
                         for item_with_embedding in items:
                             self.store_item(item_with_embedding)
                         self._stats.record_processed()
-                        self.queue_service.read_ack(delivery_tag, successful=True)
+                        self._ack_message(delivery_tag, successful=True)
                     except Exception as e:
                         self.logger.exception("Error processing item in %s: %s", self.service_name, e)
-                        if delivery_tag is not None:
-                            self.queue_service.read_ack(delivery_tag, successful=False)
+                        self._ack_message(delivery_tag, successful=False)
                 # Queue is empty - check if we should exit or wait
                 if self._producer_done.is_set():
                     break  # Producer done and queue empty
@@ -92,3 +91,8 @@ class KnowledgeService(ABC):
     def finalize_processing(self) -> None:
         """Optional hook called after processing loop ends."""
         return
+    
+    def _ack_message(self, delivery_tag, successful: bool):
+        if delivery_tag is not None:
+            self.queue_service.read_ack(delivery_tag, successful=successful)
+
