@@ -9,7 +9,7 @@ import torch
 from dotenv import load_dotenv
 from llama_cpp import Llama  # pylint: disable=no-name-in-module
 
-from provider.embedding.base import EmbeddingBackendProvider
+from provider.embedding.base import EmbeddingBackendProvider, QWEN3_QUERY_INSTRUCTION
 
 load_dotenv()
 
@@ -28,8 +28,17 @@ class Qwen3LlamaCpp(EmbeddingBackendProvider):
         self.logger = logging.getLogger(__name__)
         self.logger.debug("Model max sequence length: %d", self.max_seq_length)
 
-    def embed(self, text: str) -> np.ndarray:
-        """Generate embeddings for the provided text, chunking if necessary."""
+    def embed(self, text: str, is_query: bool = False) -> np.ndarray:
+        """Generate embeddings for the provided text, chunking if necessary.
+
+        Args:
+            text: The text to embed.
+            is_query: If True, prepend query instruction for asymmetric retrieval.
+        """
+        # For queries, prepend the instruction prefix
+        if is_query:
+            text = QWEN3_QUERY_INSTRUCTION + text
+
         chunks = self.chunk_text_by_tokens(text, max_tokens=self.max_seq_length)
         self.logger.debug("Split into %d chunks", len(chunks))
 

@@ -17,30 +17,7 @@ To start the docker container: `docker compose up -d`
 docker exec -it postgres-ekh psql -U admin -d rag
 ```
 
-On first run ensure you have this table created:
-
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-CREATE TABLE documents (
-   id SERIAL PRIMARY KEY,
-   pid INT,
-   name TEXT,
-   chunk_index INT,
-   title TEXT,
-   content TEXT,
-   last_modified_date DATE,
-   embedding VECTOR(512),
-   CONSTRAINT documents_pid_chunk_index_key UNIQUE (pid, chunk_index)
-);
-
--- Recommended ANN index for pgvector
-CREATE INDEX IF NOT EXISTS documents_embedding_idx
-   ON documents USING ivfflat (embedding vector_l2_ops) WITH (lists = 100);
-
--- Readonly user created
-CREATE USER readonly_user WITH PASSWORD 'readonly';
-GRANT pg_read_all_data TO readonly_user;
-```
+On first run **ensure you have this table created**, please see setup section in [database documentation](docs/database.md#setup).
 
 ### Running locally
 

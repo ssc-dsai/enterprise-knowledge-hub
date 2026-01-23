@@ -2,6 +2,7 @@ services:
   postgres:
     image: pgvector/pgvector:pg16-trixie
     container_name: postgres-ekh
+    shm_size: 4g
     restart: unless-stopped
     env_file:
       - .env

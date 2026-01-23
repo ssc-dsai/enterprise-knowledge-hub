@@ -6,3 +6,5 @@ class DocumentRecord(TypedDict):
     name: str
     title: str
     content: str
+    chunk_index: int
+    similarity: float | None

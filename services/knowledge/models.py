@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Optional, Union, Literal
 import base64
+from enum import StrEnum
 
 import torch
 import numpy as np
@@ -57,6 +58,12 @@ def _decode_embeddings(payload: Optional[Dict[str, Any]]) -> Union[np.ndarray, T
 
     raise ValueError(f"Unknown embeddings kind: {kind!r}")
 
+class Source(StrEnum):
+    """Enumeration of knowledge item sources."""
+    WIKIPEDIA_EN = "enwiki"
+    WIKIPEDIA_FR = "frwiki"
+    #MYSSCPLUS = "mysscplus
+
 
 @dataclass
 class KnowledgeItem(ABC):
@@ -77,6 +84,7 @@ class WikipediaItem(KnowledgeItem):
     content: str = field(default="")  # Wiki markup content
     last_modified_date: datetime | None = field(default=None)
     pid: int = field(default=0)  # Page ID
+    source: Source | None = field(default=Source.WIKIPEDIA_EN)
     chunk_index: int = field(default=1)
     chunk_count: int = field(default=1)
 
@@ -98,6 +106,7 @@ class WikipediaItem(KnowledgeItem):
             "pid": self.pid,
             "chunk_index": self.chunk_index,
             "chunk_count": self.chunk_count,
+            "source": self.source.value,
         }
 
 @dataclass

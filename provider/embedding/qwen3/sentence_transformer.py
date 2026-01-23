@@ -10,7 +10,7 @@ import torch.cuda
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
-from provider.embedding.base import EmbeddingBackendProvider
+from provider.embedding.base import EmbeddingBackendProvider, QWEN3_QUERY_INSTRUCTION
 
 load_dotenv()
 
@@ -76,9 +76,20 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
     def embed(
         self,
         text: str,
+        is_query: bool = False,
         dim: int = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_DIM", "1024")),
     ) -> np.ndarray:
-        """Generate embeddings for text, chunking when necessary."""
+        """Generate embeddings for text, chunking when necessary.
+
+        Args:
+            text: The text to embed.
+            is_query: If True, prepend query instruction for asymmetric retrieval.
+            dim: The dimension to truncate embeddings to.
+        """
+        # For queries, prepend the instruction prefix
+        if is_query:
+            text = QWEN3_QUERY_INSTRUCTION + text
+
         chunks = self.chunk_text_by_tokens(text, max_tokens=self.model.max_seq_length)
         self.logger.debug("Split into %d chunks", len(chunks))
 
