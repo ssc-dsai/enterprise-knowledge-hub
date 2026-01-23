@@ -92,6 +92,8 @@ class WikipediaItem(KnowledgeItem):
     def from_dict(cls, data: dict[str, object]) -> "WikipediaItem":
         """Create WikipediaItem from dictionary (queue deserialization)."""
         data = data.copy()  # Don't mutate the input
+        if data.get("source"):
+            data["source"] = Source(data["source"])
         if data.get("last_modified_date"):
             data["last_modified_date"] = datetime.fromisoformat(data["last_modified_date"])
         return cls(**data)
@@ -126,7 +128,7 @@ class DatabaseWikipediaItem(WikipediaItem):
     @classmethod
     def from_rabbitqueue_dict(cls, data: Dict[str, Any]) -> "DatabaseWikipediaItem":
         """Build back from RabbitMQ message dict"""
-        data = data.copy()
+        data = super().to_dict()
         if data.get("embeddings"):
             data["embeddings"] = _decode_embeddings(data["embeddings"])
         return cls(**data)
