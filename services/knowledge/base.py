@@ -91,8 +91,7 @@ class KnowledgeService(ABC):
     def finalize_processing(self) -> None:
         """Optional hook called after processing loop ends."""
         return
-    
+
     def _ack_message(self, delivery_tag, successful: bool):
         if delivery_tag is not None:
             self.queue_service.read_ack(delivery_tag, successful=successful)
-
