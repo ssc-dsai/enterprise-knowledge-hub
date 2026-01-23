@@ -93,7 +93,7 @@ class WikipediaKnowedgeService(KnowledgeService):
                 max_tokens = getattr(getattr(self.embedder, "model", None), "max_seq_length", None)
 
             chunks = self.embedder.chunk_text_by_tokens(item.content, max_tokens=max_tokens)
-            embeddings = self.embedder.embed(chunks)
+            embeddings = self.embedder.embed(item.content)
 
             arr = np.asarray(embeddings)
             if arr.ndim == 1:
