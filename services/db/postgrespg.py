@@ -121,6 +121,25 @@ class WikipediaPgRepository:
 
         return cls(conninfo=conninfo, table_name=table_name, pool_size=pool_size, batch_size=batch_size)
 
+    def insert(self, row: WikipediaDbRecord) -> None:
+        """Insert row"""
+        insert_sql = sql.SQL(
+            """
+            INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
+            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s, %(last_modified_date)s, %(embedding)s, %(source)s)
+            ON CONFLICT (pid, chunk_index) DO UPDATE SET
+                name = EXCLUDED.name,
+                title = EXCLUDED.title,
+                content = EXCLUDED.content,
+                last_modified_date = EXCLUDED.last_modified_date,
+                embedding = EXCLUDED.embedding,
+                source = EXCLUDED.source
+            """
+        ).format(table=sql.Identifier(self._table_name))
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(insert_sql, (row))
+            conn.commit()
+
     def insert_many(self, rows: Sequence[WikipediaDbRecord]) -> None:
         """Insert rows using executemany batching (no psycopg2 extras required)."""
         if not rows:

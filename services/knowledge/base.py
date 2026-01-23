@@ -1,7 +1,6 @@
 """Base class for knowledge services."""
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 import logging
 import threading
@@ -25,17 +24,10 @@ class KnowledgeService(ABC):
         """Get the statistics tracker for this service."""
         return self._stats
 
+    @abstractmethod
     def run(self) -> None:
         """Run the knowledge ingestion/processing in parallel threads."""
-        self.logger.info("Running knowledge ingestion for %s", self.service_name)
-        self._producer_done.clear()
-        self._stats.reset()  # Reset stats at the start of each run
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            queue_future = executor.submit(self.queue_for_processing)
-            process_future = executor.submit(self.process)
-            # Wait for both to complete and propagate any exceptions
-            queue_future.result()
-            process_future.result()
+        raise NotImplementedError("Subclasses must implement the run method.")
 
     @abstractmethod
     def fetch_from_source(self) -> Iterator[KnowledgeItem]:
@@ -84,11 +76,10 @@ class KnowledgeService(ABC):
                         for item_with_embedding in items:
                             self.store_item(item_with_embedding)
                         self._stats.record_processed()
-                        self.queue_service.read_ack(delivery_tag, successful=True)
+                        self._ack_message(delivery_tag, successful=True)
                     except Exception as e:
                         self.logger.exception("Error processing item in %s: %s", self.service_name, e)
-                        if delivery_tag is not None:
-                            self.queue_service.read_ack(delivery_tag, successful=False)
+                        self._ack_message(delivery_tag, successful=False)
                 # Queue is empty - check if we should exit or wait
                 if self._producer_done.is_set():
                     break  # Producer done and queue empty
@@ -105,3 +96,7 @@ class KnowledgeService(ABC):
     def finalize_processing(self) -> None:
         """Optional hook called after processing loop ends."""
         return
+
+    def _ack_message(self, delivery_tag, successful: bool):
+        if delivery_tag is not None:
+            self.queue_service.read_ack(delivery_tag, successful=successful)

@@ -18,7 +18,7 @@ class EmbeddingBackendProvider(ABC):
     max_seq_length: int
 
     @abstractmethod
-    def embed(self, text: str, is_query: bool = False) -> np.ndarray:
+    def embed(self, text: Any, is_query: bool = False) -> np.ndarray:
         """Generate embeddings for text.
 
         Args:
