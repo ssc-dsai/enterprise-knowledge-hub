@@ -118,6 +118,7 @@ class WikipediaKnowedgeService(KnowledgeService):
                         pid=item.pid,
                         chunk_index=idx,
                         chunk_count=num_chunks,
+                        source=item.source,
                         embeddings=vec,
                     )
                 )

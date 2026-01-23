@@ -128,7 +128,7 @@ class DatabaseWikipediaItem(WikipediaItem):
     @classmethod
     def from_rabbitqueue_dict(cls, data: Dict[str, Any]) -> "DatabaseWikipediaItem":
         """Build back from RabbitMQ message dict"""
-        data = super().to_dict()
+        data = data.copy()
         if data.get("embeddings"):
             data["embeddings"] = _decode_embeddings(data["embeddings"])
         return cls(**data)

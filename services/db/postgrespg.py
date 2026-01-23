@@ -125,14 +125,15 @@ class WikipediaPgRepository:
         """Insert row"""
         insert_sql = sql.SQL(
             """
-            INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding)
-            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s, %(last_modified_date)s, %(embedding)s)
+            INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
+            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s, %(last_modified_date)s, %(embedding)s, %(source)s)
             ON CONFLICT (pid, chunk_index) DO UPDATE SET
                 name = EXCLUDED.name,
                 title = EXCLUDED.title,
                 content = EXCLUDED.content,
                 last_modified_date = EXCLUDED.last_modified_date,
-                embedding = EXCLUDED.embedding
+                embedding = EXCLUDED.embedding,
+                source = EXCLUDED.source
             """
         ).format(table=sql.Identifier(self._table_name))
         with self._pool.connection() as conn, conn.cursor() as cur:
