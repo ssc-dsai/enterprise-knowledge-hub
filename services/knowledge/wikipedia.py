@@ -181,8 +181,9 @@ class WikipediaKnowedgeService(KnowledgeService):
                         #lol we can fix this afterwards.  So much conversion
                         wiki_item = DatabaseWikipediaItem.from_rabbitqueue_dict(item)
                         record_to_insert = WikipediaDbRecord.from_item(wiki_item)
-                        self._repository.insert(record_to_insert.as_mapping())
-                        self._ack_message(delivery_tag, successful=True)
+                        if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
+                            self._repository.insert(record_to_insert.as_mapping())
+                        self.queue_service.read_ack(delivery_tag, successful=True)
                     except Exception as e:
                         self.logger.exception("Error processing item in %s: %s", self.service_name, e)
                         self._ack_message(delivery_tag, successful=False)
