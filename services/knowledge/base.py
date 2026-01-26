@@ -11,6 +11,7 @@ from services.knowledge.models import KnowledgeItem, DatabaseWikipediaItem
 from services.queue.queue_service import QueueService
 from services.stats.knowledge_service_stats import KnowledgeServiceStats
 from services.db.postgrespg import WikipediaDbRecord
+from services.knowledge.shutdown_service import ShutdownService
 
 QUEUE_BATCH_NAME = "wikipedia_embeddings_sink"
 
@@ -18,6 +19,7 @@ QUEUE_BATCH_NAME = "wikipedia_embeddings_sink"
 class KnowledgeService(ABC):
     """Abstract base class for knowledge services."""
     queue_service: QueueService
+    shutdown_service: ShutdownService
     logger: logging.Logger
     service_name: str
     _producer_done: threading.Event = field(default_factory=threading.Event, init=False)
@@ -100,7 +102,7 @@ class KnowledgeService(ABC):
                         self.logger.exception("Error processing item in %s: %s", self.service_name, e)
                         self._ack_message(delivery_tag, successful=False)
                 # Queue is empty - check if we should exit or wait
-                if self._producer_done.is_set():
+                if self._should_stop():
                     break  # Producer done and queue empty
                 time.sleep(self._poll_interval)
         except Exception as e:
@@ -131,7 +133,7 @@ class KnowledgeService(ABC):
                     except Exception as e:
                         self.logger.exception("Error processing item in %s: %s", self.service_name, e)
                         self._ack_message(delivery_tag, successful=False)
-                if self._producer_done.is_set():
+                if self._should_stop():
                     break  # Producer done and queue empty
                 time.sleep(self._poll_interval)
         except Exception as e:
@@ -144,3 +146,8 @@ class KnowledgeService(ABC):
     def _ack_message(self, delivery_tag, successful: bool):
         if delivery_tag is not None:
             self.queue_service.read_ack(delivery_tag, successful=successful)
+            
+    def _should_stop(self) -> bool:
+        if self._producer_done.is_set() or self.shutdown_service.should_stop():
+            return True
+        return False

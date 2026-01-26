@@ -12,6 +12,7 @@ from provider.queue.rabbitmq import RabbitMQProvider
 from router.knowledge.run_state import RunState
 from services.knowledge.wikipedia import WikipediaKnowedgeService
 from services.queue.queue_service import QueueService
+from services.knowledge.shutdown_service import ShutdownService
 
 load_dotenv()
 
@@ -22,10 +23,28 @@ router = APIRouter()
 KNOWLEDGE_BASE = "/knowledge"
 
 # initialize the queue service here
+_shutdown_service = ShutdownService(deadline=30.0)
 _queue_service = QueueService(queue_provider=RabbitMQProvider(url=os.getenv("RABBITMQ_URL"),
                                                               logger=logger), logger=logger)
-_wikipedia_service = WikipediaKnowedgeService(queue_service=_queue_service, logger=logger)
+_wikipedia_service = WikipediaKnowedgeService(queue_service=_queue_service,
+                                        shutdown_service=_shutdown_service, logger=logger)
 _wikipedia_state = RunState()
+
+
+@router.post("/stop")
+async def stop_service():
+    """
+    Docstring for stop_service
+    """
+    _shutdown_service.request_stop()
+    return {"status": "stopping"}
+
+@router.get("/health")
+async def health():
+    """
+    Docstring for health
+    """
+    return {"stopping": _shutdown_service.should_stop()}
 
 
 def _run_wikipedia_task():
