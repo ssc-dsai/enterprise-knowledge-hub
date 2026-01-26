@@ -36,15 +36,8 @@ async def stop_service():
     """
     Docstring for stop_service
     """
-    _shutdown_service.request_stop()
+    _wikipedia_service.request_stop()
     return {"status": "stopping"}
-
-@router.get("/health")
-async def health():
-    """
-    Docstring for health
-    """
-    return {"stopping": _shutdown_service.should_stop()}
 
 
 def _run_wikipedia_task():

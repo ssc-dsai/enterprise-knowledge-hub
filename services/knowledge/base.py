@@ -11,7 +11,6 @@ from services.knowledge.models import KnowledgeItem, DatabaseWikipediaItem
 from services.queue.queue_service import QueueService
 from services.stats.knowledge_service_stats import KnowledgeServiceStats
 from services.db.postgrespg import WikipediaDbRecord
-from services.knowledge.shutdown_service import ShutdownService
 
 QUEUE_BATCH_NAME = "wikipedia_embeddings_sink"
 
@@ -19,14 +18,14 @@ QUEUE_BATCH_NAME = "wikipedia_embeddings_sink"
 class KnowledgeService(ABC):
     """Abstract base class for knowledge services."""
     queue_service: QueueService
-    shutdown_service: ShutdownService
     logger: logging.Logger
     service_name: str
     _producer_done: threading.Event = field(default_factory=threading.Event, init=False)
+    _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
     _poll_interval: float = 0.5  # seconds to wait before retrying empty queue
     _stats: KnowledgeServiceStats = field(default_factory=KnowledgeServiceStats, init=False)
     _is_ingestion_queue_complete = False
-    
+
     @property
     def stats(self) -> KnowledgeServiceStats:
         """Get the statistics tracker for this service."""
@@ -36,6 +35,7 @@ class KnowledgeService(ABC):
         """Run the knowledge ingestion/processing in parallel threads."""
         self.logger.info("Running knowledge ingestion for %s", self.service_name)
         self._producer_done.clear()
+        self._stop_event.clear()
         self._stats.reset()  # Reset stats at the start of each run
         with ThreadPoolExecutor(max_workers=3) as executor:
             queue_future = executor.submit(self.queue_for_processing)
@@ -60,22 +60,19 @@ class KnowledgeService(ABC):
     def store_item(self, item: KnowledgeItem) -> None:
         """Store the processed knowledge item into the knowledge base."""
         raise NotImplementedError("Subclasses must implement the store_item method.")
-    
+
     @abstractmethod
     def insert_item(self, item: dict[str, object]) -> None:
         """Insert the object into repository"""
         raise NotImplementedError("Subclasses must implement the insert_item method.")
-    
-    @abstractmethod
-    def request_stop(self):
-        """Request for the current run to stop"""
-        raise NotImplementedError("Subclasses must implement the store_item method.")
 
     def queue_for_processing(self) -> None:
         """Ingest data into the knowledge base."""
         self.logger.info("Ingesting data into the knowledge base. (%s)", self.service_name)
         try:
             for item in self.fetch_from_source():
+                if self._stop_event.is_set():
+                    break
                 self.queue_service.write(self.service_name + ".ingest", item.to_dict())
                 self._stats.record_added()
         except Exception as e:
@@ -89,7 +86,7 @@ class KnowledgeService(ABC):
         self.logger.info("Processing ingested data. (%s)", self.service_name)
         queue_name = self.service_name + ".ingest"
         try:
-            while True:
+            while self._stop_event.is_set():
                 # Drain all available messages
                 for item, delivery_tag in self.queue_service.read(queue_name):
                     try:
@@ -103,7 +100,7 @@ class KnowledgeService(ABC):
                         self.logger.exception("Error processing item in %s: %s", self.service_name, e)
                         self._ack_message(delivery_tag, successful=False)
                 # Queue is empty - check if we should exit or wait
-                if self._should_stop():
+                if self._producer_done.is_set():
                     break  # Producer done and ingestion queue empty
                 time.sleep(self._poll_interval)
         except Exception as e:
@@ -122,7 +119,7 @@ class KnowledgeService(ABC):
         """
         self.logger.info("Processing wikipedia embedding sink data. (%s)", self.service_name)
         try:
-            while True:
+            while self._stop_event.is_set():
                 for item, delivery_tag in self.queue_service.read(QUEUE_BATCH_NAME):
                     try:
                         #lol we can fix this afterwards.  So much conversion
@@ -134,7 +131,7 @@ class KnowledgeService(ABC):
                     except Exception as e:
                         self.logger.exception("Error processing item in %s: %s", self.service_name, e)
                         self._ack_message(delivery_tag, successful=False)
-                if self._should_stop() and self._get_is_ingestion_queue_complete():
+                if self._producer_done.is_set() and self._get_is_ingestion_queue_complete():
                     break  # Producer done and ingestion queue and sink queue empty
                 time.sleep(self._poll_interval)
         except Exception as e:
@@ -146,15 +143,20 @@ class KnowledgeService(ABC):
         return
 
     def _ack_message(self, delivery_tag, successful: bool):
+        """Acknoledge or unack message back to queue"""
         if delivery_tag is not None:
             self.queue_service.read_ack(delivery_tag, successful=successful)
-            
-    def _should_stop(self) -> bool:
-        if self._producer_done.is_set() or self.shutdown_service.should_stop():
-            return True
-        return False
-    
+
     def _get_is_ingestion_queue_complete(self) -> bool:
+        """Getter for _is_ingestion_queue_complete"""
         if self._is_ingestion_queue_complete is not None and self._is_ingestion_queue_complete:
             return True
         return False
+
+    def request_stop(self) -> None:
+        """Stop event for knowledge process"""
+        self._stop_event.set()
+
+    def should_stop(self) -> bool:
+        """Return true if and only if the internal flag is true."""
+        return self._stop_event.is_set()
