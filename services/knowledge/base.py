@@ -90,14 +90,28 @@ class KnowledgeService(ABC):
     def process_ingestion_queue(self) -> None:
         """Process ingested data. Keeps polling until producer is done and queue is empty."""
         self.logger.info("Processing ingested data. (%s)", self.service_name)
-
+        handler = QueueHandler(
+            queue_service=self.queue_service,
+            logger=self.logger,
+            stop_event=self._stop_event,
+            poll_interval=self._poll_interval
+        )
+        
+        def handler_function(item: dict[str, object]) -> None:
+            processed = self.process_queue(item) # GPU work happens here
+            items = processed if isinstance(processed, list) else [processed]
+            for item_with_embedding in items:
+                self.store_item(item_with_embedding)
+            self._stats.record_processed()
+            
+        def should_exit(drained_any: bool) -> bool:
+            #Producer done and ingestion queue empty AND queue was empty this iteration
+            return self._producer_done.is_set() and not drained_any
+        
         try:
-            handler = QueueHandler(
-                queue_service=self.queue_service,
-                logger=self.logger,
-                stop_event=self._stop_event,
-                poll_interval=self._poll_interval
-            )
+            
+            
+            
         #     while not self._stop_event.is_set():
         #         # Drain all available messages
         #         for item, delivery_tag in self.queue_service.read(self._ingestion_queue_name()):
