@@ -7,10 +7,9 @@ from concurrent.futures import ThreadPoolExecutor
 import logging
 import threading
 import time
-from services.knowledge.models import KnowledgeItem, DatabaseWikipediaItem
+from services.knowledge.models import KnowledgeItem
 from services.queue.queue_service import QueueService
 from services.stats.knowledge_service_stats import KnowledgeServiceStats
-from repository.postgrespg import WikipediaDbRecord
 
 @dataclass
 class KnowledgeService(ABC):
