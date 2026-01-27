@@ -5,9 +5,9 @@ import logging
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
-from router.knowledge.endpoints import KNOWLEDGE_BASE
-from router.knowledge.endpoints import router as endpoints
-from router.database_interaction.endpoints import router as db_endpoints
+from router.root.run_management_endpoints import KNOWLEDGE_BASE
+from router.root.run_management_endpoints import router as endpoints
+from router.root.search_retrieve_endpoints import router as db_endpoints
 
 logging.basicConfig(
     level=logging.WARNING,

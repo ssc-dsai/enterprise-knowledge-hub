@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query
 from fastapi import BackgroundTasks
 
 from provider.queue.rabbitmq import RabbitMQProvider
-from router.knowledge.run_state import RunState
+from router.root.run_state import RunState
 from services.knowledge.wikipedia import WikipediaKnowedgeService
 from services.queue.queue_service import QueueService
 

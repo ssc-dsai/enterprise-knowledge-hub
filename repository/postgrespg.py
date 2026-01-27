@@ -14,7 +14,7 @@ from psycopg import sql
 from psycopg_pool import ConnectionPool
 from torch import Tensor
 
-from services.db.model import DocumentRecord
+from repository.model import DocumentRecord
 from services.knowledge.models import DatabaseWikipediaItem
 
 load_dotenv()
@@ -105,12 +105,12 @@ class WikipediaPgRepository:
         :rtype: WikipediaPgRepository
         """
 
-        #  (If running local connected to DB use 172.16.123.217 instead of localhost)
+        #  (If running local connected to DB use 172.16.123.217 instead of "localhost")
         host = os.getenv("POSTGRES_HOST", "localhost")
         port = int(os.getenv("POSTGRES_PORT", "5432"))
         dbname = os.getenv("POSTGRES_DB", "postgres")
         user = os.getenv("POSTGRES_USER", "postgres")
-        # For running local connected to DB use "postconninfotgres" instead
+        # For running local connected to DB use "postconninfotgres" instead of "postgres"
         password = os.getenv("POSTGRES_PASSWORD", "postgres")
         table_name = os.getenv("WIKIPEDIA_TABLE", "documents")
         pool_size = int(os.getenv("POSTGRES_POOL_SIZE", "5"))

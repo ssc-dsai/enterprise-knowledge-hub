@@ -3,8 +3,8 @@ import logging
 from dataclasses import dataclass
 
 from provider.embedding.qwen3.embedder_factory import get_embedder
-from services.db.model import DocumentRecord
-from services.db.postgrespg import WikipediaPgRepository
+from repository.model import DocumentRecord
+from repository.postgrespg import WikipediaPgRepository
 
 
 @dataclass

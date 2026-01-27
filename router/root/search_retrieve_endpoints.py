@@ -3,8 +3,8 @@ Endpoints for interacting with the knowledge database.
 """
 from fastapi import APIRouter, Query
 
-from services.db.model import DocumentRecord
-from services.knowledge.query import QueryService
+from repository.model import DocumentRecord
+from services.database.database_service import QueryService
 
 router = APIRouter()
 _query_service = QueryService()

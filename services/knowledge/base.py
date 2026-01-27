@@ -10,7 +10,7 @@ import time
 from services.knowledge.models import KnowledgeItem, DatabaseWikipediaItem
 from services.queue.queue_service import QueueService
 from services.stats.knowledge_service_stats import KnowledgeServiceStats
-from services.db.postgrespg import WikipediaDbRecord
+from repository.postgrespg import WikipediaDbRecord
 
 QUEUE_BATCH_NAME = "wikipedia_embeddings_sink"
 
