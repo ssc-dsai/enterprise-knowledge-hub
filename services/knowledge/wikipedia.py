@@ -149,13 +149,14 @@ class WikipediaKnowedgeService(KnowledgeService):
 
         return dump_path
 
-    def store_item(self, item: DatabaseWikipediaItem, queue_name: str = QUEUE_BATCH_NAME) -> None:
-        """Store the processed knowledge item into the knowledge base."""
+    def store_item(self, item: DatabaseWikipediaItem) -> None:
         queue_item = item.to_dict()
-        self.queue_service.write(queue_name, queue_item)
+        self.queue_service.write(self._indexing_queue_name(), queue_item)
 
     def insert_item(self, item: dict[str, object]) -> None:
-        self._repository.insert(item)
+        wiki_item = DatabaseWikipediaItem.from_rabbitqueue_dict(item)
+        record_to_insert = WikipediaDbRecord.from_item(wiki_item)
+        self._repository.insert(record_to_insert.as_mapping())
 
     def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItem]:
         """Process a single index file and yield WikipediaItems."""
