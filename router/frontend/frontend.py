@@ -1,7 +1,7 @@
 """
 Frontend router for serving static files.
 """
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter
 from fastapi.responses import FileResponse
 
 router = APIRouter()

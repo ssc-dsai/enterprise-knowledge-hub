@@ -3,7 +3,6 @@ Contains the main FastAPI application for the Enterprise Knowledge Hub.
 """
 import logging
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
 
 from router.root.run_management_endpoints import KNOWLEDGE_BASE
 from router.root.run_management_endpoints import router as endpoints
