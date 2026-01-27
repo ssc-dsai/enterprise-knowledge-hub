@@ -141,7 +141,7 @@ class KnowledgeService(ABC):
                     except Exception as e:
                         self.logger.exception("Error processing item in %s: %s", self.service_name, e)
                         self._ack_message(delivery_tag, successful=False)
-                if self._producer_done.is_set() and self._get_is_ingestion_queue_complete():
+                if self._producer_done.is_set() and self._is_ingestion_queue_complete:
                     break  # Producer done and ingestion queue and sink queue empty
                 time.sleep(self._poll_interval)
         except Exception as e:
@@ -161,12 +161,6 @@ class KnowledgeService(ABC):
         """Acknoledge or unack message back to queue"""
         if delivery_tag is not None:
             self.queue_service.read_ack(delivery_tag, successful=successful)
-
-    def _get_is_ingestion_queue_complete(self) -> bool:
-        """Getter for _is_ingestion_queue_complete"""
-        if self._is_ingestion_queue_complete is not None and self._is_ingestion_queue_complete:
-            return True
-        return False
 
     def request_stop(self) -> None:
         """Stop event for knowledge process"""
