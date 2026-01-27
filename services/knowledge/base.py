@@ -8,6 +8,7 @@ import logging
 import threading
 import time
 from services.knowledge.models import KnowledgeItem
+from services.queue.queue_handler import QueueHandler
 from services.queue.queue_service import QueueService
 from services.stats.knowledge_service_stats import KnowledgeServiceStats
 
@@ -89,28 +90,35 @@ class KnowledgeService(ABC):
     def process_ingestion_queue(self) -> None:
         """Process ingested data. Keeps polling until producer is done and queue is empty."""
         self.logger.info("Processing ingested data. (%s)", self.service_name)
+
         try:
-            while not self._stop_event.is_set():
-                # Drain all available messages
-                for item, delivery_tag in self.queue_service.read(self._ingestion_queue_name()):
-                    try:
-                        if self._stop_event.is_set():
-                            self.logger.info("Stop event is true.  Stopping process loop")
-                            self._ack_message(delivery_tag, successful=False)
-                            break
-                        processed = self.process_queue(item) # GPU work happens here
-                        items = processed if isinstance(processed, list) else [processed]
-                        for item_with_embedding in items:
-                            self.store_item(item_with_embedding)
-                        self._stats.record_processed()
-                        self._ack_message(delivery_tag, successful=True)
-                    except Exception as e:
-                        self.logger.exception("Error processing item in %s: %s", self.service_name, e)
-                        self._ack_message(delivery_tag, successful=False)
-                # Queue is empty - check if we should exit or wait
-                if self._producer_done.is_set():
-                    break  # Producer done and ingestion queue empty
-                time.sleep(self._poll_interval)
+            handler = QueueHandler(
+                queue_service=self.queue_service,
+                logger=self.logger,
+                stop_event=self._stop_event,
+                poll_interval=self._poll_interval
+            )
+        #     while not self._stop_event.is_set():
+        #         # Drain all available messages
+        #         for item, delivery_tag in self.queue_service.read(self._ingestion_queue_name()):
+        #             try:
+        #                 if self._stop_event.is_set():
+        #                     self.logger.info("Stop event is true.  Stopping process loop")
+        #                     self._ack_message(delivery_tag, successful=False)
+        #                     break
+        #                 processed = self.process_queue(item) # GPU work happens here
+        #                 items = processed if isinstance(processed, list) else [processed]
+        #                 for item_with_embedding in items:
+        #                     self.store_item(item_with_embedding)
+        #                 self._stats.record_processed()
+        #                 self._ack_message(delivery_tag, successful=True)
+        #             except Exception as e:
+        #                 self.logger.exception("Error processing item in %s: %s", self.service_name, e)
+        #                 self._ack_message(delivery_tag, successful=False)
+        #         # Queue is empty - check if we should exit or wait
+        #         if self._producer_done.is_set():
+        #             break  # Producer done and ingestion queue empty
+        #         time.sleep(self._poll_interval)
         except Exception as e:
             self.logger.exception("Error during processing for %s: %s", self.service_name, e)
         finally:
