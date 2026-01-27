@@ -1,11 +1,11 @@
 """
-Docstring for services.queue.queue_handler
+Docstring for services.queue.queue_worker
 """
 import time
 from dataclasses import dataclass
 
 @dataclass
-class QueueHandler:
+class QueueWorker:
     """
     Docstring for QueueWorker
     """

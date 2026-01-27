@@ -8,7 +8,7 @@ import logging
 import threading
 import time
 from services.knowledge.models import KnowledgeItem
-from services.queue.queue_handler import QueueHandler
+from services.queue.queue_worker import QueueWorker
 from services.queue.queue_service import QueueService
 from services.stats.knowledge_service_stats import KnowledgeServiceStats
 
@@ -90,14 +90,14 @@ class KnowledgeService(ABC):
     def process_ingestion_queue(self) -> None:
         """Process ingested data. Keeps polling until producer is done and queue is empty."""
         self.logger.info("Processing ingested data. (%s)", self.service_name)
-        handler = QueueHandler(
+        worker = QueueWorker(
             queue_service=self.queue_service,
             logger=self.logger,
             stop_event=self._stop_event,
             poll_interval=self._poll_interval
         )
         
-        def handler_function(item: dict[str, object]) -> None:
+        def handler(item: dict[str, object]) -> None:
             processed = self.process_queue(item) # GPU work happens here
             items = processed if isinstance(processed, list) else [processed]
             for item_with_embedding in items:
