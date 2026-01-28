@@ -151,7 +151,7 @@ class WikipediaKnowedgeService(KnowledgeService):
 
     def store_item(self, item: DatabaseWikipediaItem) -> None:
         queue_item = item.to_dict()
-        self.queue_service.write(self._indexing_queue_name(), queue_item)
+        self.queue_service.write(self._process_queue_name(), queue_item)
 
     def insert_item(self, item: dict[str, object]) -> None:
         wiki_item = DatabaseWikipediaItem.from_rabbitqueue_dict(item)

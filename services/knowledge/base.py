@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
 import logging
 import threading
-import time
 from services.knowledge.models import KnowledgeItem
 from services.queue.queue_worker import QueueWorker
 from services.queue.queue_service import QueueService
@@ -117,22 +116,26 @@ class KnowledgeService(ABC):
                 should_exit=should_exit
             )
         except Exception as e:
-            self.logger.exception("Error during processing for queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
+            self.logger.exception("Error during processing for queue: %s. (%s)",
+                            self._ingest_queue_name(), self.service_name)
             self.logger.exception("Error: %s", e)
         finally:
             try:
                 self.finalize_processing()
             except Exception as e:
-                self.logger.exception("Error during finalize_processing for queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
+                self.logger.exception("Error during finalize_processing for queue: %s. (%s)",
+                                self._ingest_queue_name(), self.service_name)
                 self.logger.exception("Error: %s", e)
-            self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
+            self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(),
+                                                                                self.service_name)
 
     def store(self) -> None:
         """
             Process {service_name}.processed queue
             Inserts into database
         """
-        self.logger.info("Processing processed data from queue: %s. (%s)", self._process_queue_name(), self.service_name)
+        self.logger.info("Processing processed data from queue: %s. (%s)", self._process_queue_name(),
+                                                                        self.service_name)
 
         worker = QueueWorker(
             queue_service=self.queue_service,
@@ -157,15 +160,18 @@ class KnowledgeService(ABC):
                 should_exit=should_exit
             )
         except Exception as e:
-            self.logger.exception("Error during processing for queue: %s. (%s)", self._process_queue_name(), self.service_name)
+            self.logger.exception("Error during processing for queue: %s. (%s)", self._process_queue_name(),
+                                                                            self.service_name)
             self.logger.exception("Error: %s", e)
         finally:
             try:
                 self.finalize_processing()
             except Exception as e:
-                self.logger.exception("Error during finalize_processing for queue: %s. (%s)", self._process_queue_name(), self.service_name)
+                self.logger.exception("Error during finalize_processing for queue: %s. (%s)",
+                                                                        self._process_queue_name(), self.service_name)
                 self.logger.exception("Error: %s", e)
-            self.logger.info("Done processing ingested data from queue: %s. (%s)", self._process_queue_name(), self.service_name)
+            self.logger.info("Done processing ingested data from queue: %s. (%s)", self._process_queue_name(),
+                                                                            self.service_name)
 
     def finalize_processing(self) -> None:
         """Optional hook called after processing loop ends."""
