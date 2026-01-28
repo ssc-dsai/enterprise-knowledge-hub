@@ -130,23 +130,28 @@ class KnowledgeService(ABC):
             Inserts into database essentially
         """
         self.logger.info("Processing wikipedia embedding sink data. (%s)", self.service_name)
+        
+        worker = QueueWorker(
+            queue_service=self.queue_service,
+            logger=self.logger,
+            stop_event=self._stop_event,
+            poll_interval=self._poll_interval
+        )
+        
+        def handler(item: dict[str, object]) -> None:
+            if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
+                self.insert_item(item)
+
+        def should_exit(drained_any: bool) -> bool:
+            #Producer done and ingestion queue empty AND queue was empty this iteration
+            return self._producer_done.is_set() and not drained_any
         try:
-            while not self._stop_event.is_set():
-                for item, delivery_tag in self.queue_service.read(self._process_queue_name()):
-                    try:
-                        if self._stop_event.is_set():
-                            self.logger.info("Stop event is true.  Stopping wiki sink loop")
-                            self._ack_message(delivery_tag, successful=False)
-                            break
-                        if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
-                            self.insert_item(item)
-                        self._ack_message(delivery_tag, successful=True)
-                    except Exception as e:
-                        self.logger.exception("Error processing item in %s: %s", self.service_name, e)
-                        self._ack_message(delivery_tag, successful=False)
-                if self._producer_done.is_set() and self._is_ingestion_queue_complete:
-                    break  # Producer done and ingestion queue and sink queue empty
-                time.sleep(self._poll_interval)
+            worker.run(
+                queue_name=self._process_queue_name(),
+                service_name=self.service_name,
+                handler=handler,
+                should_exit=should_exit
+            )
         except Exception as e:
             self.logger.exception("Error during processing for wikipedia embedding sink %s: %s", self.service_name, e)
         finally:
