@@ -89,7 +89,8 @@ class KnowledgeService(ABC):
 
     def process(self) -> None:
         """Process ingested data. Keeps polling until producer is done and queue is empty."""
-        self.logger.info("Processing ingested data. (%s)", self.service_name)
+        self.logger.info("Processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
+
         worker = QueueWorker(
             queue_service=self.queue_service,
             logger=self.logger,
@@ -116,28 +117,30 @@ class KnowledgeService(ABC):
                 should_exit=should_exit
             )
         except Exception as e:
-            self.logger.exception("Error during processing for %s: %s", self.service_name, e)
+            self.logger.exception("Error during processing for queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
+            self.logger.exception("Error: %s", e)
         finally:
             try:
                 self.finalize_processing()
             except Exception as e:
-                self.logger.exception("Error during finalize_processing for %s: %s", self.service_name, e)
-            self.logger.info("Done processing ingested data. (%s)", self.service_name)
+                self.logger.exception("Error during finalize_processing for queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
+                self.logger.exception("Error: %s", e)
+            self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
 
     def store(self) -> None:
         """
-            Process wikipedia embedding sink queue
-            Inserts into database essentially
+            Process {service_name}.processed queue
+            Inserts into database
         """
-        self.logger.info("Processing wikipedia embedding sink data. (%s)", self.service_name)
-        
+        self.logger.info("Processing processed data from queue: %s. (%s)", self._process_queue_name(), self.service_name)
+
         worker = QueueWorker(
             queue_service=self.queue_service,
             logger=self.logger,
             stop_event=self._stop_event,
             poll_interval=self._poll_interval
         )
-        
+
         def handler(item: dict[str, object]) -> None:
             if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
                 self.insert_item(item)
@@ -145,6 +148,7 @@ class KnowledgeService(ABC):
         def should_exit(drained_any: bool) -> bool:
             #Producer done and ingestion queue empty AND queue was empty this iteration
             return self._producer_done.is_set() and not drained_any
+
         try:
             worker.run(
                 queue_name=self._process_queue_name(),
@@ -153,13 +157,15 @@ class KnowledgeService(ABC):
                 should_exit=should_exit
             )
         except Exception as e:
-            self.logger.exception("Error during processing for wikipedia embedding sink %s: %s", self.service_name, e)
+            self.logger.exception("Error during processing for queue: %s. (%s)", self._process_queue_name(), self.service_name)
+            self.logger.exception("Error: %s", e)
         finally:
             try:
                 self.finalize_processing()
             except Exception as e:
-                self.logger.exception("Error during finalize_processing for %s: %s", self.service_name, e)
-            self.logger.info("Done processing wiki sink data. (%s)", self.service_name)
+                self.logger.exception("Error during finalize_processing for queue: %s. (%s)", self._process_queue_name(), self.service_name)
+                self.logger.exception("Error: %s", e)
+            self.logger.info("Done processing ingested data from queue: %s. (%s)", self._process_queue_name(), self.service_name)
 
     def finalize_processing(self) -> None:
         """Optional hook called after processing loop ends."""
