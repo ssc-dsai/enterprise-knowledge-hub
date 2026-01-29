@@ -152,7 +152,7 @@ class WikipediaKnowedgeService(KnowledgeService):
 
         return dump_path
 
-    def store_item(self, item: DatabaseWikipediaItem) -> None:
+    def emit_processed_item(self, item: DatabaseWikipediaItem) -> None:
         queue_item = item.to_dict()
         self.queue_service.write(self._processed_queue_name(), queue_item)
 

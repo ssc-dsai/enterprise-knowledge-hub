@@ -50,7 +50,7 @@ class KnowledgeService(ABC):
 
     @abstractmethod
     def emit_fetched_item(self, item: KnowledgeItem) -> None:
-        """Take read item, transform as needed and pass the message to the ingest queue"""
+        """Take fetched and transformed item, and pass to the .raw queue"""
         raise NotImplementedError("Subclasses must implement the emit_fetched_item method.")
 
     @abstractmethod
@@ -60,8 +60,9 @@ class KnowledgeService(ABC):
 
     @abstractmethod
     def emit_processed_item(self, item: KnowledgeItem) -> None:
-        """Store the processed knowledge item into the knowledge base."""
+        """Take processed item, and pass to the .processed queue"""
         raise NotImplementedError("Subclasses must implement the store_item method.")
+    
     # @abstractmethod
     # def store_item(self, item: KnowledgeItem) -> None:
     #     """Store the processed knowledge item into the knowledge base."""
@@ -109,10 +110,9 @@ class KnowledgeService(ABC):
         def handler(item: dict[str, object]) -> None:
             processed = self.process_item(item) # GPU work happens here 
             #processed = list[knowledgeitem]
-            items: list[KnowledgeItem] = processed if isinstance(processed, list) else [processed]
-            for item_with_embedding in items:
-                # TODO AR:store_item function name to change, emit_processed_item(), publish_processed_item()
-                self.store_item(item_with_embedding) #TODO AR: make this generic as to not need abstractmethod?
+            processed_items: list[KnowledgeItem] = processed if isinstance(processed, list) else [processed]
+            for processed_item in processed_items:
+                self.emit_processed_item(processed_item)
             self._stats.record_processed()
 
         def should_exit(drained_any: bool) -> bool:
