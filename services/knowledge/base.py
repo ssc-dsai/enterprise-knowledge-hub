@@ -56,22 +56,17 @@ class KnowledgeService(ABC):
     @abstractmethod
     def process_item(self, knowledge_item: dict[str, object]):
         """Process ingested data from the queue. May return a single item or a list of items."""
-        raise NotImplementedError("Subclasses must implement the process method.")
+        raise NotImplementedError("Subclasses must implement the process_item method.")
 
     @abstractmethod
     def emit_processed_item(self, item: KnowledgeItem) -> None:
         """Take processed item, and pass to the .processed queue"""
-        raise NotImplementedError("Subclasses must implement the store_item method.")
-    
-    # @abstractmethod
-    # def store_item(self, item: KnowledgeItem) -> None:
-    #     """Store the processed knowledge item into the knowledge base."""
-    #     raise NotImplementedError("Subclasses must implement the store_item method.")
+        raise NotImplementedError("Subclasses must implement the emit_processed_item method.")
 
-    # @abstractmethod
-    # def insert_item(self, item: dict[str, object]) -> None:
-    #     """Insert the object into repository"""
-    #     raise NotImplementedError("Subclasses must implement the insert_item method.")
+    @abstractmethod
+    def store_item(self, item: dict[str, object]) -> None:
+        """Insert the object into repository"""
+        raise NotImplementedError("Subclasses must implement the store_item method.")
 
     def _ingest_queue_name(self) -> str:
         """Return ingestion queue name.  Ingest raw source into embedding ready units"""
@@ -108,8 +103,7 @@ class KnowledgeService(ABC):
         )
 
         def handler(item: dict[str, object]) -> None:
-            processed = self.process_item(item) # GPU work happens here 
-            #processed = list[knowledgeitem]
+            processed = self.process_item(item) # GPU work happens here
             processed_items: list[KnowledgeItem] = processed if isinstance(processed, list) else [processed]
             for processed_item in processed_items:
                 self.emit_processed_item(processed_item)
@@ -157,7 +151,7 @@ class KnowledgeService(ABC):
 
         def handler(item: dict[str, object]) -> None:
             if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
-                self.insert_item(item)
+                self.store_item(item)
 
         def should_exit(drained_any: bool) -> bool:
             #Producer done and ingestion queue empty AND queue was empty this iteration

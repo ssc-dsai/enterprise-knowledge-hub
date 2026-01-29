@@ -131,9 +131,9 @@ class WikipediaKnowedgeService(KnowledgeService):
             except OSError as exc:
                 self.logger.error("Failed to process index file %s: %s. Continuing to next file.", index_path, exc)
                 continue
-            
+
     def emit_fetched_item(self, item) -> None:
-        self.queue_service.write(self._ingest_queue_name(), item.to_dict())  
+        self.queue_service.write(self._ingest_queue_name(), item.to_dict())
 
     def _get_dump_path(self, index_path: Path) -> Path | None:
         """Derive the dump file path from an index file path."""
@@ -156,7 +156,7 @@ class WikipediaKnowedgeService(KnowledgeService):
         queue_item = item.to_dict()
         self.queue_service.write(self._processed_queue_name(), queue_item)
 
-    def insert_item(self, item: dict[str, object]) -> None:
+    def store_item(self, item: dict[str, object]) -> None:
         wiki_item = DatabaseWikipediaItem.from_rabbitqueue_dict(item)
         record_to_insert = WikipediaDbRecord.from_item(wiki_item)
         self._repository.insert(record_to_insert.as_mapping())
