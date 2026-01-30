@@ -39,8 +39,10 @@ class QueryService():
         #results = self._repository.search_by_embedding(query_embedding, min_similarity=0.8, probes=60)
         return parsed_results
 
-    def get_article_content_by_title(self, title: str) -> list[DocumentRecord]:
-        """Get article contentn based on title"""
+    def get_article_content_by_title(self, title: str) -> str:
+        """Get article content based on title"""
+        print(f"Getting article content (all chunks) for title: {title}")
 
-        result = self._repository.get_record_content(title)
-        return result
+        article_pid = self._repository.get_pid_by_title(title)
+        full_chunks = self._repository.get_record_full_chunks_content(article_pid)
+        return full_chunks

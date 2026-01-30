@@ -125,15 +125,16 @@
                         try {
                             // Derive a document identifier (use last segment if a path)
                             const fileName = (filePath || '').split('/').pop();
+                            console.log('Retrieving documents for fileName (in index.html):', fileName);
                             const response = await fetch(`/database/retrieve/${encodeURIComponent(fileName)}`, {
                                 method: 'GET',
                                 headers: { 'Accept': 'text/html' }
                             });
                             if (!response.ok) throw new Error('Failed to retrieve document');
-
+                            
                             const documentContents = await response.text(); // Get the document content as text
                             fileContentDiv.innerHTML = `
-                            <strong>Content of ${escapeHtml(filePath)}:</strong><br>
+                            <strong>Full Article Content (All Chunks): ${escapeHtml(filePath)}</strong><br>
                             <pre>${escapeHtml(documentContents)}</pre>
                         `;
                         } catch (err) {

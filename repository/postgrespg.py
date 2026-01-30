@@ -205,22 +205,39 @@ class WikipediaPgRepository:
                     rows = cur.fetchall()
         return rows
 
-    def get_record_content(self, title: str) -> list[DocumentRecord]:
-        """Query specific record content based on title"""
+    def get_pid_by_title(self, title: str) -> int | None:
+        """Query for pid based on title"""
 
         query_sql = sql.SQL(
             """
-            SELECT name, title, content FROM {table}
-            WHERE name LIKE %s
+            SELECT pid FROM {table}
+            WHERE name = %s
             """
         ).format(table=sql.Identifier(self._table_name))
 
-        pattern=f"%{title}%"
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (title,))
+            row = cur.fetchone()
+
+        if row:
+            return row[0]
+        return None
+
+    def get_record_full_chunks_content(self, pid: int) -> list[DocumentRecord]:
+        """Query for entire record chunks based on title"""
+
+        query_sql = sql.SQL(
+            """
+            SELECT title, content FROM {table}
+            WHERE pid = %s
+            """
+        ).format(table=sql.Identifier(self._table_name))
+
+        pattern=pid
 
         with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
             cur.execute(query_sql, (pattern,))
             rows = cur.fetchall()
-
         return rows
 
     def close(self) -> None:
