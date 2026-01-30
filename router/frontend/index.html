@@ -132,7 +132,6 @@
                             });
                             if (!response.ok) throw new Error('Failed to retrieve document');
                             
-                            // rename to what the document actually is (all the chunks)
                             const documentContents = await response.text(); // Get the document content as text
                             fileContentDiv.innerHTML = `
                             <strong>Full Article Content (All Chunks): ${escapeHtml(filePath)}</strong><br>
