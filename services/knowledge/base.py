@@ -17,11 +17,12 @@ class KnowledgeService(ABC):
     queue_service: QueueService
     logger: logging.Logger
     service_name: str
+    _stop_event: threading.Event
     _producer_done: threading.Event = field(default_factory=threading.Event, init=False)
-    _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
     _poll_interval: float = 0.5  # seconds to wait before retrying empty queue
     _stats: KnowledgeServiceStats = field(default_factory=KnowledgeServiceStats, init=False)
     _is_ingestion_queue_complete = False
+
 
     @property
     def stats(self) -> KnowledgeServiceStats:

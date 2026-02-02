@@ -62,7 +62,7 @@
             resultsDiv.innerHTML = 'Searching...';
 
             try {
-                const response = await fetch('/database/search?query=' + encodeURIComponent(query) + '&limit=' + encodeURIComponent(limit), {
+                const response = await fetch('/database/search/wikipedia?query=' + encodeURIComponent(query) + '&limit=' + encodeURIComponent(limit), {
                     method: 'GET',
                     headers: { 'Accept': 'application/json' }
                 });
@@ -125,7 +125,7 @@
                         try {
                             // Derive a document identifier (use last segment if a path)
                             const fileName = (filePath || '').split('/').pop();
-                            const response = await fetch(`/database/retrieve/${encodeURIComponent(fileName)}`, {
+                            const response = await fetch(`/database/retrieve/wikipedia/${encodeURIComponent(fileName)}`, {
                                 method: 'GET',
                                 headers: { 'Accept': 'text/html' }
                             });

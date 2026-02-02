@@ -3,6 +3,7 @@ Main endpoints for knowledge management (creation/delete/update).
 """
 import logging
 import os
+import threading
 from typing import Literal
 from dotenv import load_dotenv
 from fastapi import APIRouter, Query
@@ -10,12 +11,13 @@ from fastapi import BackgroundTasks
 
 from provider.queue.rabbitmq import RabbitMQProvider
 from router.root.run_state import RunState
-from services.knowledge.wikipedia import WikipediaKnowedgeService
+from services.knowledge.wikipedia import WikipediaKnowledgeService
 from services.queue.queue_service import QueueService
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+_Stop_event = threading.Event()
 
 router = APIRouter()
 
@@ -24,7 +26,7 @@ KNOWLEDGE_BASE = "/knowledge"
 # initialize the queue service here
 _queue_service = QueueService(queue_provider=RabbitMQProvider(url=os.getenv("RABBITMQ_URL"),
                                                               logger=logger), logger=logger)
-_wikipedia_service = WikipediaKnowedgeService(queue_service=_queue_service, logger=logger)
+_wikipedia_service = WikipediaKnowledgeService(queue_service=_queue_service, logger=logger, _stop_event=_Stop_event)
 _wikipedia_state = RunState()
 
 def _run_wikipedia_task():

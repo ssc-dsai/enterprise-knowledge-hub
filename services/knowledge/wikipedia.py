@@ -26,7 +26,7 @@ INDEX_FILENAME = re.compile(r"(?P<prefix>.+)-index(?P<chunk>\d*)\.txt\.bz2")
 QUEUE_BATCH_NAME = "wikipedia_embeddings_sink"
 
 @dataclass
-class WikipediaKnowedgeService(KnowledgeService):
+class WikipediaKnowledgeService(KnowledgeService):
     """Knowledge service for Wikipedia ingestion."""
 
     _ignored_title_prefixes: tuple[str, ...] = (
@@ -53,12 +53,12 @@ class WikipediaKnowedgeService(KnowledgeService):
     _content_folder_path: Path = Path(os.getenv("WIKIPEDIA_CONTENT_FOLDER",
                                     "./content/wikipedia")).expanduser().resolve()
     _process_only_first_n_paragraphs: int = int(os.getenv("WIKIPEDIA_PROCESS_ONLY_FIRST_N_PARAGRAPHS", "0"))
-    _progress_flush_interval: int = 1000 # for the .progress file we track line number we stpped.
+    _progress_flush_interval: int = 1000 # for the .progress file we track line number we stopped at.
     _batch_size: int = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
     _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
 
-    def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None):
-        super().__init__(queue_service=queue_service, logger=logger, service_name="wikipedia")
+    def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None, _stop_event=None):
+        super().__init__(queue_service=queue_service, logger=logger, service_name="wikipedia", _stop_event=_stop_event)
         self._repository = repository or WikipediaPgRepository.from_env()
         self._pending: list[WikipediaDbRecord] = []
 
