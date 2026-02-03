@@ -85,8 +85,8 @@ class KnowledgeService(ABC):
                     break
                 self.emit_fetched_item(item)
                 self._stats.record_added()
-        except Exception as e:
-            self.logger.exception("Error during ingestion for %s: %s", self.service_name, e)
+        except Exception:
+            self.logger.exception("Error during ingestion for %s", self.service_name)
         finally:
             self._producer_done.set()  # Signal that producer is finished
             self.logger.info("Done ingestion for %s", self.service_name)
@@ -120,17 +120,15 @@ class KnowledgeService(ABC):
                 handler=handler,
                 should_exit=should_exit
             )
-        except Exception as e:
+        except Exception:
             self.logger.exception("Error during processing for queue: %s. (%s)",
                             self._ingest_queue_name(), self.service_name)
-            self.logger.exception("Error: %s", e)
         finally:
             try:
                 self.finalize_processing()
-            except Exception as e:
+            except Exception:
                 self.logger.exception("Error during finalize_processing for queue: %s. (%s)",
                                 self._ingest_queue_name(), self.service_name)
-                self.logger.exception("Error: %s", e)
             self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(),
                                                                                 self.service_name)
 
@@ -164,17 +162,15 @@ class KnowledgeService(ABC):
                 handler=handler,
                 should_exit=should_exit
             )
-        except Exception as e:
+        except Exception:
             self.logger.exception("Error during processing for queue: %s. (%s)", self._processed_queue_name(),
                                                                             self.service_name)
-            self.logger.exception("Error: %s", e)
         finally:
             try:
                 self.finalize_processing()
-            except Exception as e:
+            except Exception:
                 self.logger.exception("Error during finalize_processing for queue: %s. (%s)",
                                                                         self._processed_queue_name(), self.service_name)
-                self.logger.exception("Error: %s", e)
             self.logger.info("Done processing ingested data from queue: %s. (%s)", self._processed_queue_name(),
                                                                             self.service_name)
 
