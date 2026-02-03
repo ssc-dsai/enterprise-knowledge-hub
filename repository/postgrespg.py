@@ -127,7 +127,11 @@ class WikipediaPgRepository:
             """
             INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
             VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s,
+<<<<<<< HEAD
                 %(last_modified_date)s, %(embedding)s, %(source)s)
+=======
+            %(last_modified_date)s, %(embedding)s, %(source)s)
+>>>>>>> 896bc61 (Refactored services/knowledge to ensure base.py is separated from run lifecycle control)
             ON CONFLICT (pid, chunk_index) DO UPDATE SET
                 name = EXCLUDED.name,
                 title = EXCLUDED.title,

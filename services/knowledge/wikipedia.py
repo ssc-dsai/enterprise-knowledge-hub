@@ -9,6 +9,9 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+import threading
+from concurrent.futures import ThreadPoolExecutor
+import time
 
 import numpy as np
 from dotenv import load_dotenv
@@ -57,7 +60,11 @@ class WikipediaKnowledgeService(KnowledgeService):
     _batch_size: int = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
     _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
 
+<<<<<<< HEAD
     def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None, _stop_event=None):
+=======
+    def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None, _stop_event=threading.Event()):
+>>>>>>> 896bc61 (Refactored services/knowledge to ensure base.py is separated from run lifecycle control)
         super().__init__(queue_service=queue_service, logger=logger, service_name="wikipedia", _stop_event=_stop_event)
         self._repository = repository or WikipediaPgRepository.from_env()
         self._pending: list[WikipediaDbRecord] = []
@@ -66,6 +73,40 @@ class WikipediaKnowledgeService(KnowledgeService):
     def embedder(self):
         """Get embedder"""
         return get_embedder()
+
+    def run(self) -> None:
+        """Run the knowledge ingestion/processing in parallel threads."""
+        self.logger.info("Running knowledge ingestion for %s", self.service_name)
+        self._producer_done.clear()
+        self._stop_event.clear()
+        self._stats.reset()  # Reset stats at the start of each run
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            queue_future = executor.submit(self.ingest)
+            process_future = executor.submit(self.process)
+            insert_future = executor.submit(self.store)
+            # Wait for both to complete and propagate any exceptions
+            queue_future.result()
+            process_future.result()
+            insert_future.result()
+
+    def fetch_from_source(self) -> Iterator[WikipediaItem]:
+        """Read data from Wikipedia index.txt.bz2 source.
+
+            The content will be first entrypoint in the main .bz2 multistream file.
+                Ex: 345:6789:Fruits (Read more on the doc from the README.md from content/ folder)
+        """
+        for index_path in self._discover_index_files():
+            self.logger.info("Reading data from Wikipedia source: %s", index_path)
+
+            dump_path = self._get_dump_path(index_path)
+            if dump_path is None:
+                continue
+
+            try:
+                yield from self._process_index_file(index_path, dump_path)
+            except OSError as exc:
+                self.logger.error("Failed to process index file %s: %s. Continuing to next file.", index_path, exc)
+                continue
 
     def process_queue(self, knowledge_item: dict[str, object]) -> list[DatabaseWikipediaItem]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
@@ -113,24 +154,95 @@ class WikipediaKnowledgeService(KnowledgeService):
             self.logger.error("Error processing embedding for Wikipedia item: %s", e)
             raise e
 
-    def fetch_from_source(self) -> Iterator[WikipediaItem]:
-        """Read data from Wikipedia index.txt.bz2 source.
+    def store_item(self, item: DatabaseWikipediaItem) -> None:
+        queue_item = item.to_dict()
+        self.queue_service.write(self._process_queue_name(), queue_item)
 
-            The content will be first entrypoint in the main .bz2 multistream file.
-                Ex: 345:6789:Fruits (Read more on the doc from the README.md from content/ folder)
-        """
-        for index_path in self._discover_index_files():
-            self.logger.info("Reading data from Wikipedia source: %s", index_path)
+    def insert_item(self, item: dict[str, object]) -> None:
+        wiki_item = DatabaseWikipediaItem.from_rabbitqueue_dict(item)
+        record_to_insert = WikipediaDbRecord.from_item(wiki_item)
+        self._repository.insert(record_to_insert.as_mapping())
 
-            dump_path = self._get_dump_path(index_path)
-            if dump_path is None:
-                continue
+    def ingest(self) -> None:
+        """Ingest data into the knowledge base."""
+        self.logger.info("Ingesting data into the knowledge base. (%s)", self.service_name)
+        try:
+            for item in self.fetch_from_source():
+                if self._stop_event.is_set():
+                    break
+                self.queue_service.write(self._ingest_queue_name(), item.to_dict())
+                self._stats.record_added()
+        except Exception as e:
+            self.logger.exception("Error during ingestion for %s: %s", self.service_name, e)
+        finally:
+            self._producer_done.set()  # Signal that producer is finished
+            self.logger.info("Done ingestion for %s", self.service_name)
 
+    def process(self) -> None:
+        """Process ingested data. Keeps polling until producer is done and queue is empty."""
+        self.logger.info("Processing ingested data. (%s)", self.service_name)
+        try:
+            while not self._stop_event.is_set():
+                # Drain all available messages
+                for item, delivery_tag in self.queue_service.read(self._ingest_queue_name()):
+                    try:
+                        if self._stop_event.is_set():
+                            self.logger.info("Stop event is true.  Stopping process loop")
+                            self._ack_message(delivery_tag, successful=False)
+                            break
+                        processed = self.process_queue(item) # GPU work happens here
+                        items = processed if isinstance(processed, list) else [processed]
+                        for item_with_embedding in items:
+                            self.store_item(item_with_embedding)
+                        self._stats.record_processed()
+                        self._ack_message(delivery_tag, successful=True)
+                    except Exception as e:
+                        self.logger.exception("Error processing item in %s: %s", self.service_name, e)
+                        self._ack_message(delivery_tag, successful=False)
+                # Queue is empty - check if we should exit or wait
+                if self._producer_done.is_set():
+                    break  # Producer done and ingestion queue empty
+                time.sleep(self._poll_interval)
+        except Exception as e:
+            self.logger.exception("Error during processing for %s: %s", self.service_name, e)
+        finally:
             try:
-                yield from self._process_index_file(index_path, dump_path)
-            except OSError as exc:
-                self.logger.error("Failed to process index file %s: %s. Continuing to next file.", index_path, exc)
-                continue
+                self.finalize_processing()
+            except Exception as e:
+                self.logger.exception("Error during finalize_processing for %s: %s", self.service_name, e)
+            self.logger.info("Done processing ingested data. (%s)", self.service_name)
+
+    def store(self) -> None:
+            """
+                Process wikipedia embedding sink queue
+                Inserts into database essentially
+            """
+            self.logger.info("Processing wikipedia embedding sink data. (%s)", self.service_name)
+            try:
+                while not self._stop_event.is_set():
+                    for item, delivery_tag in self.queue_service.read(self._process_queue_name()):
+                        try:
+                            if self._stop_event.is_set():
+                                self.logger.info("Stop event is true.  Stopping wiki sink loop")
+                                self._ack_message(delivery_tag, successful=False)
+                                break
+                            if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
+                                self.insert_item(item)
+                            self._ack_message(delivery_tag, successful=True)
+                        except Exception as e:
+                            self.logger.exception("Error processing item in %s: %s", self.service_name, e)
+                            self._ack_message(delivery_tag, successful=False)
+                    if self._producer_done.is_set() and self._is_ingestion_queue_complete:
+                        break  # Producer done and ingestion queue and sink queue empty
+                    time.sleep(self._poll_interval)
+            except Exception as e:
+                self.logger.exception("Error during processing for wikipedia embedding sink %s: %s", self.service_name, e)
+            finally:
+                try:
+                    self.finalize_processing()
+                except Exception as e:
+                    self.logger.exception("Error during finalize_processing for %s: %s", self.service_name, e)
+                self.logger.info("Done processing wiki sink data. (%s)", self.service_name)
 
     def _get_dump_path(self, index_path: Path) -> Path | None:
         """Derive the dump file path from an index file path."""
@@ -148,15 +260,6 @@ class WikipediaKnowledgeService(KnowledgeService):
             return None
 
         return dump_path
-
-    def store_item(self, item: DatabaseWikipediaItem) -> None:
-        queue_item = item.to_dict()
-        self.queue_service.write(self._process_queue_name(), queue_item)
-
-    def insert_item(self, item: dict[str, object]) -> None:
-        wiki_item = DatabaseWikipediaItem.from_rabbitqueue_dict(item)
-        record_to_insert = WikipediaDbRecord.from_item(wiki_item)
-        self._repository.insert(record_to_insert.as_mapping())
 
     def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItem]:
         """Process a single index file and yield WikipediaItems."""
@@ -312,7 +415,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         text_match = re.search(r"<text[^>]*>([^<]*(?:<(?!/text>)[^<]*)*)</text>", xml_page, re.DOTALL)
         content = text_match.group(1) if text_match else ""
 
-        # REMOVE WIKI MARKUP (note: one of those 2 methods might be faster than the other?? they yeild the same results)
+        # REMOVE WIKI MARKUP (note: one of those 2 methods might be faster than the other?? they yield the same results)
         content = remove_markup(content)
         #content = parse(content).plain_text()
 

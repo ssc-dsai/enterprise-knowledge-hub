@@ -59,7 +59,6 @@ def wikipedia_run(background_tasks: BackgroundTasks):
         "details": f"Follow progress here {KNOWLEDGE_BASE}/wikipedia/status"
     }
 
-
 @router.get("/wikipedia/status")
 def wikipedia_stats(
     rate_window: Literal[5, 10] = Query(
