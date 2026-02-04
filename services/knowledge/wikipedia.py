@@ -60,7 +60,7 @@ class WikipediaKnowledgeService(KnowledgeService):
     _batch_size: int = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
     _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
 
-    def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None, _stop_event=threading.Event()):
+    def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None, _stop_event=threading.Event):
         super().__init__(queue_service=queue_service, logger=logger, service_name="wikipedia", _stop_event=_stop_event)
         self._repository = repository or WikipediaPgRepository.from_env()
         self._pending: list[WikipediaDbRecord] = []
