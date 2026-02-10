@@ -30,7 +30,7 @@ class Qwen3LlamaCpp(EmbeddingBackendProvider):
 
     def embed(self, text: str,
               is_query: bool = False,
-              dim: int = int(os.getenv("QWEN3_MAX_DIMENSION", "1024"))) -> np.ndarray:
+              dim: int = int(os.getenv("WIKIPEDIA_EMBEDDING_MAX_DIMENSION", "1024"))) -> np.ndarray:
         """Generate embeddings for the provided text, chunking if necessary.
 
         Args:
