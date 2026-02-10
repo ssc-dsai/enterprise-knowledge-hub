@@ -77,7 +77,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         self,
         text: str,
         is_query: bool = False,
-        dim: int = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_DIM", "1024")),
+        dim: int = int(os.getenv("QWEN3_MAX_DIMENSION", "1024")),
     ) -> np.ndarray:
         """Generate embeddings for text, chunking when necessary.
 

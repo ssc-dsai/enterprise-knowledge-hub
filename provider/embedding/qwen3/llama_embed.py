@@ -28,12 +28,15 @@ class Qwen3LlamaCpp(EmbeddingBackendProvider):
         self.logger = logging.getLogger(__name__)
         self.logger.debug("Model max sequence length: %d", self.max_seq_length)
 
-    def embed(self, text: str, is_query: bool = False) -> np.ndarray:
+    def embed(self, text: str,
+              is_query: bool = False,
+              dim: int = int(os.getenv("QWEN3_MAX_DIMENSION", "1024"))) -> np.ndarray:
         """Generate embeddings for the provided text, chunking if necessary.
 
         Args:
             text: The text to embed.
             is_query: If True, prepend query instruction for asymmetric retrieval.
+            dim: The dimension to truncate the embeddings to.
         """
         # For queries, prepend the instruction prefix
         if is_query:
@@ -50,6 +53,11 @@ class Qwen3LlamaCpp(EmbeddingBackendProvider):
                                                    np.ndarray) else np.asarray(raw_embeddings, dtype=np.float32)
         if embeddings.ndim == 1:
             embeddings = embeddings.reshape(1, -1)
+
+        # Truncate to specified dimension if needed
+        if embeddings.shape[-1] > dim:
+            self.logger.debug("Truncating embeddings from %d to %d dimensions", embeddings.shape[-1], dim)
+            embeddings = embeddings[:, :dim]
 
         # Aggressive cleanup for MPS
         if os.getenv("WIKIPEDIA_EMBEDDING_MODEL_CLEANUP", "False").lower() == "true":
