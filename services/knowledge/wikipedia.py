@@ -133,7 +133,29 @@ class WikipediaKnowedgeService(KnowledgeService):
                 continue
 
     def emit_fetched_item(self, item) -> None:
-        self.queue_service.write(self._ingest_queue_name(), item.to_dict())
+        max_tokens = getattr(self.embedder, "max_seq_length", None)
+        chunks = self.embedder.chunk_text_by_tokens(item.content, max_tokens=max_tokens)
+        results: list[WikipediaItem] = []
+        num_chunks = len(chunks)
+        for idx, chunk_text in enumerate(chunks, start=1):
+                results.append(
+                    WikipediaItem(
+                        name=item.name,
+                        title=f"{item.title} (chunk {idx}/{num_chunks})",
+                        content=chunk_text,
+                        last_modified_date=item.last_modified_date,
+                        pid=item.pid,
+                        chunk_index=idx,
+                        chunk_count=num_chunks,
+                        source=item.source
+                    )
+                )
+        
+        for wikiItem in results:
+            self.queue_service.write(self._ingest_queue_name(), wikiItem.to_dict())
+        
+    def chunk_article(self, item):
+        """Take article and chunk based on sequence length"""
 
     def _get_dump_path(self, index_path: Path) -> Path | None:
         """Derive the dump file path from an index file path."""
