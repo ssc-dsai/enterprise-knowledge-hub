@@ -68,6 +68,11 @@ class KnowledgeService(ABC):
     def store_item(self, item: dict[str, object]) -> None:
         """Insert the object into repository"""
         raise NotImplementedError("Subclasses must implement the store_item method.")
+    
+    @abstractmethod
+    def get_batch_size(self) -> int:
+        """Get the set batch size"""
+        raise NotImplementedError("Subclasses must implement the get_batch_size method.")
 
     def _ingest_queue_name(self) -> str:
         """Return ingestion queue name.  Ingest raw source into embedding ready units"""
@@ -96,6 +101,7 @@ class KnowledgeService(ABC):
         """Process ingested data. Keeps polling until producer is done and queue is empty."""
         self.logger.info("Processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
 
+        batch_size = self.get_batch_size()
         worker = QueueWorker(
             queue_service=self.queue_service,
             logger=self.logger,
@@ -103,7 +109,10 @@ class KnowledgeService(ABC):
             poll_interval=self._poll_interval
         )
 
-        handler = BatchHandler(process_batch=self.process_item, batch_size=5)
+        def acknowledge(tag, ok):
+            self._acknowledge(tag, successful=ok)
+            
+        handler = BatchHandler(self.process_item, acknowledge, batch_size)
         # def handler(item: dict[str, object]) -> None:
         #     processed = self.process_item(item) # GPU work happens here
         #     processed_items: list[KnowledgeItem] = processed if isinstance(processed, list) else [processed]

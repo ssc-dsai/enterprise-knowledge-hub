@@ -18,7 +18,7 @@ class QueueWorker:
     def run(self, service_name: str, queue_name: str, handler, should_exit):
         """
         Docstring for run
-        
+
         :param self: Description
         :param service_name: name for specific service implementation running this
         :type service_name: str
@@ -37,8 +37,17 @@ class QueueWorker:
                         self.logger.info("Stop event is true. Stopping process: %s - %s", service_name, queue_name)
                         self._acknowledge(delivery_tag, successful=False)
                         break
-                    handler(item)
-                    self._acknowledge(delivery_tag, successful=False)
+
+                    is_handler_manages_ack = handler(item)
+
+                    # to include batch processing/batch acking
+                    if is_handler_manages_ack is True:
+                        self._acknowledge(delivery_tag, successful=True)
+                    if is_handler_manages_ack is False:
+                        self._acknowledge(delivery_tag, successful=False)
+                    else:
+                        pass
+
                 except Exception as e:
                     self.logger.exception(
                         "Error processing item in queue %s - %s", queue_name, service_name

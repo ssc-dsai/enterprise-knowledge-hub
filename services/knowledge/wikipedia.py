@@ -67,6 +67,9 @@ class WikipediaKnowedgeService(KnowledgeService):
         """Get embedder"""
         return get_embedder()
 
+    def get_batch_size(self):
+        return self._batch_size
+    
     def process_item(self, knowledge_item: dict[str, object]) -> list[DatabaseWikipediaItem]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
@@ -107,7 +110,7 @@ class WikipediaKnowedgeService(KnowledgeService):
             #             embeddings=vec,
             #         )
             #     )
-            print("hello")
+            
 
             # return results
         except Exception as e:
@@ -153,6 +156,9 @@ class WikipediaKnowedgeService(KnowledgeService):
                 )
         for wikiItem in results:
             self.queue_service.write(self._ingest_queue_name(), wikiItem.to_dict())
+        
+        
+        # moving things to wiki implementation
         
     def chunk_article(self, item):
         """Take article and chunk based on sequence length"""
