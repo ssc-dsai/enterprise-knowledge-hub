@@ -1,5 +1,4 @@
 # enterprise-knowledge-hub
-Enterprise Knowledge Hub
 
 ## Initial setup
 
@@ -9,7 +8,7 @@ To start the docker container: `docker compose up -d`
 
 ### Files for KB implementation
 
-* Wikipedia; ensure you `mkdir wikipedia` within the `./content/` folder and drop your files there. 
+* Wikipedia; ensure you `mkdir wikipedia` within the `./content/` folder and drop your files there.
 
 ### Database Setup
 
@@ -51,3 +50,53 @@ PYTORCH_ALLOC_CONF="max_split_size_mb:128,garbage_collection_threshold:0.6,expan
 PYTORCH_CUDA_GPU_CAP=0.9
 MODEL_SHOW_PROGRESS=False
 ```
+
+---
+
+## File Descriptions and Repo Structure
+
+`main.py`: Entry point for running the Enterprise Knowledge Hub.
+---
+### provider/
+#### embedding/
+- **`base.py`**: Abstract base class for implementing embedding models.
+- **qwen3/**:
+  - `embedder_factory.py`: A factory to dynamically select embedding models at runtime.
+  - `llama_embed.py`: Embedding implementation that can extend or customize `embedding/base.py`.
+  - `sentence_transformer.py`: Embedding implementation using sentence transformers.
+
+#### queue/
+- **`base.py`**: Abstract base class for queue providers.
+- **`RabbitMQ.py`**: Handles RabbitMQ interaction, implementing queue operations defined in base.py.
+---
+### repository/
+- **`model.py`**: Defines the PostgreSQL data model for records.
+- **`postgrespg.py`**: Handles PostgreSQL communication and database interaction.
+---
+### router/
+
+#### frontend/
+- **`index.html`**: The user-facing (developers only) UI served by the Enterprise Knowledge Hub.
+- **`frontend.py`**: Python backend for serving the frontend.
+
+#### root/
+- **`search_retrieve_endpoints.py`**: Contains APIs to search and retrieve data from the knowledge database.
+- **`run_management_endpoints.py`**: APIs to manage creation, deletion, updates, and index runs.
+- **`run_state.py`**: Manages the state of index processing runs.
+---
+### services/
+
+#### database/
+- **`database_service.py`**: Implements logic for database interaction, including search and retrieval.
+
+#### knowledge/
+- **`base.py`**: Core logic for building and running knowledge bases.
+- **`models.py`**: Data models for knowledge base items.
+- **`wikipedia.py`**: Processes Wikipedia XML files and converts them to a format suitable for use in the system (implementing the abstract class)
+
+#### queue/
+- **`queue_service.py`**: Handles read and write operations in the queue system.
+- **`queue_worker.py`**: Manages worker tasks for queue read operations.
+
+### stats/
+- **`knowledge_service_stats.py`**: Generates and configures statistics related to index runs.
