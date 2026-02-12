@@ -1,0 +1,15 @@
+name: Docker (Build/Push)
+
+on:
+  push:
+    # commenting out for now so I can test
+#     branches: main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build Docker image
+        run: docker build -t enterprise-knowledge-hub .
