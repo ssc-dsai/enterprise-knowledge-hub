@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
+from typing import TypeVar, Any
 import logging
 import threading
 from services.knowledge.models import KnowledgeItem
@@ -11,6 +12,8 @@ from services.knowledge.batch_handler import BatchHandler
 from services.queue.queue_worker import QueueWorker
 from services.queue.queue_service import QueueService
 from services.stats.knowledge_service_stats import KnowledgeServiceStats
+
+T = TypeVar("T")
 
 @dataclass
 class KnowledgeService(ABC):
@@ -55,7 +58,7 @@ class KnowledgeService(ABC):
         raise NotImplementedError("Subclasses must implement the emit_fetched_item method.")
 
     @abstractmethod
-    def process_item(self, knowledge_item: dict[str, object]):
+    def process_item(self, knowledge_item: Any):
         """Process ingested data from the queue. May return a single item or a list of items."""
         raise NotImplementedError("Subclasses must implement the process_item method.")
 
