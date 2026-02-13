@@ -9,6 +9,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import List
 
 import numpy as np
 from dotenv import load_dotenv
@@ -17,7 +18,7 @@ from wikitextparser import remove_markup
 from provider.embedding.qwen3.embedder_factory import get_embedder
 from repository.postgrespg import WikipediaDbRecord, WikipediaPgRepository
 from services.knowledge.base import KnowledgeService
-from services.knowledge.models import DatabaseWikipediaItem, Source, WikipediaItem
+from services.knowledge.models import DatabaseWikipediaItem, KnowledgeItem, Source, WikipediaItem
 
 load_dotenv()
 
@@ -70,9 +71,41 @@ class WikipediaKnowedgeService(KnowledgeService):
     def get_batch_size(self):
         return self._batch_size
     
-    def process_item(self, knowledge_item: dict[str, object]) -> list[DatabaseWikipediaItem]:
+    def process_item(self, knowledge_item: List[KnowledgeItem]) -> list[DatabaseWikipediaItem]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
+            # self.logger.debug("Generating embeddings for %s", knowledge_item.title)
+            print('process_item implementation' + str(knowledge_item))
+            batch: List[str] = []
+            for item in knowledge_item:
+                print('item: ' + str(item))
+                batch.append(item['content'])
+                
+            print ('batch ' + str(batch))
+            
+            embeddings = self.embedder.embed(batch)
+            arr = np.asarray(embeddings)
+            
+            results: list[DatabaseWikipediaItem] = []
+            
+            for idx, (item, vec) in enumerate(zip(knowledge_item, arr), start=1):
+                results.append(
+                    DatabaseWikipediaItem(
+                        name=item['name'],
+                        title=f"{item['title']} (chunk {idx}/{item['chunk_count']})",
+                        content=item['content'],
+                        last_modified_date=item['last_modified_date'],
+                        pid=item['pid'],
+                        chunk_index=idx,
+                        chunk_count=item['chunk_count'],
+                        source=item['source'],
+                        embeddings=vec,
+                    )
+                )
+            
+            print('result: ' + str(results))
+            
+         
             # item = WikipediaItem.from_dict(knowledge_item)
             # self.logger.debug("Generating embeddings for %s", item.title)
 
@@ -112,7 +145,7 @@ class WikipediaKnowedgeService(KnowledgeService):
             #     )
             
             # test = "hello"
-            print('process_item implementation')
+         
             # return results
         except Exception as e:
             self.logger.error("Error processing embedding for Wikipedia item: %s", e)
