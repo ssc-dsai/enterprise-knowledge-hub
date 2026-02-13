@@ -111,7 +111,8 @@ class WikipediaKnowedgeService(KnowledgeService):
             #         )
             #     )
             
-
+            # test = "hello"
+            print('process_item implementation')
             # return results
         except Exception as e:
             self.logger.error("Error processing embedding for Wikipedia item: %s", e)

@@ -36,11 +36,11 @@ class KnowledgeService(ABC):
         self._stop_event.clear()
         self._stats.reset()  # Reset stats at the start of each run
         with ThreadPoolExecutor(max_workers=2) as executor:
-            queue_future = executor.submit(self.ingest)
+            # queue_future = executor.submit(self.ingest)
             process_future = executor.submit(self.process)
             # insert_future = executor.submit(self.store)
             # Wait for both to complete and propagate any exceptions
-            queue_future.result()
+            # queue_future.result()
             process_future.result()
             # insert_future.result()
 
@@ -109,8 +109,9 @@ class KnowledgeService(ABC):
             poll_interval=self._poll_interval
         )
 
-        def acknowledge(tag, ok):
-            self._acknowledge(tag, successful=ok)
+        def acknowledge(delivery_tag, successful):
+            print("ack definition" + str(successful))
+            self.queue_service.read_ack(delivery_tag, successful)
             
         handler = BatchHandler(self.process_item, acknowledge, batch_size)
         # def handler(item: dict[str, object]) -> None:

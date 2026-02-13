@@ -37,12 +37,12 @@ class QueueWorker:
                         self.logger.info("Stop event is true. Stopping process: %s - %s", service_name, queue_name)
                         self._acknowledge(delivery_tag, successful=False)
                         break
-
-                    is_handler_manages_ack = handler(item)
+                    input("Press enter to continue")
+                    is_handler_manages_ack = handler(item, delivery_tag)
 
                     # to include batch processing/batch acking
                     if is_handler_manages_ack is True:
-                        self._acknowledge(delivery_tag, successful=True)
+                        self._acknowledge(delivery_tag, successful=False)
                     if is_handler_manages_ack is False:
                         self._acknowledge(delivery_tag, successful=False)
                     else:
@@ -60,5 +60,6 @@ class QueueWorker:
             time.sleep(self.poll_interval)
 
     def _acknowledge(self, delivery_tag, successful: bool):
+        print("ack in queue worker" + str(successful))
         if delivery_tag is not None:
             self.queue_service.read_ack(delivery_tag, successful=successful)
