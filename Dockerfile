@@ -1,4 +1,4 @@
-FROM nvidia/cuda:13.1.1-cudnn-devel-ubuntu24.04
+FROM nvidia/cuda:12.9.1-cudnn-devel-ubuntu24.04
 #FROM python:3.12.12-trixie
 
 ARG UV_ARGS="--extra cuda"
