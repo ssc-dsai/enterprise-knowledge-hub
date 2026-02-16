@@ -6,12 +6,16 @@ on:
 #     branches: main
   workflow_dispatch:
     inputs:
-      enable_cuda:
-        description: 'Enable CUDA support'
-        type: boolean
-        default: false
+      base_image:
+        description: 'Base image type (both = build cpu and cuda)'
+        type: choice
+        options:
+          - both
+          - cpu
+          - cuda
+        default: 'both'
       cuda_arch:
-        description: 'CUDA architecture (e.g., 9.0, 8.9)'
+        description: 'CUDA architecture (e.g., 9.0, 8.9) - only used with cuda'
         required: false
         default: '9.0'
 
@@ -19,9 +23,10 @@ env:
   IMAGE_NAME: enterprise-knowledge-hub
 
 jobs:
-  build:
+  build-cpu:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    if: github.event_name == 'push' || inputs.base_image == 'both' || inputs.base_image == 'cpu'
     steps:
       - uses: actions/checkout@v4
 
@@ -30,27 +35,30 @@ jobs:
         run: |
           VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Extracted version: ${VERSION}"
 
-      - name: Set image tag
-        id: tag
+      - name: Build Docker image (CPU)
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          if [[ "${{ inputs.enable_cuda }}" == "true" ]]; then
-            TAG="${{ env.IMAGE_NAME }}:${VERSION}-cuda-${{ inputs.cuda_arch }}"
-          else
-            TAG="${{ env.IMAGE_NAME }}:${VERSION}"
-          fi
-          echo "tag=${TAG}" >> $GITHUB_OUTPUT
-          echo "Image will be tagged as: ${TAG}"
+          docker build \
+            --build-arg BASE_IMAGE=cpu \
+            -t ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }} .
 
-      - name: Build Docker image
+  build-cuda:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.event_name == 'push' || inputs.base_image == 'both' || inputs.base_image == 'cuda'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from pyproject.toml
+        id: version
         run: |
-          if [[ "${{ inputs.enable_cuda }}" == "true" ]]; then
-            docker build \
-              --build-arg ENABLE_CUDA=true \
-              --build-arg CUDA_ARCH="${{ inputs.cuda_arch }}" \
-              -t ${{ steps.tag.outputs.tag }} .
-          else
-            docker build -t ${{ steps.tag.outputs.tag }} .
-          fi
+          VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Build Docker image (CUDA)
+        run: |
+          CUDA_ARCH="${{ inputs.cuda_arch || '9.0' }}"
+          docker build \
+            --build-arg BASE_IMAGE=cuda \
+            --build-arg CUDA_ARCH="${CUDA_ARCH}" \
+            -t ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-cuda-${CUDA_ARCH} .

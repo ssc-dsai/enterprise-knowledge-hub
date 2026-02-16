@@ -1,14 +1,15 @@
 # Build args must be declared before FROM to use in image selection
-ARG ENABLE_CUDA=false
+# BASE_IMAGE: "cpu" or "cuda" - selects which base image to use
+ARG BASE_IMAGE=cpu
 ARG CUDA_ARCH
 
-# Select base image based on CUDA flag
+# Select base image based on BASE_IMAGE arg
 FROM nvidia/cuda:12.9.1-cudnn-devel-ubuntu24.04 AS base-cuda
 FROM python:3.12-trixie AS base-cpu
-FROM base-${ENABLE_CUDA:+cuda}${ENABLE_CUDA:-cpu} AS base
+FROM base-${BASE_IMAGE} AS base
 
-# For local dev:  docker build --build-arg ENABLE_CUDA=true --build-arg CUDA_ARCH="8.6" -t ekh:local-8.6 .
-ARG ENABLE_CUDA
+# For local dev:  docker build --build-arg BASE_IMAGE=cuda --build-arg CUDA_ARCH="8.6" -t ekh:local-8.6 .
+ARG BASE_IMAGE
 ARG CUDA_ARCH
 
 # install uv (from https://docs.astral.sh/uv/guides/integration/docker/#installing-uv)
@@ -31,7 +32,7 @@ ENV PATH="/root/.local/bin/:$PATH"
 # MAX_JOBS: Limit parallel ninja jobs to avoid OOM during compilation
 # NVCC_THREADS: Limit nvcc threads per job
 # TORCH_CUDA_ARCH_LIST: Target GPU architectures (used by PyTorch cpp_extension)
-RUN if [ "$ENABLE_CUDA" = "true" ]; then \
+RUN if [ "$BASE_IMAGE" = "cuda" ]; then \
       echo "CUDA_HOME=/usr/local/cuda" >> /etc/environment && \
       echo "MAX_JOBS=4" >> /etc/environment && \
       echo "NVCC_THREADS=2" >> /etc/environment && \
@@ -41,8 +42,8 @@ RUN if [ "$ENABLE_CUDA" = "true" ]; then \
       echo "FLASH_ATTENTION_SKIP_CUDA_BUILD=FALSE" >> /etc/environment; \
     fi
 
-ENV CUDA_HOME=${ENABLE_CUDA:+/usr/local/cuda}
-ENV PATH="${CUDA_HOME:+$CUDA_HOME/bin:}$PATH"
+ENV CUDA_HOME=/usr/local/cuda
+ENV PATH="$CUDA_HOME/bin:$PATH"
 
 WORKDIR /app
 
@@ -54,9 +55,9 @@ COPY services ./services
 
 COPY pyproject.toml uv.lock ./
 
-# Build with or without flash-attn based on CUDA flag
+# Build with or without flash-attn based on BASE_IMAGE
 # FLASH_ATTN_CUDA_ARCHS needs shell expansion, so compute it inline
-RUN if [ "$ENABLE_CUDA" = "true" ]; then \
+RUN if [ "$BASE_IMAGE" = "cuda" ]; then \
       export CUDA_HOME=/usr/local/cuda && \
       export MAX_JOBS=4 && \
       export NVCC_THREADS=2 && \
