@@ -4,12 +4,53 @@ on:
   push:
     # commenting out for now so I can test
 #     branches: main
+  workflow_dispatch:
+    inputs:
+      enable_cuda:
+        description: 'Enable CUDA support'
+        type: boolean
+        default: false
+      cuda_arch:
+        description: 'CUDA architecture (e.g., 9.0, 8.9)'
+        required: false
+        default: '9.0'
+
+env:
+  IMAGE_NAME: enterprise-knowledge-hub
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      
+
+      - name: Extract version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Extracted version: ${VERSION}"
+
+      - name: Set image tag
+        id: tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ "${{ inputs.enable_cuda }}" == "true" ]]; then
+            TAG="${{ env.IMAGE_NAME }}:${VERSION}-cuda-${{ inputs.cuda_arch }}"
+          else
+            TAG="${{ env.IMAGE_NAME }}:${VERSION}"
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Image will be tagged as: ${TAG}"
+
       - name: Build Docker image
-        run: docker build -t enterprise-knowledge-hub .
+        run: |
+          if [[ "${{ inputs.enable_cuda }}" == "true" ]]; then
+            docker build \
+              --build-arg UV_ARGS="--extra flash" \
+              --build-arg CUDA_ARCH="${{ inputs.cuda_arch }}" \
+              -t ${{ steps.tag.outputs.tag }} .
+          else
+            docker build -t ${{ steps.tag.outputs.tag }} .
+          fi

@@ -3,14 +3,8 @@ FROM nvidia/cuda:12.9.1-cudnn-devel-ubuntu24.04
 
 # For local dev:  docker build --build-arg UV_ARGS="--extra flash" --build-arg CUDA_ARCH="8.6" -t ekh:local-8.6 .
 ARG UV_ARGS
-# CUDA compute capabilities - see: https://developer.nvidia.com/cuda-gpus
-#   8.0 = A100
-#   8.6 = RTX 30xx, RTX A1000/A2000/A4000/A5000/A6000 (Ampere)
-#   8.9 = RTX 40xx, L40, L4 (Ada Lovelace)
-#   9.0 = H100, H200 (Hopper)
-#  10.0 = B100, B200 (Blackwell)
-# Format: space or semicolon separated, e.g. "8.9 9.0" or "8.9;9.0"
-ARG CUDA_ARCH="9.0"
+# CUDA compute capabilities - see: https://developer.nvidia.com/cuda-gpus (use version found there for your GPU)
+ARG CUDA_ARCH
 
 # install uv (from https://docs.astral.sh/uv/guides/integration/docker/#installing-uv)
 # The installer requires curl (and certificates) to download the release archive
