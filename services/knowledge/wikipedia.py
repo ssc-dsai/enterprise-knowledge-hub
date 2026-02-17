@@ -180,7 +180,6 @@ class WikipediaKnowedgeService(KnowledgeService):
             self.logger.info("Resuming from line %d for %s", start_line, index_path.name)
 
         current_line = 0
-        prev_offset: int | None = None
 
         source_name = index_path.name .split("-")[0]
         source = Source.WIKIPEDIA_EN if source_name == "enwiki" else Source.WIKIPEDIA_FR if source_name == "frwiki" else None #pylint: disable=line-too-long
@@ -189,32 +188,39 @@ class WikipediaKnowedgeService(KnowledgeService):
         now = datetime.now()
         id = self._repository.update_history_table_start(now, dump_path.name)
 
+        last_offset = 0
+        current_offset = 0
+
         with open(dump_path, 'rb') as dump_file, bz2.open(index_path, mode='rt') as index_file:
-            for line in index_file:
-                # print(f"Processing line {current_line} in index file {index_path}")
+            line_iter = iter(index_file)
+            line = next(line_iter, None)
+            while line is not None:
+                next_line = next(line_iter, None)
+                is_last = next_line is None
+
                 current_line += 1
-                offset = self._parse_line_offset(line, current_line, index_path.name)
-                if offset is None:
-                    # print(f"Skipping malformed line {current_line} in {index_path.name}")
-                    continue
+                line_offset = self._parse_line_offset(line, current_line, index_path.name)
 
                 # Skip already processed lines
                 if current_line <= start_line:
-                    # print(f"Skipping already processed line {current_line} in {index_path.name}")
-                    prev_offset = offset
+                    current_offset = line_offset
                     continue
 
-                yield from self._process_chunk(dump_file, dump_path.name, prev_offset, offset, source)
-                # print(f"Finished processing chunk at line {current_line} in index file {index_path}")
-                prev_offset = offset
+                if last_offset != current_offset:
+                    yield from self._process_chunk(dump_file, dump_path.name, last_offset, current_offset, source)
 
                 if current_line % self._progress_flush_interval == 0:
-                    print("flushing progress to disk at line %d for index file %s", current_line, index_path.name)
                     self._save_progress(index_path, current_line)
-                # else:
-                #     print(f"Processed line {current_line} in index file {index_path} (not yet flushed to progress file)")
 
-        print(f"Completed processing index file: {index_path} at line {current_line}")
+                if is_last:
+                    # Process the final chunk if we reached the end of the index file
+                    yield from self._process_chunk(dump_file, dump_path.name, last_offset, line_offset, source)
+                last_offset = current_offset
+                line = next_line
+
+        # Reading index is done ensure we process the last chunk if there was some range not covered
+        yield from self._process_chunk(dump_file, dump_path.name, last_offset, current_offset, source)
+
         self._save_progress(index_path, current_line)
         self.logger.info("Completed %s at line %d", index_path.name, current_line)
 
@@ -233,11 +239,6 @@ class WikipediaKnowedgeService(KnowledgeService):
         self, dump_file, dump_name: str, prev_offset: int | None, offset: int, source: Source | None
     ) -> Iterator[WikipediaItem]:
         """Decompress and parse a chunk of the dump file."""
-        if prev_offset is None:
-            prev_offset = offset
-
-        if prev_offset == offset:
-            return
 
         length = offset - prev_offset
         dump_file.seek(prev_offset)
