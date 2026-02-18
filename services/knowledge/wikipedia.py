@@ -186,45 +186,41 @@ class WikipediaKnowedgeService(KnowledgeService):
 
         print(f"Processing index file: {index_path} with dump file: {dump_path} (source: {source})")
         now = datetime.now()
-        id = self._repository.update_history_table_start(now, dump_path.name)
-
-        last_offset = 0
-        current_offset = 0
+        history_id = self._repository.update_history_table_start(now, dump_path.name)
 
         with open(dump_path, 'rb') as dump_file, bz2.open(index_path, mode='rt') as index_file:
             line_iter = iter(index_file)
             line = next(line_iter, None)
+            last_offset = 0
             while line is not None:
                 next_line = next(line_iter, None)
                 is_last = next_line is None
 
                 current_line += 1
                 line_offset = self._parse_line_offset(line, current_line, index_path.name)
+                if line_offset is None:
+                    line = next_line
+                    continue
 
                 # Skip already processed lines
                 if current_line <= start_line:
-                    current_offset = line_offset
+                    last_offset = line_offset
+                    line = next_line
                     continue
 
-                if last_offset != current_offset:
-                    yield from self._process_chunk(dump_file, dump_path.name, last_offset, current_offset, source)
+                if last_offset != line_offset or is_last:
+                    yield from self._process_chunk(dump_file, dump_path.name, last_offset, line_offset, source)
 
                 if current_line % self._progress_flush_interval == 0:
                     self._save_progress(index_path, current_line)
 
-                if is_last:
-                    # Process the final chunk if we reached the end of the index file
-                    yield from self._process_chunk(dump_file, dump_path.name, last_offset, line_offset, source)
-                last_offset = current_offset
+                last_offset = line_offset
                 line = next_line
-
-        # Reading index is done ensure we process the last chunk if there was some range not covered
-        yield from self._process_chunk(dump_file, dump_path.name, last_offset, current_offset, source)
 
         self._save_progress(index_path, current_line)
         self.logger.info("Completed %s at line %d", index_path.name, current_line)
 
-        self._repository.update_history_table_end(datetime.now(), id)
+        self._repository.update_history_table_end(datetime.now(), history_id)
 
     def _parse_line_offset(self, line: str, line_num: int, filename: str) -> int | None:
         """Parse the byte offset from an index line. Returns None if malformed."""
