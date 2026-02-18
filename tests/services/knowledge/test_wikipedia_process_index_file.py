@@ -38,6 +38,7 @@ class TestWikipediaProcessIndexFile(unittest.TestCase):
             index_file.write(content)
 
     def test_index_process(self) -> None:
+        """testing to ensure we are not SKIPPING byte chunks from the end of the file speceifically."""
         service = self._build_service()
         service._progress_flush_interval = 1
 
@@ -51,9 +52,11 @@ class TestWikipediaProcessIndexFile(unittest.TestCase):
 
             service._load_progress = MagicMock(return_value=0)
             service._save_progress = MagicMock()
-            service._process_chunk = MagicMock(
-                side_effect=lambda _f, _name, prev_offset, offset, _source: [f"{prev_offset}-{offset}"]
-            )
+
+            def mock_process_chunk(_dump_file, _dump_name, prev_offset, offset, _source):
+                return [f"{prev_offset}-{offset}"]
+
+            service._process_chunk = MagicMock(side_effect=mock_process_chunk)
 
             items = list(service._process_index_file(index_path=index_path, dump_path=dump_path))
 
