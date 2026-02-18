@@ -1,0 +1,111 @@
+name: Docker (Build/Push)
+
+on:
+  push:
+#     branches: main
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: enterprise-knowledge-hub
+  REGISTRY: ghcr.io
+  JOBS_AND_THREADS: 8
+
+jobs:
+  build-cpu:
+    runs-on: arc-ssc-dsai
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push CPU image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          build-args: BASE_IMAGE=cpu
+          tags: ${{ env.REGISTRY }}/${{ github.repository }}:${{ steps.version.outputs.version }}
+
+  # Build for h100/h200 series
+  build-cuda-h100-h200:
+    runs-on: arc-ssc-dsai
+    env:
+      CUDA_ARCH: "9.0" # h100
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push CUDA image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          build-args: |
+            BASE_IMAGE=cuda
+            CUDA_ARCH=${{ env.CUDA_ARCH }}
+            JOBS_AND_THREADS=${{ env.JOBS_AND_THREADS }}
+          tags: ${{ env.REGISTRY }}/${{ github.repository }}:${{ steps.version.outputs.version }}-cuda-${{ env.CUDA_ARCH }}
+
+  # Build for l40 series
+  build-cuda-l40:
+    runs-on: arc-ssc-dsai
+    env:
+      CUDA_ARCH: "8.9" #l40, etc.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push CUDA image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          build-args: |
+            BASE_IMAGE=cuda
+            CUDA_ARCH=${{ env.CUDA_ARCH }}
+            JOBS_AND_THREADS=${{ env.JOBS_AND_THREADS }}
+          tags: ${{ env.REGISTRY }}/${{ github.repository }}:${{ steps.version.outputs.version }}-cuda-${{ env.CUDA_ARCH }}

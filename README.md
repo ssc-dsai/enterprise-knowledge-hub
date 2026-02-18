@@ -51,6 +51,24 @@ PYTORCH_CUDA_GPU_CAP=0.9
 MODEL_SHOW_PROGRESS=False
 ```
 
+## Notes and help
+
+### WSL Space management
+
+Running this project can be space intensive especially the `./cache/huggingface` folder. 
+
+For those running WSL you can easily check what is the  space of the current VDI in PowerShell: 
+
+```bash
+# replace distro by distro name ... (wsl --list --verbose)
+wsl.exe --system -d Ubuntu-22.04 df -h /mnt/wslg/distro
+```
+
+Docker clean up that is also safe, it will prune all unused images, containers and volumes that are dangling.
+
+```bash
+docker system prune -a --volumes -f
+```
 ---
 
 ## File Descriptions and Repo Structure
