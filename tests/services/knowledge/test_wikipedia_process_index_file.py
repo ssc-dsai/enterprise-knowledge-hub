@@ -17,6 +17,8 @@ INDEX_FILE_CONTENT = """5:1:Foo1
 10:6:Bar1
 10:7:Bar1
 111:13:Baz
+111:16:Baz0
+111:17:Bazzino
 """
 
 class TestWikipediaProcessIndexFile(unittest.TestCase):
@@ -68,7 +70,7 @@ class TestWikipediaProcessIndexFile(unittest.TestCase):
                 for call in service._process_chunk.call_args_list
             ]
             self.assertEqual(chunk_calls, [(0, 5), (5, 10), (10, 111)])
-            self.assertEqual(service._save_progress.call_args_list[-1].args[1], 8)
+            self.assertEqual(service._save_progress.call_args_list[-1].args[1], 10)
 
 
 if __name__ == "__main__":

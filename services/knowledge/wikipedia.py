@@ -133,6 +133,7 @@ class WikipediaKnowedgeService(KnowledgeService):
 
             try:
                 yield from self._process_index_file(index_path, dump_path)
+                # DONE INDEXING FILE X, call history service to report (future)
             except OSError as exc:
                 self.logger.error("Failed to process index file %s: %s. Continuing to next file.", index_path, exc)
                 continue
@@ -194,27 +195,27 @@ class WikipediaKnowedgeService(KnowledgeService):
             last_offset = 0
             while line is not None:
                 next_line = next(line_iter, None)
-                is_last = next_line is None
 
                 current_line += 1
                 line_offset = self._parse_line_offset(line, current_line, index_path.name)
-                if line_offset is None:
+                if line_offset is None: # if we cannot read the current line skip to the next already..
                     line = next_line
                     continue
 
-                # Skip already processed lines
+                # Skip already processed lines (update byte offset as we go)
                 if current_line <= start_line:
                     last_offset = line_offset
                     line = next_line
                     continue
 
-                if last_offset != line_offset or is_last:
+                # if the current byte offset is different than the last byte offset it means we need to extract from bz2
+                if last_offset != line_offset:
                     yield from self._process_chunk(dump_file, dump_path.name, last_offset, line_offset, source)
+                    last_offset = line_offset
 
                 if current_line % self._progress_flush_interval == 0:
                     self._save_progress(index_path, current_line)
 
-                last_offset = line_offset
                 line = next_line
 
         self._save_progress(index_path, current_line)
