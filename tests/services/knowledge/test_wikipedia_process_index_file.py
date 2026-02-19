@@ -63,13 +63,13 @@ class TestWikipediaProcessIndexFile(unittest.TestCase):
 
             items = list(service._process_index_file(index_path=index_path, dump_path=dump_path))
 
-            self.assertEqual(items, ["0-5", "5-10", "10-111"])
+            self.assertEqual(items, ["5-10", "10-111", "111-None"])
 
             chunk_calls = [
                 (call.args[2], call.args[3])
                 for call in service._process_chunk.call_args_list
             ]
-            self.assertEqual(chunk_calls, [(0, 5), (5, 10), (10, 111)])
+            self.assertEqual(chunk_calls, [(5, 10), (10, 111), (111, None)])
             self.assertEqual(service._save_progress.call_args_list[-1].args[1], 10)
 
 

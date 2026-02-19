@@ -192,7 +192,7 @@ class WikipediaKnowedgeService(KnowledgeService):
         with open(dump_path, 'rb') as dump_file, bz2.open(index_path, mode='rt') as index_file:
             line_iter = iter(index_file)
             line = next(line_iter, None)
-            last_offset = 0
+            last_offset = None
             while line is not None:
                 next_line = next(line_iter, None)
 
@@ -201,6 +201,10 @@ class WikipediaKnowedgeService(KnowledgeService):
                 if line_offset is None: # if we cannot read the current line skip to the next already..
                     line = next_line
                     continue
+
+                # adding a clause that sets the last_offset for the first time.
+                if last_offset is None:
+                    last_offset = line_offset
 
                 # Skip already processed lines (update byte offset as we go)
                 if current_line <= start_line:
@@ -212,6 +216,10 @@ class WikipediaKnowedgeService(KnowledgeService):
                 if last_offset != line_offset:
                     yield from self._process_chunk(dump_file, dump_path.name, last_offset, line_offset, source)
                     last_offset = line_offset
+
+                # Last item on the list clause... need to extract until the end of the bz2 archive..
+                if next_line is None:
+                    yield from self._process_chunk(dump_file, dump_path.name, line_offset, None, source)
 
                 if current_line % self._progress_flush_interval == 0:
                     self._save_progress(index_path, current_line)
@@ -233,13 +241,14 @@ class WikipediaKnowedgeService(KnowledgeService):
             return None
 
     def _process_chunk( #pylint: disable=too-many-arguments,too-many-positional-arguments
-        self, dump_file, dump_name: str, prev_offset: int | None, offset: int, source: Source | None
+        self, dump_file, dump_name: str, prev_offset: int , offset: int | None, source: Source | None
     ) -> Iterator[WikipediaItem]:
         """Decompress and parse a chunk of the dump file."""
-
-        length = offset - prev_offset
-        dump_file.seek(prev_offset)
-        data = dump_file.read(length)
+        data = dump_file.seek(prev_offset) # read from where we left off.
+        # If we have an offset if means we need to stop somewhere.
+        if offset:
+            length = offset - prev_offset
+            data = dump_file.read(length)
 
         try:
             decompressed = bz2.decompress(data)
