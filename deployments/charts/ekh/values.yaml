@@ -7,35 +7,54 @@ image:
   repository: ghcr.io/ssc-dsai/enterprise-knowledge-hub
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "0.1.0-cuda-9.0" #h100/h200 GPUs ... else we need - 
+  #tag: "0.1.0-cuda-9.0" #h100/h200 GPUs ... else we need - 
+  tag: "0.1.0-cpu" # CPU only, for testing on minikube locally.
 
 imagePullSecrets: []
 
 pytorch:
-  allocConf: "max_split_size_mb:128,garbage_collection_threshold:0.6,expandable_segments:False"
+  allocConf: "max_split_size_mb:256,garbage_collection_threshold:0.8,expandable_segments:False"
 
 wikiEmbeddingModel:
   backend: "SENTENCE-TRANSFORMERS"
   cleanup: false
   batchSize: 4
   maxLength: 4096
-  maxDim: 1024
+  maxDim: 512
   dtype: "float16"
 
 postgresql:
+  enabled: true
   user: "postgres"
   name: "postgres"
-  host: "my-postgres.example.com"
+  host: ""
   port: 5432
   password: "postgres"
   batchSize: 500
+  auth:
+    username: "postgres"
+    password: "postgres"
+    database: "postgres"
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
   #  valueFrom:
   #    secretKeyRef:
   #      name:
   #      key:
 
 rabbitmq:
-  url: "amqps://guest:guest@my-rabbitmq.example.com:5672"
+  enabled: true
+  url: ""
+  host: ""
+  port: 5672
+  user: "guest"
+  password: "guest"
+  vhost: "/"
+  auth:
+    username: "guest"
+    password: "guest"
   #  valueFrom:
   #    secretKeyRef:
   #      name:

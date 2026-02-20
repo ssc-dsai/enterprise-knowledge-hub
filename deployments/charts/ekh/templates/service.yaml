@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "knowledge-hub.fullname" . }}
+  name: {{ include "ekh.fullname" . }}
   labels:
-    {{- include "knowledge-hub.labels" . | nindent 4 }}
+    {{- include "ekh.labels" . | nindent 4 }}
   {{- with .Values.service.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -16,4 +16,4 @@ spec:
       protocol: TCP
       name: http
   selector:
-    {{- include "knowledge-hub.selectorLabels" . | nindent 4 }}
+    {{- include "ekh.selectorLabels" . | nindent 4 }}

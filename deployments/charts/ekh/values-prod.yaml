@@ -1,0 +1,23 @@
+replicaCount: 2
+
+image:
+  pullPolicy: IfNotPresent
+
+postgresql:
+  primary:
+    persistence:
+      enabled: true
+      size: 20Gi
+
+rabbitmq:
+  auth:
+    username: "guest"
+    password: "guest"
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "500m"
+  limits:
+    memory: "1Gi"
+    cpu: "2000m"
