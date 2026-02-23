@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock
 
-from services.knowledge.wikipedia import WikipediaKnowedgeService
+from services.knowledge.wikipedia import WikipediaKnowledgeService
 
 INDEX_FILE_CONTENT = """5:1:Foo1
 5:2:Foo2
@@ -23,13 +23,13 @@ INDEX_FILE_CONTENT = """5:1:Foo1
 
 class TestWikipediaProcessIndexFile(unittest.TestCase):
     """mock harness for testing the index process for wikipedia"""
-    def _build_service(self) -> WikipediaKnowedgeService:
+    def _build_service(self) -> WikipediaKnowledgeService:
         repository = MagicMock()
         repository.update_history_table_start.return_value = 123
         logger = MagicMock()
         queue_service = MagicMock()
 
-        return WikipediaKnowedgeService(
+        return WikipediaKnowledgeService(
             queue_service=queue_service,
             logger=logger,
             repository=repository,

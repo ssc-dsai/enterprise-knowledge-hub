@@ -26,7 +26,7 @@ INDEX_FILENAME = re.compile(r"(?P<prefix>.+)-index(?P<chunk>\d*)\.txt\.bz2")
 QUEUE_BATCH_NAME = "wikipedia_embeddings_sink"
 
 @dataclass
-class WikipediaKnowedgeService(KnowledgeService):
+class WikipediaKnowledgeService(KnowledgeService):
     """Knowledge service for Wikipedia ingestion."""
 
     _ignored_title_prefixes: tuple[str, ...] = (
