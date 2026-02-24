@@ -9,6 +9,7 @@ import logging
 import threading
 from services.knowledge.models import KnowledgeItem
 from services.knowledge.batch_handler import BatchHandler
+from services.knowledge.wikipedia.models import WikipediaItemProcessed
 from services.queue.queue_worker import QueueWorker
 from services.queue.queue_service import QueueService
 from services.stats.knowledge_service_stats import KnowledgeServiceStats
@@ -41,11 +42,11 @@ class KnowledgeService(ABC):
         with ThreadPoolExecutor(max_workers=2) as executor:
             # queue_future = executor.submit(self.ingest)
             process_future = executor.submit(self.process)
-            # insert_future = executor.submit(self.store)
+            insert_future = executor.submit(self.store)
             # Wait for both to complete and propagate any exceptions
             # queue_future.result()
             process_future.result()
-            # insert_future.result()
+            insert_future.result()
 
     @abstractmethod
     def fetch_from_source(self) -> Iterator[KnowledgeItem]:
@@ -68,13 +69,14 @@ class KnowledgeService(ABC):
         raise NotImplementedError("Subclasses must implement the emit_processed_item method.")
 
     @abstractmethod
-    def store_item(self, item: dict[str, object]) -> None:
+    def store_item(self, item: WikipediaItemProcessed) -> None:
         """Insert the object into repository"""
         raise NotImplementedError("Subclasses must implement the store_item method.")
     
     @abstractmethod
     def get_batch_size(self) -> int:
         """Get the set batch size"""
+        # TODO AR: I think i confused postgres batch_size and batch_size.  To fix after
         raise NotImplementedError("Subclasses must implement the get_batch_size method.")
 
     def _ingest_queue_name(self) -> str:
@@ -162,9 +164,9 @@ class KnowledgeService(ABC):
             poll_interval=self._poll_interval
         )
 
-        def handler(item: dict[str, object]) -> None:
+        def handler(item: WikipediaItemProcessed, delivery_tag: str) -> None:
             if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
-                self.store_item(item)
+                self.store_item(WikipediaItemProcessed.model_validate(item)) #TODO AR:  ack needs to happen here
 
         def should_exit(drained_any: bool) -> bool:
             #Producer done and ingestion queue empty AND queue was empty this iteration

@@ -10,7 +10,7 @@ from fastapi import BackgroundTasks
 
 from provider.queue.rabbitmq import RabbitMQProvider
 from router.root.run_state import RunState
-from services.knowledge.wikipedia import WikipediaKnowedgeService
+from services.knowledge.wikipedia.wikipedia import WikipediaKnowedgeService
 from services.queue.queue_service import QueueService
 
 load_dotenv()
@@ -40,6 +40,7 @@ async def stop_wikipedia_run():
     Endpoint to stop current running process
     """
     _wikipedia_service.request_stop()
+    #this should close rabbitmqq connn
     return {"status": "stopping"}
 
 @router.get("/wikipedia/run")

@@ -30,6 +30,6 @@ class EmbeddingBackendProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def chunk_text_by_tokens(self, text: str, max_tokens: int = None, overlap_tokens: int = 200) -> list[str]:
+    def chunk_text_by_tokens(self, text: str, max_tokens: int = None, overlap_tokens: int = 10) -> list[str]: #TODO AR: Chunking is off.  weird chunking happening
         """Split text into chunks based on token count with overlap."""
         raise NotImplementedError

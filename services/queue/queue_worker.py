@@ -30,7 +30,7 @@ class QueueWorker:
         while not self.stop_event.is_set():
             drained_any = False # to check if any messages read/drained this iteration
 
-            for item, delivery_tag in self.queue_service.read(queue_name):
+            for item, delivery_tag in self.queue_service.read(queue_name): #TODO AR: item should be typed now.  if we are trying to be more strict
                 drained_any = True
                 try:
                     if self.stop_event.is_set():
@@ -38,13 +38,14 @@ class QueueWorker:
                         self._acknowledge(delivery_tag, successful=False)
                         break
                     input("Press enter to continue")
+                    print(delivery_tag)
                     is_handler_manages_ack = handler(item, delivery_tag)
 
                     # to include batch processing/batch acking
                     if is_handler_manages_ack is True:
-                        self._acknowledge(delivery_tag, successful=False)
+                        self._acknowledge(delivery_tag, successful=True)
                     if is_handler_manages_ack is False:
-                        self._acknowledge(delivery_tag, successful=False)
+                        self._acknowledge(delivery_tag, successful=True)
                     else:
                         pass
 

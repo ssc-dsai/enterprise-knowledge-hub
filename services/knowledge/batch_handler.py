@@ -17,7 +17,6 @@ class BatchHandler(Generic[T]):
         self.item_list: List[Tuple[T, str]] = []
 
     def __call__(self, item: T, delivery_tag:str) -> None:
-        print('handler: item - '+ str(item))
         self.item_list.append((item, delivery_tag))
         
         # don't process until we have the required batch_size
@@ -26,9 +25,7 @@ class BatchHandler(Generic[T]):
 
         items = [items for items, tags in self.item_list]
         tags = [tags for items, tags in self.item_list]
-        
-        print("time to batch - items: " + str(items))
-        print("time to batch - tags: " + str(tags))
+        self.item_list = []
 
         try:
             self.process_batch(items)

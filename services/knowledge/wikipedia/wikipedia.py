@@ -18,7 +18,8 @@ from wikitextparser import remove_markup
 from provider.embedding.qwen3.embedder_factory import get_embedder
 from repository.postgrespg import WikipediaDbRecord, WikipediaPgRepository
 from services.knowledge.base import KnowledgeService
-from services.knowledge.models import DatabaseWikipediaItem, KnowledgeItem, Source, WikipediaItem
+from services.knowledge.models import KnowledgeItem
+from services.knowledge.wikipedia.models import WikipediaItemProcessed, Source, WikipediaItemRaw
 
 load_dotenv()
 
@@ -71,28 +72,25 @@ class WikipediaKnowedgeService(KnowledgeService):
     def get_batch_size(self):
         return self._batch_size
     
-    def process_item(self, knowledge_item: List[KnowledgeItem]) -> list[DatabaseWikipediaItem]:
+    def process_item(self, knowledge_item: List[KnowledgeItem]) -> list[WikipediaItemProcessed]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
             # self.logger.debug("Generating embeddings for %s", knowledge_item.title)
-            print('process_item implementation' + str(knowledge_item))
+            # print('process_item implementation' + str(knowledge_item))
             batch: List[str] = []
             for item in knowledge_item:
-                print('item: ' + str(item))
                 batch.append(item['content'])
-                
-            print ('batch ' + str(batch))
-            
+
             embeddings = self.embedder.embed(batch)
             arr = np.asarray(embeddings)
             
-            results: list[DatabaseWikipediaItem] = []
+            results: list[WikipediaItemProcessed] = []
             
             for idx, (item, vec) in enumerate(zip(knowledge_item, arr), start=1):
                 results.append(
-                    DatabaseWikipediaItem(
+                    WikipediaItemProcessed(
                         name=item['name'],
-                        title=f"{item['title']} (chunk {idx}/{item['chunk_count']})",
+                        title=f"{item['title']}",
                         content=item['content'],
                         last_modified_date=item['last_modified_date'],
                         pid=item['pid'],
@@ -102,8 +100,10 @@ class WikipediaKnowedgeService(KnowledgeService):
                         embeddings=vec,
                     )
                 )
-            
-            print('result: ' + str(results))
+            for processed_item in results:
+                print('serializedmsg=============')
+                print(processed_item)
+                self.emit_processed_item(processed_item)
             
          
             # item = WikipediaItem.from_dict(knowledge_item)
@@ -151,7 +151,7 @@ class WikipediaKnowedgeService(KnowledgeService):
             self.logger.error("Error processing embedding for Wikipedia item: %s", e)
             raise e
 
-    def fetch_from_source(self) -> Iterator[WikipediaItem]:
+    def fetch_from_source(self) -> Iterator[WikipediaItemRaw]:
         """Read data from Wikipedia index.txt.bz2 source.
 
             The content will be first entrypoint in the main .bz2 multistream file.
@@ -173,11 +173,11 @@ class WikipediaKnowedgeService(KnowledgeService):
     def emit_fetched_item(self, item) -> None:
         max_tokens = getattr(self.embedder, "max_seq_length", None)
         chunks = self.embedder.chunk_text_by_tokens(item.content, max_tokens=max_tokens)
-        results: list[WikipediaItem] = []
+        results: list[WikipediaItemRaw] = []
         num_chunks = len(chunks)
         for idx, chunk_text in enumerate(chunks, start=1):
                 results.append(
-                    WikipediaItem(
+                    WikipediaItemRaw(
                         name=item.name,
                         title=f"{item.title} (chunk {idx}/{num_chunks})",
                         content=chunk_text,
@@ -189,7 +189,7 @@ class WikipediaKnowedgeService(KnowledgeService):
                     )
                 )
         for wikiItem in results:
-            self.queue_service.write(self._ingest_queue_name(), wikiItem.to_dict())
+            self.queue_service.write(self._ingest_queue_name(), wikiItem)
         
         
         # moving things to wiki implementation
@@ -214,16 +214,14 @@ class WikipediaKnowedgeService(KnowledgeService):
 
         return dump_path
 
-    def emit_processed_item(self, item: DatabaseWikipediaItem) -> None:
-        queue_item = item.to_dict()
-        self.queue_service.write(self._processed_queue_name(), queue_item)
+    def emit_processed_item(self, item: WikipediaItemProcessed) -> None:
+        self.queue_service.write(self._processed_queue_name(), item)
 
-    def store_item(self, item: dict[str, object]) -> None:
-        wiki_item = DatabaseWikipediaItem.from_rabbitqueue_dict(item)
-        record_to_insert = WikipediaDbRecord.from_item(wiki_item)
+    def store_item(self, item: WikipediaItemProcessed) -> None:
+        record_to_insert = WikipediaDbRecord.from_item(item)
         self._repository.insert(record_to_insert.as_mapping())
 
-    def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItem]:
+    def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItemRaw]:
         """Process a single index file and yield WikipediaItems."""
         start_line = self._load_progress(index_path)
         if start_line > 0:
@@ -267,7 +265,7 @@ class WikipediaKnowedgeService(KnowledgeService):
 
     def _process_chunk( #pylint: disable=too-many-arguments,too-many-positional-arguments
         self, dump_file, dump_name: str, prev_offset: int | None, offset: int, source: Source | None
-    ) -> Iterator[WikipediaItem]:
+    ) -> Iterator[WikipediaItemRaw]:
         """Decompress and parse a chunk of the dump file."""
         if prev_offset is None:
             prev_offset = offset
@@ -289,7 +287,7 @@ class WikipediaKnowedgeService(KnowledgeService):
                 dump_name, prev_offset, offset, exc
             )
 
-    def _extract_pages_from_xml(self, xml_content: str, source: Source | None) -> Iterator[WikipediaItem]:
+    def _extract_pages_from_xml(self, xml_content: str, source: Source | None) -> Iterator[WikipediaItemRaw]:
         """Extract and parse all pages from XML content."""
         for page_match in re.finditer(r"<page>(.*?)</page>", xml_content, re.DOTALL):
             page_xml = page_match.group(0)
@@ -363,7 +361,7 @@ class WikipediaKnowedgeService(KnowledgeService):
                     return True
         return False
 
-    def _parse_page_xml(self, xml_page: str) -> WikipediaItem | None:
+    def _parse_page_xml(self, xml_page: str) -> WikipediaItemRaw | None:
         """Parse a Wikipedia page XML and extract relevant fields."""
         # Extract title
         title_match = re.search(r"<title>([^<]+)</title>", xml_page)
@@ -399,7 +397,7 @@ class WikipediaKnowedgeService(KnowledgeService):
         if not title or not content:
             return None
 
-        return WikipediaItem(
+        return WikipediaItemRaw(
             name=title,
             title=title,
             content=content,
