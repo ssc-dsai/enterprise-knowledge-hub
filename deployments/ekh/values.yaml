@@ -10,7 +10,8 @@ image:
   #tag: "0.1.0-cuda-9.0" #h100/h200 GPUs ... else we need - 
   tag: "0.1.0-cpu" # CPU only, for testing on minikube locally.
 
-imagePullSecrets: []
+imagePullSecrets:
+  - name: ghcr-pull-secret
 
 pytorch:
   allocConf: "max_split_size_mb:256,garbage_collection_threshold:0.8,expandable_segments:False"
