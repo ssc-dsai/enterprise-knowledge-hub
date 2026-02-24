@@ -86,7 +86,7 @@ class WikipediaKnowedgeService(KnowledgeService):
             
             results: list[WikipediaItemProcessed] = []
             
-            for idx, (item, vec) in enumerate(zip(knowledge_item, arr), start=1):
+            for (item, vec) in zip(knowledge_item, arr):
                 results.append(
                     WikipediaItemProcessed(
                         name=item['name'],
@@ -94,7 +94,7 @@ class WikipediaKnowedgeService(KnowledgeService):
                         content=item['content'],
                         last_modified_date=item['last_modified_date'],
                         pid=item['pid'],
-                        chunk_index=idx,
+                        chunk_index=item['chunk_index'],
                         chunk_count=item['chunk_count'],
                         source=item['source'],
                         embeddings=vec,
