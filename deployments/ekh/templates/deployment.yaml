@@ -14,6 +14,7 @@ spec:
   {{- $rabbitmqVhost := default "/" .Values.rabbitmq.vhost }}
   {{- $rabbitmqUrl := printf "amqp://%s:%s@%s:%v/%s" ($rabbitmqUser | urlquery) ($rabbitmqPassword | urlquery) $rabbitmqHost $rabbitmqPort (trimPrefix "/" $rabbitmqVhost) }}
   replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit | default 1 }}
   selector:
     matchLabels:
       {{- include "ekh.selectorLabels" . | nindent 6 }}
