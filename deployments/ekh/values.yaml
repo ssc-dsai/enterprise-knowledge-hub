@@ -1,7 +1,7 @@
 nameOverride: ""
 fullnameOverride: ""
 
-replicaCount: 1
+replicaCount: 2
 
 image:
   repository: ghcr.io/ssc-dsai/enterprise-knowledge-hub
@@ -39,7 +39,7 @@ postgresql:
   primary:
     persistence:
       enabled: true
-      size: 8Gi
+      size: 20Gi
   #  valueFrom:
   #    secretKeyRef:
   #      name:
@@ -106,11 +106,11 @@ ingress:
 
 resources:
   requests:
-    memory: "64Mi"
-    cpu: "100m"
-  limits:
     memory: "256Mi"
     cpu: "500m"
+  limits:
+    memory: "1Gi"
+    cpu: "2000m"
 
 nodeSelector: {}
 

@@ -9,10 +9,7 @@ spec:
     repoURL: https://github.com/ssc-dsai/enterprise-knowledge-hub.git
     targetRevision: HEAD
     path: deployments/ekh
-    helm:
-      valueFiles:
-        - values.yaml
-        - values-prod.yaml
+    helm: {}
   destination:
     server: https://kubernetes.default.svc
     namespace: knowledge-hub-prod
