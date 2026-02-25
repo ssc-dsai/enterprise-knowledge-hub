@@ -49,6 +49,10 @@ rabbitmq:
   user: "guest"
   password: "guest"
   vhost: "/"
+  image:
+    registry: docker.io
+    repository: rabbitmq
+    tag: "4.2.1-management"
   auth:
     username: "guest"
     password: "guest"
@@ -66,7 +70,7 @@ podSecurityContext:
 
 livenessProbe:
   enabled: true
-  initialDelaySeconds: 10
+  initialDelaySeconds: 30
   periodSeconds: 10
   timeoutSeconds: 1
 
@@ -82,23 +86,6 @@ service:
   type: ClusterIP
   port: 80
   annotations: {}
-
-ingress:
-  enabled: false
-  className: ""
-  annotations:
-    {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: chart-example.local
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
 
 resources:
   requests:

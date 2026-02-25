@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: enterprise-knowledge-hub-dev
+  name: ekh-dev
   namespace: argocd
 spec:
   project: default
@@ -15,7 +15,7 @@ spec:
         - values-dev.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: knowledge-hub-dev
+    namespace: ekh-dev
   syncPolicy:
     automated:
       prune: true
