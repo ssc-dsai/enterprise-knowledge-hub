@@ -25,21 +25,7 @@ wikiEmbeddingModel:
   dtype: "float16"
 
 pgvector:
-  enabled: true
-  # EKH-level overrides (used in deployment.yaml env vars)
-  host: ""           # leave empty to auto-derive from release name
-  port: 5432
-  password: "postgres"
-  batchSize: 500
-  # pgvector subchart values (passed through to cagriekin/pgvector)
-  postgresql:
-    database: "postgres"
-    username: "postgres"
-    persistence:
-      enabled: true
-      size: 20Gi
-  repmgr:
-    enabled: false
+  enabled: false
 
 rabbitmq:
   enabled: true
@@ -56,10 +42,6 @@ rabbitmq:
   auth:
     username: "guest"
     password: "guest"
-  #  valueFrom:
-  #    secretKeyRef:
-  #      name:
-  #      key:
 
 podAnnotations: {}
 podLabels: {}

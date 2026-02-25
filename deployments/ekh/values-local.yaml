@@ -4,7 +4,10 @@ image:
   pullPolicy: IfNotPresent
 
 pgvector:
-  enabled: false
+  postgresql:
+    persistence:
+      enabled: true
+      size: 4Gi
 
 rabbitmq:
   auth:

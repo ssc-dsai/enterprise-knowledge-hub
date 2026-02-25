@@ -28,6 +28,7 @@ dependencies:
     version: "0.6.4"
     repository: "https://cagriekin.github.io/charts"
     condition: pgvector.enabled
+
   - name: rabbitmq
     version: "16.0.14"
     repository: "https://charts.bitnami.com/bitnami"

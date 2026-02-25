@@ -3,16 +3,8 @@ kind: Deployment
 metadata:
   name: {{ include "ekh.fullname" . }}
   labels: 
-    {{- include "ekh.labels" . | nindent 4 }}
+    {{-- include "ekh.labels" . | nindent 4 }}
 spec:
-  {{- $root := . }}
-  {{- $postgresHost := default (printf "%s-pgvector" .Release.Name) .Values.pgvector.host }}
-  {{- $rabbitmqHost := default (printf "%s-rabbitmq" .Release.Name) .Values.rabbitmq.host }}
-  {{- $rabbitmqPort := default 5672 .Values.rabbitmq.port }}
-  {{- $rabbitmqUser := default .Values.rabbitmq.auth.username .Values.rabbitmq.user }}
-  {{- $rabbitmqPassword := default .Values.rabbitmq.auth.password .Values.rabbitmq.password }}
-  {{- $rabbitmqVhost := default "/" .Values.rabbitmq.vhost }}
-  {{- $rabbitmqUrl := printf "amqp://%s:%s@%s:%v/%s" ($rabbitmqUser | urlquery) ($rabbitmqPassword | urlquery) $rabbitmqHost $rabbitmqPort (trimPrefix "/" $rabbitmqVhost) }}
   replicas: {{ .Values.replicaCount }}
   revisionHistoryLimit: {{ .Values.revisionHistoryLimit | default 1 }}
   selector:

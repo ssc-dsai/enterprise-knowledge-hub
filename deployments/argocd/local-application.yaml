@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ekh-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ssc-dsai/enterprise-knowledge-hub.git
+    #targetRevision: HEAD
+    targetRevision: feat-helm-charts
+    path: deployments/ekh
+    helm:
+      valueFiles:
+        - values-local.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ekh-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

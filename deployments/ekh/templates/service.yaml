@@ -3,11 +3,13 @@ kind: Service
 metadata:
   name: {{ include "ekh.fullname" . }}
   labels:
-    {{- include "ekh.labels" . | nindent 4 }}
-  {{- with .Values.service.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    app.kubernetes.io/name: ekh
+    app.kubernetes.io/instance: ekh-abcxyz
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/component: application
+    app.kubernetes.io/part-of: ekh
+    app.kubernetes.io/managed-by: Helm
+
 spec:
   type: {{ .Values.service.type }}
   ports:
