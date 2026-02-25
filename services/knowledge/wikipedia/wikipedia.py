@@ -74,13 +74,13 @@ class WikipediaKnowedgeService(KnowledgeService):
     def get_batch_size(self):
         return self._batch_size
     
-    def process_item(self, knowledge_item: List[KnowledgeItem]) -> list[WikipediaItemProcessed]:
+    def process_item(self, knowledge_items: List[KnowledgeItem]) -> list[WikipediaItemProcessed]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
-            # self.logger.debug("Generating embeddings for %s", knowledge_item.title)
-            # print('process_item implementation' + str(knowledge_item))
+            self.logger.info("Generating embeddings for %s", ", ".join(item['title'] for item in knowledge_items))
+
             batch: List[str] = []
-            for item in knowledge_item:
+            for item in knowledge_items:
                 batch.append(item['content'])
 
             embeddings = self.embedder.embed(batch)
@@ -88,7 +88,7 @@ class WikipediaKnowedgeService(KnowledgeService):
             
             results: list[WikipediaItemProcessed] = []
             
-            for (item, vec) in zip(knowledge_item, arr):
+            for (item, vec) in zip(knowledge_items, arr):
                 results.append(
                     WikipediaItemProcessed(
                         name=item['name'],
@@ -103,54 +103,11 @@ class WikipediaKnowedgeService(KnowledgeService):
                     )
                 )
             for processed_item in results:
-                print('serializedmsg=============')
-                print(processed_item)
                 self.emit_processed_item(processed_item)
-            
-         
-            # item = WikipediaItem.from_dict(knowledge_item)
-            # self.logger.debug("Generating embeddings for %s", item.title)
 
-            # max_tokens = getattr(self.embedder, "max_seq_length", None)
-            # if max_tokens is None:
-            #     max_tokens = getattr(getattr(self.embedder, "model", None), "max_seq_length", None)
-
-            # chunks = self.embedder.chunk_text_by_tokens(item.content, max_tokens=max_tokens)
-            # embeddings = self.embedder.embed(item.content)
-
-            # arr = np.asarray(embeddings)
-            # if arr.ndim == 1:
-            #     arr = arr.reshape(1, -1)
-
-            # num_chunks = arr.shape[0]
-            # if num_chunks != len(chunks):
-            #     self.logger.warning("Chunk/text count mismatch: embeddings=%d, chunks=%d", num_chunks, len(chunks))
-            #     limit = min(num_chunks, len(chunks))
-            #     arr = arr[:limit]
-            #     chunks = chunks[:limit]
-            #     num_chunks = limit
-
-            # results: list[DatabaseWikipediaItem] = []
-            # for idx, (chunk_text, vec) in enumerate(zip(chunks, arr), start=1):
-            #     results.append(
-            #         DatabaseWikipediaItem(
-            #             name=item.name,
-            #             title=f"{item.title} (chunk {idx}/{num_chunks})",
-            #             content=chunk_text,
-            #             last_modified_date=item.last_modified_date,
-            #             pid=item.pid,
-            #             chunk_index=idx,
-            #             chunk_count=num_chunks,
-            #             source=item.source,
-            #             embeddings=vec,
-            #         )
-            #     )
-            
-            # test = "hello"
-         
-            # return results
         except Exception as e:
             self.logger.error("Error processing embedding for Wikipedia item: %s", e)
+            # logger debug for what item?
             raise e
 
     def fetch_from_source(self) -> Iterator[WikipediaItemRaw]:
@@ -174,9 +131,12 @@ class WikipediaKnowedgeService(KnowledgeService):
 
     def emit_fetched_item(self, item) -> None:
         max_tokens = getattr(self.embedder, "max_seq_length", None)
+        
+        # taking item and chunking them
         chunks = self._tiktoken.chunk_text_by_tokens(item.content, max_tokens=max_tokens)
         results: list[WikipediaItemRaw] = []
         num_chunks = len(chunks)
+        
         for idx, chunk_text in enumerate(chunks, start=1):
                 results.append(
                     WikipediaItemRaw(
@@ -192,12 +152,6 @@ class WikipediaKnowedgeService(KnowledgeService):
                 )
         for wikiItem in results:
             self.queue_service.write(self._ingest_queue_name(), wikiItem)
-        
-        
-        # moving things to wiki implementation
-        
-    def chunk_article(self, item):
-        """Take article and chunk based on sequence length"""
 
     def _get_dump_path(self, index_path: Path) -> Path | None:
         """Derive the dump file path from an index file path."""
