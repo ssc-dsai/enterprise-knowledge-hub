@@ -57,7 +57,7 @@ class WikipediaKnowedgeService(KnowledgeService):
                                     "./content/wikipedia")).expanduser().resolve()
     _process_only_first_n_paragraphs: int = int(os.getenv("WIKIPEDIA_PROCESS_ONLY_FIRST_N_PARAGRAPHS", "0"))
     _progress_flush_interval: int = 1000 # for the .progress file we track line number we stpped.
-    _batch_size: int = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
+    _batch_size: int = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_BATCH_SIZE", "100"))
     _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
     _tiktoken: TextChunker = TextChunker()
 
