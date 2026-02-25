@@ -1,4 +1,15 @@
 services:
+  ekh:
+    build: .
+    container_name: ekh
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - rabbitmq
   postgres:
     image: pgvector/pgvector:pg16-trixie
     container_name: postgres-ekh
