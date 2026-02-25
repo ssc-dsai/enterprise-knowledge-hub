@@ -24,26 +24,22 @@ wikiEmbeddingModel:
   maxDim: 512
   dtype: "float16"
 
-postgresql:
+pgvector:
   enabled: true
-  user: "postgres"
-  name: "postgres"
-  host: ""
+  # EKH-level overrides (used in deployment.yaml env vars)
+  host: ""           # leave empty to auto-derive from release name
   port: 5432
   password: "postgres"
   batchSize: 500
-  auth:
-    username: "postgres"
-    password: "postgres"
+  # pgvector subchart values (passed through to cagriekin/pgvector)
+  postgresql:
     database: "postgres"
-  primary:
+    username: "postgres"
     persistence:
       enabled: true
       size: 20Gi
-  #  valueFrom:
-  #    secretKeyRef:
-  #      name:
-  #      key:
+  repmgr:
+    enabled: false
 
 rabbitmq:
   enabled: true

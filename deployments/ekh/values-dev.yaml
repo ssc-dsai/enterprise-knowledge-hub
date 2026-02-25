@@ -3,8 +3,8 @@ replicaCount: 1
 image:
   pullPolicy: IfNotPresent
 
-postgresql:
-  primary:
+pgvector:
+  postgresql:
     persistence:
       enabled: true
       size: 4Gi

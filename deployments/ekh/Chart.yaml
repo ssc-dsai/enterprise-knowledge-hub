@@ -24,10 +24,10 @@ version: 0.1.0
 appVersion: "0.1.0"
 
 dependencies:
-  - name: postgresql
-    version: "18.4.0"
-    repository: "https://charts.bitnami.com/bitnami"
-    condition: postgresql.enabled
+  - name: pgvector
+    version: "0.6.4"
+    repository: "https://cagriekin.github.io/charts"
+    condition: pgvector.enabled
   - name: rabbitmq
     version: "16.0.14"
     repository: "https://charts.bitnami.com/bitnami"
