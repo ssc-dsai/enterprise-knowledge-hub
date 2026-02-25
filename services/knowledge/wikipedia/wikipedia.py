@@ -15,6 +15,7 @@ import numpy as np
 from dotenv import load_dotenv
 from wikitextparser import remove_markup
 
+from provider.embedding.chunk_text import TextChunker
 from provider.embedding.qwen3.embedder_factory import get_embedder
 from repository.postgrespg import WikipediaDbRecord, WikipediaPgRepository
 from services.knowledge.base import KnowledgeService
@@ -58,6 +59,7 @@ class WikipediaKnowedgeService(KnowledgeService):
     _progress_flush_interval: int = 1000 # for the .progress file we track line number we stpped.
     _batch_size: int = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
     _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
+    _tiktoken: TextChunker = TextChunker()
 
     def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None):
         super().__init__(queue_service=queue_service, logger=logger, service_name="wikipedia")
@@ -172,7 +174,7 @@ class WikipediaKnowedgeService(KnowledgeService):
 
     def emit_fetched_item(self, item) -> None:
         max_tokens = getattr(self.embedder, "max_seq_length", None)
-        chunks = self.embedder.chunk_text_by_tokens(item.content, max_tokens=max_tokens)
+        chunks = self._tiktoken.chunk_text_by_tokens(item.content, max_tokens=max_tokens)
         results: list[WikipediaItemRaw] = []
         num_chunks = len(chunks)
         for idx, chunk_text in enumerate(chunks, start=1):
