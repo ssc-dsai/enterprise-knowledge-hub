@@ -1,22 +1,25 @@
-from typing import Callable, Generic, List, TypeVar, Tuple
+from typing import Callable, List, Tuple
 from dataclasses import dataclass
+from logging import Logger
 
-T = TypeVar("T")
+from services.knowledge.models import KnowledgeItem
 
 @dataclass
-class BatchHandler(Generic[T]):
+class BatchHandler:
     def __init__(
         self, 
-        process_batch: Callable[[List[T]], None], 
+        process_batch: Callable[[List[KnowledgeItem]], None], 
         acknowledge: Callable[[str, bool], None], 
-        batch_size: int
+        batch_size: int,
+        logger: Logger
     ):
         self.process_batch = process_batch
         self.acknowledge = acknowledge
         self.batch_size = batch_size
-        self.item_list: List[Tuple[T, str]] = []
+        self.item_list: List[Tuple[KnowledgeItem, str]] = []
+        self.logger: Logger = logger
 
-    def __call__(self, item: T, delivery_tag:str) -> None:
+    def __call__(self, item: KnowledgeItem, delivery_tag:str) -> None:
         self.item_list.append((item, delivery_tag))
         
         # don't process until we have the required batch_size
@@ -30,7 +33,6 @@ class BatchHandler(Generic[T]):
         try:
             self.process_batch(items)
         except Exception:
-            # exception messGE?
             for t in tags:
                 self.acknowledge(t, False)
             raise

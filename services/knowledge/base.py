@@ -114,7 +114,7 @@ class KnowledgeService(ABC):
         def acknowledge(delivery_tag: int, successful: bool):
             self.queue_service.read_ack(delivery_tag, successful)
             
-        handler = BatchHandler(self.process_item, acknowledge, batch_size)
+        handler = BatchHandler(self.process_item, acknowledge, batch_size, self.logger)
 
         def should_exit(drained_any: bool) -> bool:
             #Producer done and ingestion queue empty AND queue was empty this iteration
