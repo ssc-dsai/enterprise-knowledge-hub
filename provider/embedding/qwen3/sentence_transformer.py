@@ -121,8 +121,10 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         if max_tokens is None:
             max_tokens = self.max_seq_length
 
+        tokenizer = self.get_tokenizer()
+
         # Tokenize the entire text
-        tokens = self.model.tokenizer.encode(text, add_special_tokens=False)
+        tokens = tokenizer.encode(text, add_special_tokens=False)
 
         # If text fits in one chunk, return as-is
         if len(tokens) <= max_tokens:
@@ -137,7 +139,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
             chunk_tokens = tokens[start_idx:end_idx]
 
             # Decode back to text
-            chunk_text = self.model.tokenizer.decode(chunk_tokens, skip_special_tokens=True)
+            chunk_text = tokenizer.decode(chunk_tokens, skip_special_tokens=True)
             chunks.append(chunk_text)
 
             # Move forward with overlap
