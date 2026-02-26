@@ -37,8 +37,13 @@ class EmbeddingBackendProvider(ABC):
         """Split text into chunks based on token count with overlap."""
         raise NotImplementedError
     
+    def is_model_loaded(self) -> bool:
+        return getattr(self, "model", None) is not None
+    
     def get_tokenizer(self) -> Any:
         """
         Get tokenizer for current thread
         """
+        if not self.is_model_loaded():
+            raise Exception("Model has not loaded yet")
         return self.tokenizer.get()

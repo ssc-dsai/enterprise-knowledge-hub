@@ -131,7 +131,7 @@ class WikipediaKnowedgeService(KnowledgeService):
         max_tokens = getattr(self.embedder, "max_seq_length", None)
 
         # taking item and chunking them
-        chunks = chunk_text_by_tokens(item.content, max_tokens=max_tokens)
+        chunks = self.embedder.chunk_text_by_tokens(item.content, max_tokens=max_tokens)
         results: list[WikipediaItemRaw] = []
         num_chunks = len(chunks)
 

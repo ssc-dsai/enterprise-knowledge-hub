@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
 from provider.embedding.base import EmbeddingBackendProvider, QWEN3_QUERY_INSTRUCTION
+from provider.embedding.tokenizer import ThreadTokenizer
 
 load_dotenv()
 
@@ -44,6 +45,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         if torch.backends.mps.is_available():
             dtype = torch.float32
 
+        self.model_name = "Qwen/Qwen3-Embedding-0.6B"
         model_device = "cpu"
         # model_device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else "auto" #pylint: disable=line-too-long
 
@@ -67,12 +69,15 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
 
         modeltest="/home/ruana/all-MiniLM-L6-v2"
         self.model = SentenceTransformer(
-            # "Qwen/Qwen3-Embedding-0.6B",
+            # self.model_name,
             modeltest,
             model_kwargs=model_kwargs,
             tokenizer_kwargs={"padding_side": "left"},
         )
         self.max_seq_length = self.model.max_seq_length = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH", "4096"))
+        
+        self.tokenizer = ThreadTokenizer(model_name=self.model_name)
+        
         self.logger.debug("Model loaded on device: %s", self.model.device)
         self.logger.debug("Model max sequence length: %d", self.model.max_seq_length)
 
