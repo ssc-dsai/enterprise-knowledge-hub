@@ -19,6 +19,23 @@ from services.knowledge.models import DatabaseWikipediaItem
 
 load_dotenv()
 
+# establish connection pool at module level to be shared across repository instances
+host = os.getenv("POSTGRES_HOST", "localhost")
+port = int(os.getenv("POSTGRES_PORT", "5432"))
+dbname = os.getenv("POSTGRES_DB", "postgres")
+user = os.getenv("POSTGRES_USER", "postgres")
+password = os.getenv("POSTGRES_PASSWORD", "postgres")
+pool_size = int(os.getenv("POSTGRES_POOL_SIZE", "5"))
+batch_size = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
+conninfo = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
+
+pool = ConnectionPool(conninfo = conninfo,
+                      min_size=1,
+                      max_size=pool_size,
+                      open=False,
+                      configure=register_vector)
+pool.open()
+
 @dataclass(slots=True)
 class WikipediaDbRecord: #pylint: disable=too-many-instance-attributes
     """Serializable record for Postgres storage."""
@@ -71,62 +88,21 @@ class WikipediaDbRecord: #pylint: disable=too-many-instance-attributes
             return [float(x) for x in raw_embedding]
         raise TypeError(f"Unsupported embedding type: {type(raw_embedding)!r}")
 
-
+# Repository for postgres interaction with the documents table, which stores the ingested and processed Wikipedia records along with their embeddings
 class WikipediaPgRepository:
     """Lightweight repository to write Wikipedia records into Postgres/pgvector."""
+    TABLE_NAME = "documents"
 
-    def __init__(
-        self,
-        conninfo: str,
-        table_name: str = "wikipedia_pages",
-        pool_size: int = 5,
-        batch_size: int = 500,
-    ) -> None:
+    def __init__(self ) -> None:
         """Initialize the repository and open a connection pool."""
-        self._table_name = table_name
-        self._batch_size = batch_size
-        self._pool = ConnectionPool(
-            conninfo,
-            min_size=1,
-            max_size=pool_size,
-            open=False,
-            configure=register_vector,
-        )
-        self._pool.open()
-
-    @classmethod
-    def from_env(cls) -> "WikipediaPgRepository":
-        """
-        Docstring for from_env
-
-
-        :param cls: Description
-        :return: Description
-        :rtype: WikipediaPgRepository
-        """
-
-        #  (If running local connected to DB use 172.16.123.217 instead of "localhost")
-        host = os.getenv("POSTGRES_HOST", "localhost")
-        port = int(os.getenv("POSTGRES_PORT", "5432"))
-        dbname = os.getenv("POSTGRES_DB", "postgres")
-        user = os.getenv("POSTGRES_USER", "postgres")
-        # For running local connected to DB use "postconninfotgres" instead of "postgres"
-        password = os.getenv("POSTGRES_PASSWORD", "postgres")
-        table_name = os.getenv("WIKIPEDIA_TABLE", "documents")
-        pool_size = int(os.getenv("POSTGRES_POOL_SIZE", "5"))
-        batch_size = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
-        conninfo = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
-        # print('==================conn info')
-        # print(conninfo)
-
-        return cls(conninfo=conninfo, table_name=table_name, pool_size=pool_size, batch_size=batch_size)
+        self._pool = pool
 
     def insert(self, row: WikipediaDbRecord) -> None:
         """Insert row"""
         insert_sql = sql.SQL(
             """
             INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
-            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s, 
+            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s,
                 %(last_modified_date)s, %(embedding)s, %(source)s)
             ON CONFLICT (pid, chunk_index) DO UPDATE SET
                 name = EXCLUDED.name,
@@ -136,7 +112,7 @@ class WikipediaPgRepository:
                 embedding = EXCLUDED.embedding,
                 source = EXCLUDED.source
             """
-        ).format(table=sql.Identifier(self._table_name))
+        ).format(table=sql.Identifier(self.TABLE_NAME))
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(insert_sql, (row))
             conn.commit()
@@ -158,7 +134,7 @@ class WikipediaPgRepository:
                 embedding = EXCLUDED.embedding,
                 source = EXCLUDED.source
             """
-        ).format(table=sql.Identifier(self._table_name))
+        ).format(table=sql.Identifier(self.TABLE_NAME))
 
         params = [row.as_mapping() for row in rows]
         with self._pool.connection() as conn, conn.cursor() as cur:
@@ -195,7 +171,7 @@ class WikipediaPgRepository:
             ORDER BY embedding <=> %s::vector
             LIMIT %s
             """
-        ).format(table=sql.Identifier(self._table_name))
+        ).format(table=sql.Identifier(self.TABLE_NAME))
 
         with self._pool.connection() as conn:
             with conn.transaction():
@@ -213,7 +189,7 @@ class WikipediaPgRepository:
             SELECT pid FROM {table}
             WHERE name = %s
             """
-        ).format(table=sql.Identifier(self._table_name))
+        ).format(table=sql.Identifier(self.TABLE_NAME))
 
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(query_sql, (title,))
@@ -231,7 +207,7 @@ class WikipediaPgRepository:
             SELECT title, content FROM {table}
             WHERE pid = %s
             """
-        ).format(table=sql.Identifier(self._table_name))
+        ).format(table=sql.Identifier(self.TABLE_NAME))
 
         pattern=pid
 
@@ -239,6 +215,79 @@ class WikipediaPgRepository:
             cur.execute(query_sql, (pattern,))
             rows = cur.fetchall()
         return rows
+
+    def close(self) -> None:
+        """Close the underlying connection pool."""
+        if self._pool:
+            self._pool.close()
+
+# For postgres interaction with the run_history table, which tracks ingestion and processing runs for observability and debugging purposes
+class RunHistoryPGRepository:
+    """Lightweight repository to run_history records into postgres."""
+    TABLE_NAME = "run_history"
+
+    def __init__(self ) -> None:
+        """Initialize the repository and open a connection pool."""
+        self._pool = pool
+
+    def run_history_table_rows(self):
+        query_sql = sql.SQL(
+                """
+                SELECT * FROM run_history ORDER BY id DESC;
+                """
+            )
+
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query_sql)
+            rows = cur.fetchall()
+        return rows
+
+    def update_history_table_start(self, start_time, service_name: str, status: str = "started", process_running: bool = True, ingest_running: bool = True) -> int:
+        """Update the history table on run start"""
+
+        query_sql = sql.SQL(
+            """
+            INSERT INTO run_history (start_time, service_name, status, process_running, ingest_running)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
+            """
+        )
+
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (start_time, service_name, status, process_running, ingest_running))
+            result = cur.fetchone()[0]
+            conn.commit()
+            return result
+
+    def update_history_table_end(self, status, end_time, id: int, process_running: bool = False, ingest_running: bool = False) -> None:
+        """Update the history table on run end"""
+
+        query_sql = sql.SQL(
+            """
+            UPDATE run_history
+            SET end_time = %s, status = %s, process_running = %s, ingest_running = %s
+            WHERE id = %s
+            """
+        )
+
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (end_time, status, process_running, ingest_running, id))
+            conn.commit()
+
+    def update_process_step_end(self, id: int, process_running: bool = False) -> None:
+        """Update the history table's process column on processing step end"""
+
+        query_sql = sql.SQL(
+            """
+            UPDATE run_history
+            SET process_running = %s
+            WHERE id = %s
+            """
+        )
+
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (process_running, id))
+            conn.commit()
 
     def close(self) -> None:
         """Close the underlying connection pool."""

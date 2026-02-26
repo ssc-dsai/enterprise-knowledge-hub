@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
 import logging
 import threading
+from datetime import datetime
+
 from services.knowledge.models import KnowledgeItem
 from services.queue.queue_worker import QueueWorker
 from services.queue.queue_service import QueueService
@@ -34,14 +36,21 @@ class KnowledgeService(ABC):
         self._producer_done.clear()
         self._stop_event.clear()
         self._stats.reset()  # Reset stats at the start of each run
+
+        # Record the start of this run in the run_history table for observability
+        self._history_id = self._run_history_repository.update_history_table_start(datetime.now(), self.service_name)
+
         with ThreadPoolExecutor(max_workers=3) as executor:
             queue_future = executor.submit(self.ingest)
             process_future = executor.submit(self.process)
             insert_future = executor.submit(self.store)
-            # Wait for both to complete and propagate any exceptions
+            # Wait for completion and propagate any exceptions
             queue_future.result()
             process_future.result()
             insert_future.result()
+
+        # Record the end of this run
+        self._run_history_repository.update_history_table_end("completed", datetime.now(), self._history_id)
 
     @abstractmethod
     def fetch_from_source(self) -> Iterator[KnowledgeItem]:
@@ -165,6 +174,7 @@ class KnowledgeService(ABC):
         except Exception:
             self.logger.exception("Error during processing for queue: %s. (%s)", self._processed_queue_name(),
                                                                             self.service_name)
+
         finally:
             try:
                 self.finalize_processing()
@@ -173,7 +183,6 @@ class KnowledgeService(ABC):
                                                                         self._processed_queue_name(), self.service_name)
             self.logger.info("Done processing ingested data from queue: %s. (%s)", self._processed_queue_name(),
                                                                             self.service_name)
-
     def finalize_processing(self) -> None:
         """Optional hook called after processing loop ends."""
         self._is_ingestion_queue_complete = True

@@ -18,6 +18,15 @@ CREATE TABLE documents (
    embedding VECTOR(512),
    CONSTRAINT documents_pid_chunk_index_key UNIQUE (pid, chunk_index)
 );
+CREATE TABLE run_history (
+   id SERIAL PRIMARY KEY,
+   service_name TEXT,
+   status TEXT,
+   process_running BOOLEAN,
+   ingest_running BOOLEAN,
+   start_time TIMESTAMP,
+   end_time TIMESTAMP
+);
 
 -- ivfflat index for pgvector
 -- using sqrt(12millions) using approximate record size for wikipedia.
@@ -30,7 +39,7 @@ CREATE INDEX IF NOT EXISTS wikipedia_embedding_index
 SET maintenance_work_mem = '20GB';
 SET max_parallel_maintenance_workers = 24;
 CREATE INDEX wikipedia_embedding_index
-   ON documents USING hnsw (embedding vector_cosine_ops) 
+   ON documents USING hnsw (embedding vector_cosine_ops)
    WITH (m = 16, ef_construction = 64);
 -- indexing progress
 -- https://github.com/pgvector/pgvector/blob/master/README.md#hnsw

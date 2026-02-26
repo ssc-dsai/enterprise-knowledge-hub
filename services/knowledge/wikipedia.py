@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 from wikitextparser import remove_markup
 
 from provider.embedding.qwen3.embedder_factory import get_embedder
-from repository.postgrespg import WikipediaDbRecord, WikipediaPgRepository
+from repository.postgrespg import WikipediaDbRecord, WikipediaPgRepository, RunHistoryPGRepository
 from services.knowledge.base import KnowledgeService
 from services.knowledge.models import DatabaseWikipediaItem, Source, WikipediaItem
 
@@ -26,7 +26,7 @@ INDEX_FILENAME = re.compile(r"(?P<prefix>.+)-index(?P<chunk>\d*)\.txt\.bz2")
 QUEUE_BATCH_NAME = "wikipedia_embeddings_sink"
 
 @dataclass
-class WikipediaKnowedgeService(KnowledgeService):
+class WikipediaKnowledgeService(KnowledgeService):
     """Knowledge service for Wikipedia ingestion."""
 
     _ignored_title_prefixes: tuple[str, ...] = (
@@ -57,9 +57,10 @@ class WikipediaKnowedgeService(KnowledgeService):
     _batch_size: int = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
     _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
 
-    def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None):
+    def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None, run_history_repository: RunHistoryPGRepository | None = None):
         super().__init__(queue_service=queue_service, logger=logger, service_name="wikipedia")
-        self._repository = repository or WikipediaPgRepository.from_env()
+        self._repository = repository or WikipediaPgRepository()
+        self._run_history_repository = run_history_repository or RunHistoryPGRepository()
         self._pending: list[WikipediaDbRecord] = []
 
     @property
@@ -70,6 +71,7 @@ class WikipediaKnowedgeService(KnowledgeService):
     def process_item(self, knowledge_item: dict[str, object]) -> list[DatabaseWikipediaItem]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
+            # print(f"Processing item: {knowledge_item.get('title', 'unknown_title')}")
             item = WikipediaItem.from_dict(knowledge_item)
             self.logger.debug("Generating embeddings for %s", item.title)
 
@@ -78,7 +80,9 @@ class WikipediaKnowedgeService(KnowledgeService):
                 max_tokens = getattr(getattr(self.embedder, "model", None), "max_seq_length", None)
 
             chunks = self.embedder.chunk_text_by_tokens(item.content, max_tokens=max_tokens)
-            embeddings = self.embedder.embed(item.content)
+            # PLACEHOLDER for actual embedding generation, which should be done in batches for efficiency. For now, we just generate dummy embeddings.
+            embeddings = [np.random.rand(512).tolist() for _ in chunks]
+            # embeddings = self.embedder.embed(item.content)
 
             arr = np.asarray(embeddings)
             if arr.ndim == 1:
@@ -128,6 +132,7 @@ class WikipediaKnowedgeService(KnowledgeService):
 
             try:
                 yield from self._process_index_file(index_path, dump_path)
+                # DONE INDEXING FILE X, call history service to report (future)
             except OSError as exc:
                 self.logger.error("Failed to process index file %s: %s. Continuing to next file.", index_path, exc)
                 continue
@@ -161,38 +166,59 @@ class WikipediaKnowedgeService(KnowledgeService):
         record_to_insert = WikipediaDbRecord.from_item(wiki_item)
         self._repository.insert(record_to_insert.as_mapping())
 
-    def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItem]:
+    def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItem]: #pylint: disable=too-many-locals,too-many-branches,too-many-statements
         """Process a single index file and yield WikipediaItems."""
         start_line = self._load_progress(index_path)
         if start_line > 0:
             self.logger.info("Resuming from line %d for %s", start_line, index_path.name)
 
         current_line = 0
-        prev_offset: int | None = None
 
         source_name = index_path.name .split("-")[0]
         source = Source.WIKIPEDIA_EN if source_name == "enwiki" else Source.WIKIPEDIA_FR if source_name == "frwiki" else None #pylint: disable=line-too-long
 
         with open(dump_path, 'rb') as dump_file, bz2.open(index_path, mode='rt') as index_file:
-            for line in index_file:
+            line_iter = iter(index_file)
+            line = next(line_iter, None)
+            last_offset = None
+            while line is not None:
+                next_line = next(line_iter, None)
+
                 current_line += 1
-                offset = self._parse_line_offset(line, current_line, index_path.name)
-                if offset is None:
+                line_offset = self._parse_line_offset(line, current_line, index_path.name)
+                if line_offset is None: # if we cannot read the current line skip to the next already..
+                    line = next_line
                     continue
 
-                # Skip already processed lines
+                # adding a clause that sets the last_offset for the first time.
+                if last_offset is None:
+                    last_offset = line_offset
+
+                # Skip already processed lines (update byte offset as we go)
                 if current_line <= start_line:
-                    prev_offset = offset
+                    last_offset = line_offset
+                    line = next_line
                     continue
 
-                yield from self._process_chunk(dump_file, dump_path.name, prev_offset, offset, source)
-                prev_offset = offset
+                # if the current byte offset is different than the last byte offset it means we need to extract from bz2
+                if last_offset != line_offset:
+                    yield from self._process_chunk(dump_file, dump_path.name, last_offset, line_offset, source)
+                    last_offset = line_offset
+
+                # Last item on the list clause... need to extract until the end of the bz2 archive..
+                if next_line is None:
+                    yield from self._process_chunk(dump_file, dump_path.name, line_offset, None, source)
 
                 if current_line % self._progress_flush_interval == 0:
                     self._save_progress(index_path, current_line)
 
+                line = next_line
+
         self._save_progress(index_path, current_line)
         self.logger.info("Completed %s at line %d", index_path.name, current_line)
+
+        # Once processing is complete, we can mark the process_running column as false
+        self._run_history_repository.update_process_step_end(self._history_id)
 
     def _parse_line_offset(self, line: str, line_num: int, filename: str) -> int | None:
         """Parse the byte offset from an index line. Returns None if malformed."""
@@ -204,24 +230,22 @@ class WikipediaKnowedgeService(KnowledgeService):
             return None
 
     def _process_chunk( #pylint: disable=too-many-arguments,too-many-positional-arguments
-        self, dump_file, dump_name: str, prev_offset: int | None, offset: int, source: Source | None
+        self, dump_file, dump_name: str, prev_offset: int , offset: int | None, source: Source | None
     ) -> Iterator[WikipediaItem]:
         """Decompress and parse a chunk of the dump file."""
-        if prev_offset is None:
-            prev_offset = offset
-
-        if prev_offset == offset:
-            return
-
-        length = offset - prev_offset
-        dump_file.seek(prev_offset)
-        data = dump_file.read(length)
+        dump_file.seek(prev_offset) # read from where we left off.
+        # If we have an offset if means we need to stop somewhere.
+        if offset is not None:
+            length = offset - prev_offset
+            data = dump_file.read(length)
+        else:
+            data = dump_file.read() # read until the end of the file.
 
         try:
             decompressed = bz2.decompress(data)
             xml_content = decompressed.decode("utf-8", errors="ignore")
             yield from self._extract_pages_from_xml(xml_content, source)
-        except OSError as exc:
+        except Exception as exc:
             self.logger.error(
                 "Failed to decompress chunk from %s between offsets %s and %s: %s",
                 dump_name, prev_offset, offset, exc
@@ -315,7 +339,7 @@ class WikipediaKnowedgeService(KnowledgeService):
         text_match = re.search(r"<text[^>]*>([^<]*(?:<(?!/text>)[^<]*)*)</text>", xml_page, re.DOTALL)
         content = text_match.group(1) if text_match else ""
 
-        # REMOVE WIKI MARKUP (note: one of those 2 methods might be faster than the other?? they yeild the same results)
+        # REMOVE WIKI MARKUP (note: one of those 2 methods might be faster than the other?? they yield the same results)
         content = remove_markup(content)
         #content = parse(content).plain_text()
 
