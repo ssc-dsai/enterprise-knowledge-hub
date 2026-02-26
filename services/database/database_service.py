@@ -14,7 +14,7 @@ class QueryService():
     logger: logging.Logger
 
     def __init__(self, repository: WikipediaPgRepository | None = None):
-        self._repository = repository or WikipediaPgRepository.from_env()
+        self._repository = repository or WikipediaPgRepository()
 
     @property
     def embedder(self):

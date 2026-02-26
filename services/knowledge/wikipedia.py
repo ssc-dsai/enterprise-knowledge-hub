@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 from wikitextparser import remove_markup
 
 from provider.embedding.qwen3.embedder_factory import get_embedder
-from repository.postgrespg import WikipediaDbRecord, WikipediaPgRepository
+from repository.postgrespg import WikipediaDbRecord, WikipediaPgRepository, RunHistoryPGRepository
 from services.knowledge.base import KnowledgeService
 from services.knowledge.models import DatabaseWikipediaItem, Source, WikipediaItem
 
@@ -57,9 +57,10 @@ class WikipediaKnowledgeService(KnowledgeService):
     _batch_size: int = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
     _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
 
-    def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None):
+    def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None, run_history_repository: RunHistoryPGRepository | None = None):
         super().__init__(queue_service=queue_service, logger=logger, service_name="wikipedia")
-        self._repository = repository or WikipediaPgRepository.from_env()
+        self._repository = repository or WikipediaPgRepository()
+        self._run_history_repository = run_history_repository or RunHistoryPGRepository()
         self._pending: list[WikipediaDbRecord] = []
 
     @property
@@ -217,7 +218,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         self.logger.info("Completed %s at line %d", index_path.name, current_line)
 
         # Once processing is complete, we can mark the process_running column as false
-        self._repository.update_process_step_end(self._history_id)
+        self._run_history_repository.update_process_step_end(self._history_id)
 
     def _parse_line_offset(self, line: str, line_num: int, filename: str) -> int | None:
         """Parse the byte offset from an index line. Returns None if malformed."""

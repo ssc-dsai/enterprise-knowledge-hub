@@ -37,7 +37,8 @@ class KnowledgeService(ABC):
         self._stop_event.clear()
         self._stats.reset()  # Reset stats at the start of each run
 
-        self._history_id = self._repository.update_history_table_start(datetime.now(), self.service_name)
+        # Record the start of this run in the run_history table for observability
+        self._history_id = self._run_history_repository.update_history_table_start(datetime.now(), self.service_name)
 
         with ThreadPoolExecutor(max_workers=3) as executor:
             queue_future = executor.submit(self.ingest)
@@ -48,7 +49,8 @@ class KnowledgeService(ABC):
             process_future.result()
             insert_future.result()
 
-        self._repository.update_history_table_end("completed", datetime.now(), self._history_id)
+        # Record the end of this run
+        self._run_history_repository.update_history_table_end("completed", datetime.now(), self._history_id)
 
     @abstractmethod
     def fetch_from_source(self) -> Iterator[KnowledgeItem]:
