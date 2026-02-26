@@ -10,6 +10,7 @@ from pika.adapters.blocking_connection import BlockingChannel
 from pika.exceptions import UnroutableError, NackError, AMQPConnectionError
 
 from provider.queue.base import QueueProvider
+from services.knowledge.models import KnowledgeItem
 
 class RabbitMQProvider(QueueProvider):
     """RabbitMQ queue configuration provider"""
@@ -74,9 +75,9 @@ class RabbitMQProvider(QueueProvider):
         else:
             channel.basic_nack(delivery_tag=delivery_tag, requeue=True)
 
-    def write(self, queue_name: str, message: dict[str, object]) -> None:
+    def write(self, queue_name: str, message: KnowledgeItem) -> None:
         """Write to the specified RabbitMQ queue using persistent connection."""
-        body = json.dumps(message).encode('utf-8')
+        body = message.model_dump_json().encode('utf-8')
 
         for attempt in range(3):
             try:

@@ -1,9 +1,11 @@
 """Base interface for embedding backends."""
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, List
 
 import numpy as np
+
+from provider.embedding.tokenizer import ThreadTokenizer
 
 # Qwen3 embedding models require instruction prefixes for queries
 # See: https://huggingface.co/Qwen/Qwen3-Embedding-0.6B
@@ -16,7 +18,8 @@ class EmbeddingBackendProvider(ABC):
     model_name: str
     device: str
     max_seq_length: int
-
+    tokenizer: ThreadTokenizer | None = None
+    
     @abstractmethod
     def embed(self, text: Any, is_query: bool = False) -> np.ndarray:
         """Generate embeddings for text.
@@ -30,6 +33,17 @@ class EmbeddingBackendProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def chunk_text_by_tokens(self, text: str, max_tokens: int = None, overlap_tokens: int = 200) -> list[str]:
+    def chunk_text_by_tokens(self, text: str, max_tokens: int = None, overlap_tokens: int = 10) -> list[str]:
         """Split text into chunks based on token count with overlap."""
         raise NotImplementedError
+    
+    def is_model_loaded(self) -> bool:
+        return getattr(self, "model", None) is not None
+    
+    def get_tokenizer(self) -> Any:
+        """
+        Get tokenizer for current thread
+        """
+        if not self.is_model_loaded():
+            raise Exception("Model has not loaded yet")
+        return self.tokenizer.get()
