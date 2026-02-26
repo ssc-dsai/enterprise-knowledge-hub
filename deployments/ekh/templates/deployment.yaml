@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: {{ include "ekh.fullname" . }}
   labels: 
-    {{-- include "ekh.labels" . | nindent 4 }}
+    {{- include "ekh.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   revisionHistoryLimit: {{ .Values.revisionHistoryLimit | default 1 }}

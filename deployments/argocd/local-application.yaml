@@ -12,6 +12,7 @@ spec:
     path: deployments/ekh
     helm:
       valueFiles:
+        - values.yaml
         - values-local.yaml
   destination:
     server: https://kubernetes.default.svc
