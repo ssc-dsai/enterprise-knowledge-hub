@@ -66,9 +66,9 @@ spec:
             {{- end }}
             {{- with .Values.pgvector }}
             - name: POSTGRES_USER
-              value: {{ .postgresql.username | quote }}
+              value: {{ .auth.username | quote }}
             - name: POSTGRES_DB
-              value: {{ .postgresql.database | quote }}
+              value: {{ .auth.database | quote }}
             - name: POSTGRES_HOST
               value: {{ .host | quote }}
             - name: POSTGRES_PORT
@@ -76,7 +76,7 @@ spec:
             - name: POSTGRES_BATCH_SIZE
               value: {{ .batchSize | quote }}
             - name: POSTGRES_PASSWORD
-              value: {{ .password | quote }}
+              value: {{ .auth.password | quote }}
             {{- end }}
             - name: RABBITMQ_URL
               value: {{ .Values.rabbitmq.url | quote }}

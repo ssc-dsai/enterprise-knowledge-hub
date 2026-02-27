@@ -13,10 +13,21 @@ resources:
 
 pgvector:
   enabled: true
-  host: ""
+  # host: Kubernetes service is <release-name>-pgvector (set by alias in Chart.yaml)
+  # e.g. if your Helm release is "ekh": ekh-pgvector
+  host: "ekh-pgvector"
   port: 5432
   batchSize: 100
-  password: ""
-  postgresql:
-    database: "postgres"
+  # cloudpirates/postgres auth schema:
+  auth:
     username: "postgres"
+    password: "changeme"
+    database: "postgres"
+  image:
+    registry: docker.io
+    repository: pgvector/pgvector
+    tag: "pg18"
+  initdb:
+    scripts:
+      init_pgvector.sql: |
+        CREATE EXTENSION IF NOT EXISTS vector;
