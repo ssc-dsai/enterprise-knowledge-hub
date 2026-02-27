@@ -3,7 +3,7 @@ dependencies:
   repository: https://cagriekin.github.io/charts
   version: 0.6.4
 - name: rabbitmq
-  repository: https://charts.bitnami.com/bitnami
-  version: 16.0.14
-digest: sha256:d4cd93989a7e3462ab02ce491384dc811edbe1d826d7563776a1fe4782d4d195
-generated: "2026-02-25T10:12:01.73165-05:00"
+  repository: oci://registry-1.docker.io/cloudpirates
+  version: 0.17.1
+digest: sha256:7c62e2e19cb6eefce3f030cceabf10db7cabb2d9bda2cd3850d6f54178a46010
+generated: "2026-02-27T08:23:12.612538085-05:00"

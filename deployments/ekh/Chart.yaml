@@ -30,6 +30,6 @@ dependencies:
     condition: pgvector.enabled
 
   - name: rabbitmq
-    version: "0.17.0"
-    repository: "oci://registry-1.docker.io/cloudpirates/rabbitmq"
+    version: "0.17.1"
+    repository: "oci://registry-1.docker.io/cloudpirates"
     condition: rabbitmq.enabled
