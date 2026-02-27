@@ -80,7 +80,7 @@ spec:
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  {{- if .Values.pgvector.enabled }}
+                  {{- if $.Values.pgvector.enabled }}
                   name: {{ printf "%s-pgvector" $.Release.Name }}
                   key: postgres-password
                   {{- else }}
