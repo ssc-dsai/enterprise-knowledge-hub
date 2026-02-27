@@ -34,7 +34,6 @@ pgvector:
   enabled: false
   host: "some-cloud-service-dns"
   port: 5432
-  batchSize: 100
   auth:
     username: "postgres"
     database: "postgres"
@@ -57,9 +56,7 @@ rabbitmq: #doc: https://artifacthub.io/packages/helm/cloudpirates-rabbitmq/rabbi
   url: ""
   auth:
     username: "admin"
-    password: ""
-    existingSecret: "ekh-credentials"
-    existingPasswordKey: "rabbitmq-password"
+    password: "" #let this service manage the erlangcookie and admin pwd
 
 podAnnotations: {}
 podLabels: {}

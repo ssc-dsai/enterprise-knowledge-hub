@@ -49,12 +49,3 @@ Selector labels
 app.kubernetes.io/name: {{ include "ekh.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
-
-{{/*
-Name of the auto-generated credentials secret.
-Holds postgres-password and rabbitmq-password.
-*/}}
-{{- define "ekh.credentialsSecretName" -}}
-{{- printf "%s-credentials" (include "ekh.fullname" .) }}
-{{- end }}
-

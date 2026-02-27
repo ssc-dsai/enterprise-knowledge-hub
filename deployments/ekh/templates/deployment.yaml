@@ -80,16 +80,21 @@ spec:
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: "ekh-credentials"
+                  {{- if .Values.pgvector.enabled }}
+                  name: {{ printf "%s-pgvector" $.Release.Name }}
                   key: postgres-password
+                  {{- else }}
+                  name: {{ $.Values.pgvector.auth.existingSecret }}
+                  key: {{ $.Values.pgvector.auth.secretKeys.adminPasswordKey }}
+                  {{- end }}
             {{- end }}
             - name: RABBITMQ_URL
               value: {{ .Values.rabbitmq.url | quote }}
             - name: RABBITMQ_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: "ekh-credentials"
-                  key: rabbitmq-password
+                  name: {{ printf "%s-rabbitmq" .Release.Name }}
+                  key: password
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.contentStorage.enabled }}
