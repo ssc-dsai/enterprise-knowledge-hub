@@ -3,6 +3,9 @@ replicaCount: 1
 image:
   pullPolicy: IfNotPresent
 
+imagePullSecrets:
+  - name: ghcr-pull-secret
+
 contentStorage:
   enabled: true
   size: 5Gi
@@ -34,11 +37,3 @@ pgvector:
     scripts:
       init_pgvector.sql: |
         CREATE EXTENSION IF NOT EXISTS vector;
-
-# Point the rabbitmq sub-chart at the same credentials secret.
-# Secret name = <release>-credentials e.g. ekh-local-credentials
-rabbitmq:
-  auth:
-    existingSecret: "ekh-local-credentials"
-    secretKeys:
-      passwordKey: "rabbitmq-password"

@@ -16,7 +16,7 @@ spec:
         - values-local.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: ekh-dev
+    namespace: ekh-local
   syncPolicy:
     automated:
       prune: true

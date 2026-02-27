@@ -80,7 +80,7 @@ spec:
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "ekh.credentialsSecretName" $ }}
+                  name: "ekh-credentials"
                   key: postgres-password
             {{- end }}
             - name: RABBITMQ_URL
@@ -88,7 +88,7 @@ spec:
             - name: RABBITMQ_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "ekh.credentialsSecretName" . }}
+                  name: "ekh-credentials"
                   key: rabbitmq-password
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

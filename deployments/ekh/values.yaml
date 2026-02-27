@@ -10,8 +10,7 @@ image:
   #tag: "0.1.0-cuda-9.0" #h100/h200 GPUs ... else we need - 
   tag: "0.1.0" # CPU only, for testing on minikube locally.
 
-imagePullSecrets:
-  - name: ghcr-pull-secret
+imagePullSecrets: []
 
 pytorch:
   allocConf: "max_split_size_mb:256,garbage_collection_threshold:0.7,expandable_segments:False"
@@ -58,14 +57,9 @@ rabbitmq: #doc: https://artifacthub.io/packages/helm/cloudpirates-rabbitmq/rabbi
   url: ""
   auth:
     username: "admin"
-    # Password is managed by the auto-generated <release>-credentials secret.
-    # When the sub-chart is enabled, point it at the same secret:
-    #   existingSecret: "<release>-credentials"  ← set in your env values file
-    #   secretKeys:
-    #     passwordKey: "rabbitmq-password"
-    existingSecret: ""
-    secretKeys:
-      passwordKey: "rabbitmq-password"
+    password: ""
+    existingSecret: "ekh-credentials"
+    existingPasswordKey: "rabbitmq-password"
 
 podAnnotations: {}
 podLabels: {}
