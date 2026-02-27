@@ -37,10 +37,12 @@ rabbitmq: #doc: https://artifacthub.io/packages/helm/bitnami/rabbitmq
   user: "admin"
   vhost: "/"
   url: ""
-#   image:
-#     registry: docker.io
-#     repository: rabbitmq
-#     tag: "4.2.1-management"
+  # current chart img tag no longer exists, need to manually update here:
+  # docker.io/bitnami/rabbitmq:4.1.3-debian-12-r1
+  image:
+    registry: docker.io
+    repository: bitnami/rabbitmq
+    tag: "latest" # no otherway around atm using the "legacy" chart from bitnami
   auth:
     username: "admin"
     password: ""

@@ -13,9 +13,9 @@ spec:
   template:
     metadata:
       annotations:
-      {{- with .Values.podAnnotations }}
-      {{- toYaml . | nindent 6 }}
-      {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 6 }}
+        {{- end }}
       labels:
         {{- include "ekh.labels" . | nindent 8 }}
         {{- with .Values.podLabels }}
