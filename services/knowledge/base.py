@@ -20,11 +20,11 @@ class KnowledgeService(ABC):
     queue_service: QueueService
     logger: logging.Logger
     service_name: str
-    _producer_done: threading.Event = field(default_factory=threading.Event, init=False)
+    _ingest_done: threading.Event = field(default_factory=threading.Event, init=False)
+    _process_done: threading.Event = field(default_factory=threading.Event, init=False)
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
     _poll_interval: float = 0.5  # seconds to wait before retrying empty queue
     _stats: KnowledgeServiceStats = field(default_factory=KnowledgeServiceStats, init=False)
-    _is_ingestion_queue_complete = False
 
     @property
     def stats(self) -> KnowledgeServiceStats:
@@ -34,7 +34,8 @@ class KnowledgeService(ABC):
     def run(self) -> None:
         """Run the knowledge ingestion/processing in parallel threads."""
         self.logger.info("Running knowledge ingestion for %s", self.service_name)
-        self._producer_done.clear()
+        self._ingest_done.clear()
+        self._process_done.clear()
         self._stop_event.clear()
         self._stats.reset()  # Reset stats at the start of each run
         with ThreadPoolExecutor(max_workers=3) as executor:
@@ -87,6 +88,7 @@ class KnowledgeService(ABC):
     def ingest(self) -> None:
         """Ingest data into the knowledge base."""
         self.logger.info("Ingesting data into the knowledge base. (%s)", self.service_name)
+        
         try:
             for item in self.fetch_from_source():
                 if self._stop_event.is_set():
@@ -95,15 +97,22 @@ class KnowledgeService(ABC):
                 self._stats.record_added()
         except Exception:
             self.logger.exception("Error during ingestion for %s", self.service_name)
-        finally:
-            self._producer_done.set()  # Signal that producer is finished
-            self.logger.info("Done ingestion for %s", self.service_name)
+
+        try:
+            self.finalize_ingest()
+            self._ingest_done.set()  # Signal that _ingest_done is finished
+        except Exception:
+            self.logger.exception("Error during finalize_ingest for: %s",
+                                self.service_name)
+
+        self.logger.info("Done ingestion for %s", self.service_name)
 
     def process(self) -> None:
         """Process ingested data. Keeps polling until producer is done and queue is empty."""
-        self.logger.info("Processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
 
+        self.logger.info("Processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
         batch_size = self.get_batch_size()
+        
         worker = QueueWorker(
             queue_service=self.queue_service,
             logger=self.logger,
@@ -117,8 +126,8 @@ class KnowledgeService(ABC):
         handler = BatchHandler(self.process_item, acknowledge, batch_size, self.logger)
 
         def should_exit(drained_any: bool) -> bool:
-            #Producer done and ingestion queue empty AND queue was empty this iteration
-            return self._producer_done.is_set() and not drained_any
+            #Ingest done, AND check ingestion queue was empty this iteration
+            return self._ingest_done.is_set() and not drained_any
 
         try:
             worker.run(
@@ -130,13 +139,15 @@ class KnowledgeService(ABC):
         except Exception:
             self.logger.exception("Error during processing for queue: %s. (%s)",
                             self._ingest_queue_name(), self.service_name)
-        finally:
-            try:
-                self.finalize_processing()
-            except Exception:
-                self.logger.exception("Error during finalize_processing for queue: %s. (%s)",
+        
+        try:
+            self.finalize_process()
+            self._process_done.set() # Signal that _process_done is finished
+        except Exception:
+            self.logger.exception("Error during finalize_process for queue: %s. (%s)",
                                 self._ingest_queue_name(), self.service_name)
-            self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(),
+
+        self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(),
                                                                                 self.service_name)
 
     def store(self) -> None:
@@ -162,8 +173,8 @@ class KnowledgeService(ABC):
             return False
 
         def should_exit(drained_any: bool) -> bool:
-            #Producer done and ingestion queue empty AND queue was empty this iteration
-            return self._producer_done.is_set() and not drained_any
+            # process is done, AND check processed queue was empty this iteration
+            return self._process_done.is_set() and not drained_any
 
         try:
             worker.run(
@@ -173,20 +184,29 @@ class KnowledgeService(ABC):
                 should_exit=should_exit
             )
         except Exception:
-            self.logger.exception("Error during processing for queue: %s. (%s)", self._processed_queue_name(),
-                                                                            self.service_name)
-        finally:
-            try:
-                self.finalize_processing()
-            except Exception:
-                self.logger.exception("Error during finalize_processing for queue: %s. (%s)",
-                                                                        self._processed_queue_name(), self.service_name)
-            self.logger.info("Done processing processed data from queue: %s. (%s)", self._processed_queue_name(),
+            self.logger.exception("Error during storing for queue: %s. (%s)", self._processed_queue_name(),
                                                                             self.service_name)
 
-    def finalize_processing(self) -> None:
+        try:
+            self.finalize_store()
+        except Exception:
+            self.logger.exception("Error during finalize_store for queue: %s. (%s)",
+                                                                    self._processed_queue_name(), self.service_name)
+
+        self.logger.info("Done processing processed data from queue: %s. (%s)", self._processed_queue_name(),
+                                                                        self.service_name)
+
+    def finalize_process(self) -> None:
         """Optional hook called after processing loop ends."""
-        self._is_ingestion_queue_complete = True
+        pass
+    
+    def finalize_ingest(self) -> None:
+        """Optional hook called after ingest loop ends."""
+        pass
+    
+    def finalize_store(self) -> None:
+        """Optional hook called after store loop ends."""
+        pass
 
     def _ack_message(self, delivery_tag, successful: bool):
         """Acknoledge or unack message back to queue"""
