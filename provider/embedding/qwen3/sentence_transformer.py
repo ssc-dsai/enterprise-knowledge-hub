@@ -45,7 +45,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         if torch.backends.mps.is_available():
             dtype = torch.float32
 
-        self.model_name = "Qwen/Qwen3-Embedding-0.6B"
+        self.model_name = os.getenv("SENTENCE_TRANSFORMER_MODEL_NAME")
         
         model_device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else "auto" #pylint: disable=line-too-long
 
@@ -70,10 +70,8 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         if attn_impl:
             model_kwargs["attn_implementation"] = attn_impl
 
-        modeltest="/home/ruana/all-MiniLM-L6-v2"
         self.model = SentenceTransformer(
-            # self.model_name,
-            modeltest,
+            self.model_name,
             model_kwargs=model_kwargs,
             tokenizer_kwargs={"padding_side": "left"},
         )
