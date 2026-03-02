@@ -88,7 +88,7 @@ class KnowledgeService(ABC):
     def ingest(self) -> None:
         """Ingest data into the knowledge base."""
         self.logger.info("Ingesting data into the knowledge base. (%s)", self.service_name)
-        
+
         try:
             for item in self.fetch_from_source():
                 if self._stop_event.is_set():
@@ -112,7 +112,7 @@ class KnowledgeService(ABC):
 
         self.logger.info("Processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
         batch_size = self.get_batch_size()
-        
+
         worker = QueueWorker(
             queue_service=self.queue_service,
             logger=self.logger,
@@ -139,7 +139,7 @@ class KnowledgeService(ABC):
         except Exception:
             self.logger.exception("Error during processing for queue: %s. (%s)",
                             self._ingest_queue_name(), self.service_name)
-        
+
         try:
             self.finalize_process()
             self._process_done.set() # Signal that _process_done is finished
@@ -199,11 +199,11 @@ class KnowledgeService(ABC):
     def finalize_process(self) -> None:
         """Optional hook called after processing loop ends."""
         pass
-    
+
     def finalize_ingest(self) -> None:
         """Optional hook called after ingest loop ends."""
         pass
-    
+
     def finalize_store(self) -> None:
         """Optional hook called after store loop ends."""
         pass
