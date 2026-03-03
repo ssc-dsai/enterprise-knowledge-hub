@@ -18,7 +18,6 @@ def dev_frontend():
 
 @router.get("/status")
 def status(request: Request):
+    """Serve the status page with run history."""
     rows = _run_history_table().run_history_table_rows()
     return templates.TemplateResponse("status.html", {"request": request, "rows": rows})
-
-# Here we can add frontend endpoints related to status of db (size, number of articles, etc.)

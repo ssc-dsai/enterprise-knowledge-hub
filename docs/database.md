@@ -18,14 +18,13 @@ CREATE TABLE documents (
    embedding VECTOR(512),
    CONSTRAINT documents_pid_chunk_index_key UNIQUE (pid, chunk_index)
 );
+
 CREATE TABLE run_history (
    id SERIAL PRIMARY KEY,
+   run_id INT,
    service_name TEXT,
    status TEXT,
-   process_running BOOLEAN,
-   ingest_running BOOLEAN,
-   start_time TIMESTAMP,
-   end_time TIMESTAMP
+   timestamp TIMESTAMP
 );
 
 -- ivfflat index for pgvector

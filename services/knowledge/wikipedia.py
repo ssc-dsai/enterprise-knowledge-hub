@@ -53,14 +53,13 @@ class WikipediaKnowledgeService(KnowledgeService):
     _content_folder_path: Path = Path(os.getenv("WIKIPEDIA_CONTENT_FOLDER",
                                     "./content/wikipedia")).expanduser().resolve()
     _process_only_first_n_paragraphs: int = int(os.getenv("WIKIPEDIA_PROCESS_ONLY_FIRST_N_PARAGRAPHS", "0"))
-    _progress_flush_interval: int = 1000 # for the .progress file we track line number we stpped.
+    _progress_flush_interval: int = 1000 # for the .progress file we track the line number we stopped at
     _batch_size: int = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
     _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
 
-    def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None, run_history_repository: RunHistoryPGRepository | None = None):
+    def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None):
         super().__init__(queue_service=queue_service, logger=logger, service_name="wikipedia")
         self._repository = repository or WikipediaPgRepository()
-        self._run_history_repository = run_history_repository or RunHistoryPGRepository()
         self._pending: list[WikipediaDbRecord] = []
 
     @property
@@ -71,7 +70,6 @@ class WikipediaKnowledgeService(KnowledgeService):
     def process_item(self, knowledge_item: dict[str, object]) -> list[DatabaseWikipediaItem]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
-            # print(f"Processing item: {knowledge_item.get('title', 'unknown_title')}")
             item = WikipediaItem.from_dict(knowledge_item)
             self.logger.debug("Generating embeddings for %s", item.title)
 
@@ -80,9 +78,10 @@ class WikipediaKnowledgeService(KnowledgeService):
                 max_tokens = getattr(getattr(self.embedder, "model", None), "max_seq_length", None)
 
             chunks = self.embedder.chunk_text_by_tokens(item.content, max_tokens=max_tokens)
-            # PLACEHOLDER for actual embedding generation, which should be done in batches for efficiency. For now, we just generate dummy embeddings.
-            embeddings = [np.random.rand(512).tolist() for _ in chunks]
-            # embeddings = self.embedder.embed(item.content)
+
+            # PLACEHOLDER for actual embedding generation. For now, we just generate dummy embeddings.
+            # embeddings = [np.random.rand(512).tolist() for _ in chunks]
+            embeddings = self.embedder.embed(item.content)
 
             arr = np.asarray(embeddings)
             if arr.ndim == 1:
@@ -216,9 +215,6 @@ class WikipediaKnowledgeService(KnowledgeService):
 
         self._save_progress(index_path, current_line)
         self.logger.info("Completed %s at line %d", index_path.name, current_line)
-
-        # Once processing is complete, we can mark the process_running column as false
-        self._run_history_repository.update_process_step_end(self._history_id)
 
     def _parse_line_offset(self, line: str, line_num: int, filename: str) -> int | None:
         """Parse the byte offset from an index line. Returns None if malformed."""

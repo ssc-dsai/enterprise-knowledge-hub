@@ -14,8 +14,8 @@ from psycopg import sql
 from psycopg_pool import ConnectionPool
 from torch import Tensor
 
-from repository.model import DocumentRecord
 from services.knowledge.models import DatabaseWikipediaItem
+from repository.model import DocumentRecord
 
 load_dotenv()
 
@@ -88,7 +88,8 @@ class WikipediaDbRecord: #pylint: disable=too-many-instance-attributes
             return [float(x) for x in raw_embedding]
         raise TypeError(f"Unsupported embedding type: {type(raw_embedding)!r}")
 
-# Repository for postgres interaction with the documents table, which stores the ingested and processed Wikipedia records along with their embeddings
+# Repository for postgres interaction with the documents table, which stores the ingested and
+# processed Wikipedia records along with their embeddings
 class WikipediaPgRepository:
     """Lightweight repository to write Wikipedia records into Postgres/pgvector."""
     TABLE_NAME = "documents"
@@ -96,12 +97,14 @@ class WikipediaPgRepository:
     def __init__(self ) -> None:
         """Initialize the repository and open a connection pool."""
         self._pool = pool
+        self._batch_size = batch_size
 
     def insert(self, row: WikipediaDbRecord) -> None:
         """Insert row"""
         insert_sql = sql.SQL(
             """
-            INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
+            INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date,
+            embedding, source)
             VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s,
                 %(last_modified_date)s, %(embedding)s, %(source)s)
             ON CONFLICT (pid, chunk_index) DO UPDATE SET
@@ -157,7 +160,8 @@ class WikipediaPgRepository:
             probes: Number of IVFFlat lists to search. Higher = better recall but slower.
                     With 3464 lists, recommended range is 60-350 (sqrt(lists) to lists/10).
         """
-        embedding_vector = embedding[0] if isinstance(embedding[0], (list, tuple, np.ndarray)) else embedding
+        embedding_vector = embedding[0] if isinstance(embedding[0],
+                                                      (list, tuple, np.ndarray)) else embedding
 
         # SET doesn't support parameterized values, so format directly (int is safe)
         set_probes_sql = sql.SQL("SET LOCAL ivfflat.probes = {}").format(sql.Literal(probes))
@@ -221,9 +225,10 @@ class WikipediaPgRepository:
         if self._pool:
             self._pool.close()
 
-# For postgres interaction with the run_history table, which tracks ingestion and processing runs for observability and debugging purposes
+# For postgres interaction with the run_history table, which tracks ingestion and processing runs
+# for observability and debugging purposes
 class RunHistoryPGRepository:
-    """Lightweight repository to run_history records into postgres."""
+    """Lightweight repository to manage run_history records in postgres."""
     TABLE_NAME = "run_history"
 
     def __init__(self ) -> None:
@@ -231,6 +236,8 @@ class RunHistoryPGRepository:
         self._pool = pool
 
     def run_history_table_rows(self):
+        """Query all rows from the run_history table for debugging/observability purposes."""
+
         query_sql = sql.SQL(
                 """
                 SELECT * FROM run_history ORDER BY id DESC;
@@ -242,51 +249,19 @@ class RunHistoryPGRepository:
             rows = cur.fetchall()
         return rows
 
-    def update_history_table_start(self, start_time, service_name: str, status: str = "started", process_running: bool = True, ingest_running: bool = True) -> int:
-        """Update the history table on run start"""
+    def update_history_table(self, run_id: int, service_name: str, status: str, timestamp):
+        """Update the history table"""
 
         query_sql = sql.SQL(
             """
-            INSERT INTO run_history (start_time, service_name, status, process_running, ingest_running)
-            VALUES (%s, %s, %s, %s, %s)
-            RETURNING id
+            INSERT INTO run_history (run_id, service_name, status, timestamp)
+            VALUES (%s, %s, %s, %s)
+
             """
         )
 
         with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, (start_time, service_name, status, process_running, ingest_running))
-            result = cur.fetchone()[0]
-            conn.commit()
-            return result
-
-    def update_history_table_end(self, status, end_time, id: int, process_running: bool = False, ingest_running: bool = False) -> None:
-        """Update the history table on run end"""
-
-        query_sql = sql.SQL(
-            """
-            UPDATE run_history
-            SET end_time = %s, status = %s, process_running = %s, ingest_running = %s
-            WHERE id = %s
-            """
-        )
-
-        with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, (end_time, status, process_running, ingest_running, id))
-            conn.commit()
-
-    def update_process_step_end(self, id: int, process_running: bool = False) -> None:
-        """Update the history table's process column on processing step end"""
-
-        query_sql = sql.SQL(
-            """
-            UPDATE run_history
-            SET process_running = %s
-            WHERE id = %s
-            """
-        )
-
-        with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, (process_running, id))
+            cur.execute(query_sql, (run_id, service_name, status, timestamp))
             conn.commit()
 
     def close(self) -> None:

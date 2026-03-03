@@ -5,13 +5,17 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
 import logging
+from random import random
 import threading
 from datetime import datetime
 
+from repository.postgrespg import RunHistoryPGRepository
 from services.knowledge.models import KnowledgeItem
+from services.knowledge.models import run_status
 from services.queue.queue_worker import QueueWorker
 from services.queue.queue_service import QueueService
 from services.stats.knowledge_service_stats import KnowledgeServiceStats
+from repository.postgrespg import RunHistoryPGRepository
 
 @dataclass
 class KnowledgeService(ABC):
@@ -19,6 +23,7 @@ class KnowledgeService(ABC):
     queue_service: QueueService
     logger: logging.Logger
     service_name: str
+    _run_history_repository: RunHistoryPGRepository = RunHistoryPGRepository()
     _producer_done: threading.Event = field(default_factory=threading.Event, init=False)
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
     _poll_interval: float = 0.5  # seconds to wait before retrying empty queue
@@ -36,9 +41,9 @@ class KnowledgeService(ABC):
         self._producer_done.clear()
         self._stop_event.clear()
         self._stats.reset()  # Reset stats at the start of each run
-
+        self._run_id = int(random() * 1e6)  # Assign a random run ID for tracking in logs and stats
         # Record the start of this run in the run_history table for observability
-        self._history_id = self._run_history_repository.update_history_table_start(datetime.now(), self.service_name)
+        self._run_history_repository.update_history_table(self._run_id, self.service_name, run_status.RUN_STARTED, datetime.now())
 
         with ThreadPoolExecutor(max_workers=3) as executor:
             queue_future = executor.submit(self.ingest)
@@ -50,7 +55,7 @@ class KnowledgeService(ABC):
             insert_future.result()
 
         # Record the end of this run
-        self._run_history_repository.update_history_table_end("completed", datetime.now(), self._history_id)
+        self._run_history_repository.update_history_table(self._run_id, self.service_name, run_status.RUN_ENDED, datetime.now())
 
     @abstractmethod
     def fetch_from_source(self) -> Iterator[KnowledgeItem]:
@@ -88,6 +93,8 @@ class KnowledgeService(ABC):
     def ingest(self) -> None:
         """Ingest data into the knowledge base."""
         self.logger.info("Ingesting data into the knowledge base. (%s)", self.service_name)
+        self._run_history_repository.update_history_table(self._run_id, self.service_name, run_status.INGESTION_STARTED, datetime.now())
+
         try:
             for item in self.fetch_from_source():
                 if self._stop_event.is_set():
@@ -98,11 +105,14 @@ class KnowledgeService(ABC):
             self.logger.exception("Error during ingestion for %s", self.service_name)
         finally:
             self._producer_done.set()  # Signal that producer is finished
-            self.logger.info("Done ingestion for %s", self.service_name)
+            self.logger.info("Done ingestion (raw queue) for %s", self.service_name)
+
+            self._run_history_repository.update_history_table(self._run_id, self.service_name, run_status.INGESTION_COMPLETED, datetime.now())
 
     def process(self) -> None:
         """Process ingested data. Keeps polling until producer is done and queue is empty."""
         self.logger.info("Processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
+        self._run_history_repository.update_history_table(self._run_id, self.service_name, run_status.PROCESSING_STARTED, datetime.now())
 
         worker = QueueWorker(
             queue_service=self.queue_service,
@@ -138,8 +148,9 @@ class KnowledgeService(ABC):
             except Exception:
                 self.logger.exception("Error during finalize_processing for queue: %s. (%s)",
                                 self._ingest_queue_name(), self.service_name)
-            self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(),
+            self.logger.info("Done processing ingested data from raw item queue: %s. (%s)", self._ingest_queue_name(),
                                                                                 self.service_name)
+            self._run_history_repository.update_history_table(self._run_id, self.service_name, run_status.PROCESSING_COMPLETED, datetime.now())
 
     def store(self) -> None:
         """
@@ -148,6 +159,7 @@ class KnowledgeService(ABC):
         """
         self.logger.info("Processing processed data from queue: %s. (%s)", self._processed_queue_name(),
                                                                         self.service_name)
+        self._run_history_repository.update_history_table(self._run_id, self.service_name, run_status.STORING_STARTED, datetime.now())
 
         worker = QueueWorker(
             queue_service=self.queue_service,
@@ -181,8 +193,10 @@ class KnowledgeService(ABC):
             except Exception:
                 self.logger.exception("Error during finalize_processing for queue: %s. (%s)",
                                                                         self._processed_queue_name(), self.service_name)
-            self.logger.info("Done processing ingested data from queue: %s. (%s)", self._processed_queue_name(),
+            self.logger.info("Done storing ingested data from queue: %s. (%s)", self._processed_queue_name(),
                                                                             self.service_name)
+            self._run_history_repository.update_history_table(self._run_id, self.service_name, run_status.STORING_COMPLETED, datetime.now())
+
     def finalize_processing(self) -> None:
         """Optional hook called after processing loop ends."""
         self._is_ingestion_queue_complete = True
