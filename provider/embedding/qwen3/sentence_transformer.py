@@ -46,12 +46,12 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
             dtype = torch.float32
 
         self.model_name = os.getenv("SENTENCE_TRANSFORMER_MODEL_NAME")
-        
+
         model_device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else "auto" #pylint: disable=line-too-long
 
         if os.getenv("SENTENCE_TRANSFORMER_IS_CPU", "false").lower() in ("1", "true", "yes"):
             model_device = "cpu"
-            
+
         # Use flash_attention_2 only if flash-attn package is installed and CUDA is available
         attn_impl = "flash_attention_2" if _is_flash_attn_available() else None
         model_kwargs = {
@@ -76,9 +76,9 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
             tokenizer_kwargs={"padding_side": "left"},
         )
         self.max_seq_length = self.model.max_seq_length = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH", "4096"))
-        
+
         self.tokenizer = ThreadTokenizer(model_name=self.model_name)
-        
+
         self.logger.debug("Model loaded on device: %s", self.model.device)
         self.logger.debug("Model max sequence length: %d", self.model.max_seq_length)
 

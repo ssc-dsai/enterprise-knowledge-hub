@@ -1,7 +1,7 @@
 """Base interface for embedding backends."""
 
 from abc import ABC, abstractmethod
-from typing import Any, List
+from typing import Any
 
 import numpy as np
 
@@ -19,7 +19,7 @@ class EmbeddingBackendProvider(ABC):
     device: str
     max_seq_length: int
     tokenizer: ThreadTokenizer | None = None
-    
+
     @abstractmethod
     def embed(self, text: Any, is_query: bool = False) -> np.ndarray:
         """Generate embeddings for text.
@@ -36,14 +36,13 @@ class EmbeddingBackendProvider(ABC):
     def chunk_text_by_tokens(self, text: str, max_tokens: int = None, overlap_tokens: int = 10) -> list[str]:
         """Split text into chunks based on token count with overlap."""
         raise NotImplementedError
-    
+
     def is_model_loaded(self) -> bool:
+        """Returns true is model is loaded"""
         return getattr(self, "model", None) is not None
-    
+
     def get_tokenizer(self) -> Any:
         """
         Get tokenizer for current thread
         """
-        if not self.is_model_loaded():
-            raise Exception("Model has not loaded yet")
         return self.tokenizer.get()

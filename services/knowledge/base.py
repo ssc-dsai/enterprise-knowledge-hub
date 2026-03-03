@@ -198,15 +198,12 @@ class KnowledgeService(ABC):
 
     def finalize_process(self) -> None:
         """Optional hook called after processing loop ends."""
-        pass
 
     def finalize_ingest(self) -> None:
         """Optional hook called after ingest loop ends."""
-        pass
 
     def finalize_store(self) -> None:
         """Optional hook called after store loop ends."""
-        pass
 
     def _ack_message(self, delivery_tag, successful: bool):
         """Acknoledge or unack message back to queue"""
