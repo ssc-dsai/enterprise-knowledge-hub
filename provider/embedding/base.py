@@ -16,6 +16,7 @@ class EmbeddingBackendProvider(ABC):
     model_name: str
     device: str
     max_seq_length: int
+    dimensions: int
 
     @abstractmethod
     def embed(self, text: Any, is_query: bool = False) -> np.ndarray:
@@ -33,3 +34,4 @@ class EmbeddingBackendProvider(ABC):
     def chunk_text_by_tokens(self, text: str, max_tokens: int = None, overlap_tokens: int = 200) -> list[str]:
         """Split text into chunks based on token count with overlap."""
         raise NotImplementedError
+        

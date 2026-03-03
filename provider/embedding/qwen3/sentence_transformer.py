@@ -3,6 +3,7 @@
 # pylint: disable=duplicate-code
 import logging
 import os
+from typing import List
 
 import numpy as np
 import torch
@@ -11,6 +12,7 @@ from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
 
 from provider.embedding.base import EmbeddingBackendProvider, QWEN3_QUERY_INSTRUCTION
+from provider.embedding.rng_embedder import RNGEmbedder
 
 load_dotenv()
 
@@ -64,12 +66,18 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         if attn_impl:
             model_kwargs["attn_implementation"] = attn_impl
 
+
         self.model = SentenceTransformer(
             "Qwen/Qwen3-Embedding-0.6B",
             model_kwargs=model_kwargs,
             tokenizer_kwargs={"padding_side": "left"},
         )
+        self.dimensions = os.getenv("WIKIPEDIA_EMBEDDING_MAX_DIMENSION", "256")
         self.max_seq_length = self.model.max_seq_length = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH", "4096"))
+        self.use_rng_embedding = os.getenv("WIKIPEDIA_EMBEDDING_MODE", "") == "rng"
+        if self.use_rng_embedding:
+            self.rng_embedder = RNGEmbedder(self.dimensions)
+        
         self.logger.debug("Model loaded on device: %s", self.model.device)
         self.logger.debug("Model max sequence length: %d", self.model.max_seq_length)
 
@@ -86,6 +94,10 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
             is_query: If True, prepend query instruction for asymmetric retrieval.
             dim: The dimension to truncate embeddings to.
         """
+        
+        if self.use_rng_embedding:
+            return self.rng_embedder.encode(text)
+        
         # For queries, prepend the instruction prefix
         if is_query:
             text = QWEN3_QUERY_INSTRUCTION + text
@@ -141,3 +153,10 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
             start_idx += max_tokens - overlap_tokens
 
         return chunks
+
+    def encode_rng(self, text:List[str]) -> np.ndarray:
+        """
+        Return dummy RNG vectors instead of using GPU processing.
+        Not real vectors.
+        """
+        
