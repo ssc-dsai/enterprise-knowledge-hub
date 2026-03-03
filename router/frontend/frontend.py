@@ -8,7 +8,7 @@ from repository.postgrespg import RunHistoryPGRepository
 
 router = APIRouter()
 
-_run_history_table = RunHistoryPGRepository
+RunHistoryTable = RunHistoryPGRepository
 templates = Jinja2Templates(directory="router/frontend/templates")
 
 @router.get("/")
@@ -19,5 +19,5 @@ def dev_frontend():
 @router.get("/status")
 def status(request: Request):
     """Serve the status page with run history."""
-    rows = _run_history_table().run_history_table_rows()
+    rows = RunHistoryTable().run_history_table_rows()
     return templates.TemplateResponse("status.html", {"request": request, "rows": rows})
