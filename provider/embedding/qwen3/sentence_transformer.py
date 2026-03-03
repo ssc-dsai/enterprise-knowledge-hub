@@ -99,9 +99,6 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         if is_query:
             text = QWEN3_QUERY_INSTRUCTION + text
 
-        # chunks = self.chunk_text_by_tokens(text, max_tokens=self.model.max_seq_length)
-        # self.logger.debug("Split into %d chunks", len(chunks))
-
         # Encode the string chunks
         embeddings = self.model.encode(
             text,
