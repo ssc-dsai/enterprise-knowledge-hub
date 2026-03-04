@@ -7,7 +7,6 @@ from threading import Event
 from dataclasses import dataclass
 from typing import Any, Callable
 
-from services.knowledge.models import KnowledgeItem
 from services.queue.queue_service import QueueService
 
 @dataclass
