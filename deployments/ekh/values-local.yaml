@@ -23,11 +23,20 @@ pgvector:
   auth:
     username: "postgres"
     database: "postgres"
-  image:
-    registry: docker.io
-    repository: pgvector/pgvector
-    tag: "pg18"
   initdb:
     scripts:
       init_pgvector.sql: |
         CREATE EXTENSION IF NOT EXISTS vector;
+  config:
+  postgresqlMaxConnections: 200
+  postgresqlSharedBuffers: "256MB"
+  postgresqlEffectiveCacheSize: "1GB"
+  postgresqlWorkMem: "256MB"
+  postgresqlMaintenanceWorkMem: "4GB"
+  customUser:
+    existingSecret: "ekh-local-credentials"
+    secretKeys:
+      name: "ekhuser"
+      password:
+        fromSecretKey: "postgres-password"
+      database: "postgres"

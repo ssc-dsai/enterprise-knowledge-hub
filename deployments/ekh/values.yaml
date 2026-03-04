@@ -37,15 +37,7 @@ pgvector:
   auth:
     username: "postgres"
     database: "postgres"
-    # Password is managed by the auto-generated <release>-credentials secret.
-    # When the sub-chart is enabled, point it at the same secret so it initialises
-    # postgres with the same generated password:
-    #   existingSecret: "<release>-credentials"  ← set in your env values file
-    #   secretKeys:
-    #     adminPasswordKey: "postgres-password"
-    existingSecret: ""
-    secretKeys:
-      adminPasswordKey: "postgres-password"
+    password: ""
 
 rabbitmq: #doc: https://artifacthub.io/packages/helm/cloudpirates-rabbitmq/rabbitmq
   enabled: true

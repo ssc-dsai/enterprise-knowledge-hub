@@ -70,9 +70,9 @@ spec:
             {{- end }}
             {{- with .Values.pgvector }}
             - name: POSTGRES_USER
-              value: {{ .auth.username | quote }}
+              value: {{ .customUser.username | default .auth.username | quote }}
             - name: POSTGRES_DB
-              value: {{ .auth.database | quote }}
+              value: {{ .customUser.database | default .auth.database | quote }}
             - name: POSTGRES_HOST
               value: {{ .host | default (printf "%s-pgvector" $.Release.Name) | quote }}
             - name: POSTGRES_PORT
@@ -81,7 +81,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   {{- if $.Values.pgvector.enabled }}
-                  name: {{ printf "%s-pgvector" $.Release.Name }}
+                  name: {{ printf "%s-credentials" (include "ekh.fullname" .)}}
                   key: postgres-password
                   {{- else }}
                   name: {{ $.Values.pgvector.auth.existingSecret }}
