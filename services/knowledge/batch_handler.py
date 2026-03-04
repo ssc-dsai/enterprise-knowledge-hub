@@ -4,7 +4,7 @@ from logging import Logger
 
 from services.knowledge.models import KnowledgeItem
 
-class BatchHandler:
+class BatchHandler: # pylint: disable=too-few-public-methods
     """Handles multiple queue items at once."""
     def __init__(
         self,
