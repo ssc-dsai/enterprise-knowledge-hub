@@ -1,11 +1,9 @@
 """BatchHandler to enable the ability to handle multiple items at once vs processing one item at a time"""
 from typing import Callable, List, Tuple
-from dataclasses import dataclass
 from logging import Logger
 
 from services.knowledge.models import KnowledgeItem
 
-@dataclass
 class BatchHandler:
     """Handles multiple queue items at once."""
     def __init__(
