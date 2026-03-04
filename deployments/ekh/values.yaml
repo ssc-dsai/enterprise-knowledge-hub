@@ -53,7 +53,6 @@ rabbitmq: #doc: https://artifacthub.io/packages/helm/cloudpirates-rabbitmq/rabbi
   port: 5672
   user: "admin"
   vhost: "/"
-  url: ""
   auth:
     username: "admin"
     password: "" #let this service manage the erlangcookie and admin pwd
