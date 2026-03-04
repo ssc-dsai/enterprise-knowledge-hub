@@ -5,7 +5,9 @@ from logging import Logger
 import time
 from threading import Event
 from dataclasses import dataclass
+from typing import Any, Callable
 
+from services.knowledge.models import KnowledgeItem
 from services.queue.queue_service import QueueService
 
 @dataclass
@@ -19,7 +21,7 @@ class QueueWorker:
         self.stop_event: Event = stop_event
         self.poll_interval = poll_interval
 
-    def run(self, service_name: str, queue_name: str, handler, should_exit):
+    def run(self, service_name: str, queue_name: str, handler: Callable[..., Any], should_exit: Callable[[bool], bool]):
         """
         Main function to poll from queues.
 
