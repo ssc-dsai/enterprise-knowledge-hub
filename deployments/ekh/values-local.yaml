@@ -20,11 +20,9 @@ pgvector:
   host: ""
   port: 5432
   batchSize: 100
-  auth:
-    username: "postgres"
-    database: "postgres"
   initdb:
     scripts:
+      # TODO: LOAD FILE for database bootstrap, see project doc/convert to sql or something
       init_pgvector.sql: |
         CREATE EXTENSION IF NOT EXISTS vector;
   config:
@@ -33,10 +31,3 @@ pgvector:
   postgresqlEffectiveCacheSize: "1GB"
   postgresqlWorkMem: "256MB"
   postgresqlMaintenanceWorkMem: "4GB"
-  customUser:
-    existingSecret: "ekh-local-credentials"
-    secretKeys:
-      name: "ekhuser"
-      password:
-        fromSecretKey: "postgres-password"
-      database: "postgres"
