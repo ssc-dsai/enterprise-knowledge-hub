@@ -47,6 +47,10 @@ rabbitmq: #doc: https://artifacthub.io/packages/helm/cloudpirates-rabbitmq/rabbi
     existingSecret: "ekh-prod-credentials"
     existingPasswordKey: "rabbitmq-password"
     existingErlangCookieKey: "rabbitmq-erlang-cookie-key"
+  image:
+    registry: docker.io
+    repository: pgvector/pgvector
+    tag: "pg18"
 
 podAnnotations: {}
 podLabels: {}

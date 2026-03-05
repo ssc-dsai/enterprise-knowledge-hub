@@ -22,9 +22,24 @@ pgvector:
   batchSize: 100
   initdb:
     scripts:
-      # TODO: LOAD FILE for database bootstrap, see project doc/convert to sql or something
       init_pgvector.sql: |
         CREATE EXTENSION IF NOT EXISTS vector;
+      # TODO: load from a file instead, we don't have a central one yet, just documentation.
+      init_ekh_schema.sql: |
+        CREATE TABLE documents (
+          id SERIAL PRIMARY KEY,
+          pid INT,
+          name TEXT,
+          chunk_index INT,
+          title TEXT,
+          content TEXT,
+          source TEXT,
+          last_modified_date DATE,
+          embedding VECTOR(512),
+          CONSTRAINT documents_pid_chunk_index_key UNIQUE (pid, chunk_index)
+        );
+        CREATE INDEX IF NOT EXISTS wikipedia_embedding_index
+          ON documents USING ivfflat (embedding vector_cosine_ops) WITH (lists = 3464);
   config:
     postgresqlMaxConnections: 200
     postgresqlSharedBuffers: "256MB"
