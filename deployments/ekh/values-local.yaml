@@ -26,8 +26,8 @@ pgvector:
       init_pgvector.sql: |
         CREATE EXTENSION IF NOT EXISTS vector;
   config:
-  postgresqlMaxConnections: 200
-  postgresqlSharedBuffers: "256MB"
-  postgresqlEffectiveCacheSize: "1GB"
-  postgresqlWorkMem: "256MB"
-  postgresqlMaintenanceWorkMem: "4GB"
+    postgresqlMaxConnections: 200
+    postgresqlSharedBuffers: "256MB"
+    postgresqlEffectiveCacheSize: "1GB"
+    postgresqlWorkMem: "256MB"
+    postgresqlMaintenanceWorkMem: "4GB"
