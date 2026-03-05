@@ -8,7 +8,7 @@ from repository.postgrespg import WikipediaPgRepository
 
 router = APIRouter()
 
-RunHistoryTable = WikipediaPgRepository.from_env()
+repository = WikipediaPgRepository.from_env()
 templates = Jinja2Templates(directory="router/frontend/templates")
 
 @router.get("/")
@@ -19,5 +19,5 @@ def dev_frontend():
 @router.get("/status")
 def status(request: Request):
     """Serve the status page with run history."""
-    rows = RunHistoryTable.run_history_table_rows()
+    rows = repository.run_history_table_rows()
     return templates.TemplateResponse("status.html", {"request": request, "rows": rows})
