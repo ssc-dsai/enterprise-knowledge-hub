@@ -84,12 +84,10 @@ spec:
                   name: {{ printf "%s-credentials" (include "ekh.fullname" .)}}
                   key: postgres-password
             - name: RABBITMQ_URL
-              value: {{ printf "amqp://%s@%s-rabbitmq:%d/%s" .Values.rabbitmq.user .Release.Name (.Values.rabbitmq.port | int) .Values.rabbitmq.vhost | quote }}
-            - name: RABBITMQ_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ printf "%s-credentials" (include "ekh.fullname" .)}}
-                  key: rabbitmq-password
+                  key: rabbitmq-url
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.contentStorage.enabled }}
