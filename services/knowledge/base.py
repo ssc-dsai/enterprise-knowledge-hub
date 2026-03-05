@@ -8,7 +8,9 @@ import logging
 from random import random
 import threading
 from datetime import datetime
+from typing import Optional
 
+from repository.postgrespg import WikipediaPgRepository
 from services.knowledge.models import KnowledgeItem
 from services.knowledge.models import RunStatus
 from services.queue.queue_worker import QueueWorker
@@ -21,7 +23,7 @@ class KnowledgeService(ABC):
     queue_service: QueueService
     logger: logging.Logger
     service_name: str
-    _repository: None # assigned in subclass init after super() call
+    _repository: Optional[WikipediaPgRepository] = None  # assigned in subclass init after super() call
     _run_id = None  # Assigned at runtime for tracking in logs and stats
     _producer_done: threading.Event = field(default_factory=threading.Event, init=False)
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
