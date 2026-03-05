@@ -14,27 +14,10 @@ from psycopg import sql
 from psycopg_pool import ConnectionPool
 from torch import Tensor
 
-from services.knowledge.models import DatabaseWikipediaItem
 from repository.model import DocumentRecord
+from services.knowledge.models import DatabaseWikipediaItem
 
 load_dotenv()
-
-# establish connection pool at module level to be shared across repository instances
-host = os.getenv("POSTGRES_HOST", "localhost")
-port = int(os.getenv("POSTGRES_PORT", "5432"))
-dbname = os.getenv("POSTGRES_DB", "postgres")
-user = os.getenv("POSTGRES_USER", "postgres")
-password = os.getenv("POSTGRES_PASSWORD", "postgres")
-pool_size = int(os.getenv("POSTGRES_POOL_SIZE", "5"))
-batch_size = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
-conninfo = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
-
-pool = ConnectionPool(conninfo = conninfo,
-                      min_size=1,
-                      max_size=pool_size,
-                      open=False,
-                      configure=register_vector)
-pool.open()
 
 @dataclass(slots=True)
 class WikipediaDbRecord: #pylint: disable=too-many-instance-attributes
@@ -88,23 +71,57 @@ class WikipediaDbRecord: #pylint: disable=too-many-instance-attributes
             return [float(x) for x in raw_embedding]
         raise TypeError(f"Unsupported embedding type: {type(raw_embedding)!r}")
 
-# Repository for postgres interaction with the documents table, which stores the ingested and
-# processed Wikipedia records along with their embeddings
+
 class WikipediaPgRepository:
     """Lightweight repository to write Wikipedia records into Postgres/pgvector."""
-    TABLE_NAME = "documents"
 
-    def __init__(self ) -> None:
+    def __init__(
+        self,
+        conninfo: str,
+        table_name: str = "wikipedia_pages",
+        pool_size: int = 5,
+        batch_size: int = 500,
+    ) -> None:
         """Initialize the repository and open a connection pool."""
-        self._pool = pool
+        self._table_name = table_name
         self._batch_size = batch_size
+        self._pool = ConnectionPool(
+            conninfo,
+            min_size=1,
+            max_size=pool_size,
+            open=False,
+            configure=register_vector,
+        )
+        self._pool.open()
+
+    @classmethod
+    def from_env(cls) -> "WikipediaPgRepository":
+        """
+        Docstring for from_env
+
+
+        :param cls: Description
+        :return: Description
+        :rtype: WikipediaPgRepository
+        """
+
+        host = os.getenv("POSTGRES_HOST", "localhost")
+        port = int(os.getenv("POSTGRES_PORT", "5432"))
+        dbname = os.getenv("POSTGRES_DB", "postgres")
+        user = os.getenv("POSTGRES_USER", "postgres")
+        password = os.getenv("POSTGRES_PASSWORD", "postgres")
+        table_name = os.getenv("WIKIPEDIA_TABLE", "documents")
+        pool_size = int(os.getenv("POSTGRES_POOL_SIZE", "5"))
+        batch_size = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
+        conninfo = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
+
+        return cls(conninfo=conninfo, table_name=table_name, pool_size=pool_size, batch_size=batch_size)
 
     def insert(self, row: WikipediaDbRecord) -> None:
         """Insert row"""
         insert_sql = sql.SQL(
             """
-            INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date,
-            embedding, source)
+            INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
             VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s,
                 %(last_modified_date)s, %(embedding)s, %(source)s)
             ON CONFLICT (pid, chunk_index) DO UPDATE SET
@@ -115,7 +132,7 @@ class WikipediaPgRepository:
                 embedding = EXCLUDED.embedding,
                 source = EXCLUDED.source
             """
-        ).format(table=sql.Identifier(self.TABLE_NAME))
+        ).format(table=sql.Identifier(self._table_name))
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(insert_sql, (row))
             conn.commit()
@@ -137,7 +154,7 @@ class WikipediaPgRepository:
                 embedding = EXCLUDED.embedding,
                 source = EXCLUDED.source
             """
-        ).format(table=sql.Identifier(self.TABLE_NAME))
+        ).format(table=sql.Identifier(self._table_name))
 
         params = [row.as_mapping() for row in rows]
         with self._pool.connection() as conn, conn.cursor() as cur:
@@ -160,8 +177,7 @@ class WikipediaPgRepository:
             probes: Number of IVFFlat lists to search. Higher = better recall but slower.
                     With 3464 lists, recommended range is 60-350 (sqrt(lists) to lists/10).
         """
-        embedding_vector = embedding[0] if isinstance(embedding[0],
-                                                      (list, tuple, np.ndarray)) else embedding
+        embedding_vector = embedding[0] if isinstance(embedding[0], (list, tuple, np.ndarray)) else embedding
 
         # SET doesn't support parameterized values, so format directly (int is safe)
         set_probes_sql = sql.SQL("SET LOCAL ivfflat.probes = {}").format(sql.Literal(probes))
@@ -175,7 +191,7 @@ class WikipediaPgRepository:
             ORDER BY embedding <=> %s::vector
             LIMIT %s
             """
-        ).format(table=sql.Identifier(self.TABLE_NAME))
+        ).format(table=sql.Identifier(self._table_name))
 
         with self._pool.connection() as conn:
             with conn.transaction():
@@ -193,7 +209,7 @@ class WikipediaPgRepository:
             SELECT pid FROM {table}
             WHERE name = %s
             """
-        ).format(table=sql.Identifier(self.TABLE_NAME))
+        ).format(table=sql.Identifier(self._table_name))
 
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(query_sql, (title,))
@@ -211,7 +227,7 @@ class WikipediaPgRepository:
             SELECT title, content FROM {table}
             WHERE pid = %s
             """
-        ).format(table=sql.Identifier(self.TABLE_NAME))
+        ).format(table=sql.Identifier(self._table_name))
 
         pattern=pid
 
@@ -219,21 +235,6 @@ class WikipediaPgRepository:
             cur.execute(query_sql, (pattern,))
             rows = cur.fetchall()
         return rows
-
-    def close(self) -> None:
-        """Close the underlying connection pool."""
-        if self._pool:
-            self._pool.close()
-
-# For postgres interaction with the run_history table, which tracks ingestion and processing runs
-# for observability and debugging purposes
-class RunHistoryPGRepository:
-    """Lightweight repository to manage run_history records in postgres."""
-    TABLE_NAME = "run_history"
-
-    def __init__(self ) -> None:
-        """Initialize the repository and open a connection pool."""
-        self._pool = pool
 
     def run_history_table_rows(self):
         """Query all rows from the run_history table for debugging/observability purposes."""
@@ -249,8 +250,8 @@ class RunHistoryPGRepository:
             rows = cur.fetchall()
         return rows
 
-    def update_history_table(self, run_id: int, service_name: str, status: str, timestamp):
-        """Update the history table"""
+    def insert_history_table_log(self, run_id: int, service_name: str, status: str, timestamp):
+        """Insert a log entry into the history table"""
 
         query_sql = sql.SQL(
             """
@@ -263,8 +264,3 @@ class RunHistoryPGRepository:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(query_sql, (run_id, service_name, status, timestamp))
             conn.commit()
-
-    def close(self) -> None:
-        """Close the underlying connection pool."""
-        if self._pool:
-            self._pool.close()
