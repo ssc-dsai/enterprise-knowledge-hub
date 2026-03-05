@@ -77,24 +77,19 @@ spec:
               value: {{ .host | default (printf "%s-pgvector" $.Release.Name) | quote }}
             - name: POSTGRES_PORT
               value: {{ .port | quote }}
+            {{- end }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  {{- if $.Values.pgvector.enabled }}
                   name: {{ printf "%s-credentials" (include "ekh.fullname" .)}}
                   key: postgres-password
-                  {{- else }}
-                  name: {{ $.Values.pgvector.auth.existingSecret }}
-                  key: {{ $.Values.pgvector.auth.secretKeys.adminPasswordKey }}
-                  {{- end }}
-            {{- end }}
             - name: RABBITMQ_URL
               value: {{ printf "amqp://%s@%s-rabbitmq:%d/%s" .Values.rabbitmq.user .Release.Name (.Values.rabbitmq.port | int) .Values.rabbitmq.vhost | quote }}
             - name: RABBITMQ_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ printf "%s-rabbitmq" .Release.Name }}
-                  key: password
+                  name: {{ printf "%s-credentials" (include "ekh.fullname" .)}}
+                  key: rabbitmq-password
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.contentStorage.enabled }}
