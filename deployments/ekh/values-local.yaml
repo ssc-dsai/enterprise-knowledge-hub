@@ -31,3 +31,9 @@ pgvector:
     postgresqlEffectiveCacheSize: "1GB"
     postgresqlWorkMem: "256MB"
     postgresqlMaintenanceWorkMem: "4GB"
+  auth:
+    existingSecret: "ekh-local-credentials"
+
+rabbitmq:
+  auth:
+    existingSecret: "ekh-local-credentials"

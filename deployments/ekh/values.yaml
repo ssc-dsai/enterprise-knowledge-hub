@@ -34,7 +34,7 @@ pgvector: #doc: https://artifacthub.io/packages/helm/cloudpirates-postgres/postg
   auth:
     username: "postgres"
     database: "postgres"
-    existingSecret: "ekh-credentials"
+    existingSecret: "ekh-prod-credentials"
     secretKeys:
       adminPasswordKey: "postgres-password"
 
@@ -44,11 +44,11 @@ rabbitmq: #doc: https://artifacthub.io/packages/helm/cloudpirates-rabbitmq/rabbi
   port: 5672
   vhost: "/"
   auth:
-      enabled: true
-      username: "admin"
-      existingSecret: "ekh-credentials"
-      existingPasswordKey: "rabbitmq-password"
-      existingErlangCookieKey: "rabbitmq-erlang-cookie-key"
+    enabled: true
+    username: "admin"
+    existingSecret: "ekh-prod-credentials"
+    existingPasswordKey: "rabbitmq-password"
+    existingErlangCookieKey: "rabbitmq-erlang-cookie-key"
 
 podAnnotations: {}
 podLabels: {}
