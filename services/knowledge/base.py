@@ -21,7 +21,7 @@ class KnowledgeService(ABC):
     queue_service: QueueService
     logger: logging.Logger
     service_name: str
-    _repository: object
+    _repository: None # assigned in subclass init after super() call
     _run_id = None  # Assigned at runtime for tracking in logs and stats
     _producer_done: threading.Event = field(default_factory=threading.Event, init=False)
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
