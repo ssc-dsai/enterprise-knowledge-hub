@@ -40,9 +40,7 @@ pgvector: #doc: https://artifacthub.io/packages/helm/cloudpirates-postgres/postg
 
 rabbitmq: #doc: https://artifacthub.io/packages/helm/cloudpirates-rabbitmq/rabbitmq
   enabled: true
-  host: ""
   port: 5672
-  vhost: "/"
   auth:
     enabled: true
     username: "admin"
