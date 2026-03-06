@@ -68,6 +68,34 @@ spec:
             - name: WIKIPEDIA_EMBEDDING_MODEL_DTYPE
               value: {{ .dtype | quote }}
             {{- end }}
+            {{- $pgvectorSecret := lookup "v1" "Secret" .Release.Namespace (printf "%s-pgvector" .Release.Name) }}
+            {{- if $pgvectorSecret }}
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $pgvectorSecret.metadata.name }}
+                  key: username
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $pgvectorSecret.metadata.name }}
+                  key: database
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $pgvectorSecret.metadata.name }}
+                  key: host
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $pgvectorSecret.metadata.name }}
+                  key: port
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $pgvectorSecret.metadata.name }}
+                  key: postgres-password
+            {{- else }}
             {{- with .Values.pgvector }}
             - name: POSTGRES_USER
               value: {{ .customUser.username | default .auth.username | quote }}
@@ -77,17 +105,14 @@ spec:
               value: {{ .host | default (printf "%s-pgvector" $.Release.Name) | quote }}
             - name: POSTGRES_PORT
               value: {{ .port | quote }}
-            {{- end }}
             - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ printf "%s-credentials" (include "ekh.fullname" .)}}
-                  key: postgres-password
+              value: {{ .password | quote }}
+            {{- end }}
+            {{- end }}
+            {{- $rabbitmqSecret := lookup "v1" "Secret" .Release.Namespace (printf "%s-rabbitmq" .Release.Name) }}
+            {{- $rabbitmqPassword := index $rabbitmqSecret.data "password" | b64dec }}
             - name: RABBITMQ_URL
-              valueFrom:
-                secretKeyRef:
-                  name: {{ printf "%s-credentials" (include "ekh.fullname" .)}}
-                  key: rabbitmq-url
+              value: {{ printf "amqp://%s:%s@%s-rabbitmq:%v/" .Values.rabbitmq.auth.username $rabbitmqPassword .Release.Name .Values.rabbitmq.port | quote }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.contentStorage.enabled }}
