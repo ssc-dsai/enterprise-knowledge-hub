@@ -13,6 +13,7 @@ from sentence_transformers import SentenceTransformer
 
 from provider.embedding.base import EmbeddingBackendProvider, QWEN3_QUERY_INSTRUCTION
 from provider.embedding.rng_embedder import RNGEmbedder
+from provider.embedding.tokenizer import ThreadTokenizer
 
 load_dotenv()
 
@@ -46,7 +47,12 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         if torch.backends.mps.is_available():
             dtype = torch.float32
 
+        self.model_name = os.getenv("SENTENCE_TRANSFORMER_MODEL_NAME")
+
         model_device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps") if torch.backends.mps.is_available() else "auto" #pylint: disable=line-too-long
+
+        if os.getenv("SENTENCE_TRANSFORMER_IS_CPU", "false").lower() in ("1", "true", "yes"):
+            model_device = "cpu"
 
         # Use flash_attention_2 only if flash-attn package is installed and CUDA is available
         attn_impl = "flash_attention_2" if _is_flash_attn_available() else None
@@ -68,7 +74,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
 
 
         self.model = SentenceTransformer(
-            "Qwen/Qwen3-Embedding-0.6B",
+            self.model_name,
             model_kwargs=model_kwargs,
             tokenizer_kwargs={"padding_side": "left"},
         )
@@ -78,14 +84,17 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         if self.use_rng_embedding:
             self.rng_embedder = RNGEmbedder(self.dimensions)
         
+
+        self.tokenizer = ThreadTokenizer(model_name=self.model_name)
+
         self.logger.debug("Model loaded on device: %s", self.model.device)
         self.logger.debug("Model max sequence length: %d", self.model.max_seq_length)
 
     def embed(
         self,
-        text: str,
+        text: List[str],
         is_query: bool = False,
-        dim: int = int(os.getenv("WIKIPEDIA_EMBEDDING_MAX_DIMENSION", "1024")),
+        dim: int = int(os.getenv("WIKIPEDIA_EMBEDDING_MAX_DIMENSION", "512")),
     ) -> np.ndarray:
         """Generate embeddings for text, chunking when necessary.
 
@@ -102,12 +111,9 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         if is_query:
             text = QWEN3_QUERY_INSTRUCTION + text
 
-        chunks = self.chunk_text_by_tokens(text, max_tokens=self.model.max_seq_length)
-        self.logger.debug("Split into %d chunks", len(chunks))
-
         # Encode the string chunks
         embeddings = self.model.encode(
-            chunks,
+            text,
             convert_to_tensor=False,
             show_progress_bar=bool(os.getenv("MODEL_SHOW_PROGRESS", "True").lower() == "true"),
             # Lower batch size for potentially large chunks
@@ -125,13 +131,15 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
 
         return embeddings
 
-    def chunk_text_by_tokens(self, text: str, max_tokens: int = None, overlap_tokens: int = 200) -> list[str]:
+    def chunk_text_by_tokens(self, text: str, max_tokens: int = None, overlap_tokens: int = 10) -> list[str]:
         """Split text into chunks based on token count with overlap."""
         if max_tokens is None:
             max_tokens = self.max_seq_length
 
+        tokenizer = self.get_tokenizer()
+
         # Tokenize the entire text
-        tokens = self.model.tokenizer.encode(text, add_special_tokens=False)
+        tokens = tokenizer.encode(text, add_special_tokens=False)
 
         # If text fits in one chunk, return as-is
         if len(tokens) <= max_tokens:
@@ -146,7 +154,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
             chunk_tokens = tokens[start_idx:end_idx]
 
             # Decode back to text
-            chunk_text = self.model.tokenizer.decode(chunk_tokens, skip_special_tokens=True)
+            chunk_text = tokenizer.decode(chunk_tokens, skip_special_tokens=True)
             chunks.append(chunk_text)
 
             # Move forward with overlap

@@ -7,7 +7,7 @@ import os
 import numpy as np
 import torch
 from dotenv import load_dotenv
-from llama_cpp import Llama  # pylint: disable=no-name-in-module
+from llama_cpp import Llama  # pylint: disable=import-error
 
 from provider.embedding.base import EmbeddingBackendProvider, QWEN3_QUERY_INSTRUCTION
 
