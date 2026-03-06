@@ -110,7 +110,10 @@ spec:
             {{- end }}
             {{- end }}
             {{- $rabbitmqSecret := lookup "v1" "Secret" .Release.Namespace (printf "%s-rabbitmq" .Release.Name) }}
-            {{- $rabbitmqPassword := index $rabbitmqSecret.data "password" | b64dec }}
+            {{- $rabbitmqPassword := .Values.rabbitmq.auth.password }}
+            {{- if $rabbitmqSecret }}
+            {{- $rabbitmqPassword = index $rabbitmqSecret.data "password" | b64dec }}
+            {{- end }}
             - name: RABBITMQ_URL
               value: {{ printf "amqp://%s:%s@%s-rabbitmq:%v/" .Values.rabbitmq.auth.username $rabbitmqPassword .Release.Name .Values.rabbitmq.port | quote }}
           resources:
