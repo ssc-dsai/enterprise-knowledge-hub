@@ -76,7 +76,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
             model_kwargs=model_kwargs,
             tokenizer_kwargs={"padding_side": "left"},
         )
-        
+
         self.dimensions = int(os.getenv("WIKIPEDIA_EMBEDDING_MAX_DIMENSION", "256"))
         self.max_seq_length = self.model.max_seq_length = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH", "4096"))
         self.use_rng_embedding = os.getenv("WIKIPEDIA_EMBEDDING_MODE", "") == "rng"
@@ -101,10 +101,10 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
             is_query: If True, prepend query instruction for asymmetric retrieval.
             dim: The dimension to truncate embeddings to.
         """
-        
+
         if self.use_rng_embedding:
             return self.rng_embedder.encode(text)
-        
+
         # For queries, prepend the instruction prefix
         if is_query:
             text = QWEN3_QUERY_INSTRUCTION + text
@@ -165,4 +165,3 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         Return dummy RNG vectors instead of using GPU processing.
         Not real vectors.
         """
-        

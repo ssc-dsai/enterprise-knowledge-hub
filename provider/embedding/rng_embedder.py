@@ -1,8 +1,9 @@
 """Fake embedding generator"""
 import os
-import numpy as np
 import hashlib
 from typing import List
+
+import numpy as np
 
 class RNGEmbedder:
     """
