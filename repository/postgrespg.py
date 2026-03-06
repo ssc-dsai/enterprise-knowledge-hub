@@ -105,12 +105,10 @@ class WikipediaPgRepository:
         :rtype: WikipediaPgRepository
         """
 
-        #  (If running local connected to DB use 172.16.123.217 instead of "localhost")
         host = os.getenv("POSTGRES_HOST", "localhost")
         port = int(os.getenv("POSTGRES_PORT", "5432"))
         dbname = os.getenv("POSTGRES_DB", "postgres")
         user = os.getenv("POSTGRES_USER", "postgres")
-        # For running local connected to DB use "postconninfotgres" instead of "postgres"
         password = os.getenv("POSTGRES_PASSWORD", "postgres")
         table_name = os.getenv("WIKIPEDIA_TABLE", "documents")
         pool_size = int(os.getenv("POSTGRES_POOL_SIZE", "5"))
@@ -124,7 +122,7 @@ class WikipediaPgRepository:
         insert_sql = sql.SQL(
             """
             INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
-            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s, 
+            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s,
                 %(last_modified_date)s, %(embedding)s, %(source)s)
             ON CONFLICT (pid, chunk_index) DO UPDATE SET
                 name = EXCLUDED.name,
@@ -238,7 +236,31 @@ class WikipediaPgRepository:
             rows = cur.fetchall()
         return rows
 
-    def close(self) -> None:
-        """Close the underlying connection pool."""
-        if self._pool:
-            self._pool.close()
+    def run_history_table_rows(self):
+        """Query all rows from the run_history table for debugging/observability purposes."""
+
+        query_sql = sql.SQL(
+                """
+                SELECT * FROM run_history ORDER BY id DESC;
+                """
+            )
+
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query_sql)
+            rows = cur.fetchall()
+        return rows
+
+    def insert_history_table_log(self, run_id: int, service_name: str, status: str, timestamp):
+        """Insert a log entry into the history table"""
+
+        query_sql = sql.SQL(
+            """
+            INSERT INTO run_history (run_id, service_name, status, timestamp)
+            VALUES (%s, %s, %s, %s)
+
+            """
+        )
+
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (run_id, service_name, status, timestamp))
+            conn.commit()
