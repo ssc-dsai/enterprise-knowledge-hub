@@ -77,7 +77,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
             tokenizer_kwargs={"padding_side": "left"},
         )
         
-        self.dimensions = os.getenv("WIKIPEDIA_EMBEDDING_MAX_DIMENSION", "256")
+        self.dimensions = int(os.getenv("WIKIPEDIA_EMBEDDING_MAX_DIMENSION", "256"))
         self.max_seq_length = self.model.max_seq_length = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH", "4096"))
         self.use_rng_embedding = os.getenv("WIKIPEDIA_EMBEDDING_MODE", "") == "rng"
         if self.use_rng_embedding:
