@@ -1,4 +1,6 @@
 """Base data model for knowledge items."""
+from enum import StrEnum
+
 from pydantic import BaseModel
 
 class KnowledgeItem(BaseModel):

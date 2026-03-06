@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock
 
-from services.knowledge.wikipedia import WikipediaKnowledgeService
+from services.knowledge.wikipedia.wikipedia import WikipediaKnowledgeService
 
 INDEX_FILE_CONTENT = """5:1:Foo1
 5:2:Foo2

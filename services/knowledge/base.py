@@ -4,12 +4,11 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
+from typing import Any, Optional
 import logging
 from random import random
 import threading
 from datetime import datetime
-from typing import Optional
 
 from repository.postgrespg import WikipediaPgRepository
 from services.knowledge.models import KnowledgeItem
@@ -105,7 +104,7 @@ class KnowledgeService(ABC):
     def ingest(self) -> None:
         """Ingest data into the knowledge base."""
         self.logger.info("Ingesting data into the knowledge base. (%s)", self.service_name)
-        
+
         self._repository.insert_history_table_log(self._run_id, self.service_name,
                                                           RunStatus.INGESTION_STARTED, datetime.now())
         try:
@@ -132,7 +131,7 @@ class KnowledgeService(ABC):
         """Process ingested data. Keeps polling until producer is done and queue is empty."""
 
         self.logger.info("Processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
-        
+
         self._repository.insert_history_table_log(self._run_id, self.service_name,
                                                               RunStatus.PROCESSING_STARTED, datetime.now())
         batch_size = self.get_batch_size()
@@ -171,7 +170,7 @@ class KnowledgeService(ABC):
             self.logger.exception("Error during finalize_process for queue: %s. (%s)",
                                 self._ingest_queue_name(), self.service_name)
 
-        
+
         self._repository.insert_history_table_log(self._run_id, self.service_name,
                                                               RunStatus.PROCESSING_COMPLETED, datetime.now())
         self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(),
