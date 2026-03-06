@@ -64,6 +64,16 @@ class Source(StrEnum):
     WIKIPEDIA_FR = "frwiki"
     #MYSSCPLUS = "mysscplus
 
+class RunStatus(StrEnum):
+    """Enumeration of run status for the run_history table."""
+    RUN_STARTED = "Run Started"
+    INGESTION_STARTED = "Ingestion Started"
+    INGESTION_COMPLETED = "Ingestion Completed"
+    PROCESSING_STARTED = "Processing Started"
+    PROCESSING_COMPLETED = "Processing Completed"
+    STORING_STARTED = "Storing Started"
+    STORING_COMPLETED = "Storing Completed"
+    RUN_ENDED = "Run Completed"
 
 @dataclass
 class KnowledgeItem(ABC):
