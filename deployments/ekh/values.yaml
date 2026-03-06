@@ -3,24 +3,26 @@ replicaCount: 2
 image:
   repository: ghcr.io/ssc-dsai/enterprise-knowledge-hub
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  #tag: "0.1.0-cuda-9.0" #h100/h200 GPUs ... else we need - 
-  tag: "0.1.0" # CPU only, for testing on minikube locally.
+  tag: "0.1.0-cuda-9.0"
 
 imagePullSecrets: []
 
-pytorch:
-  allocConf: "max_split_size_mb:256,garbage_collection_threshold:0.7,expandable_segments:False"
-  llamaCuda: 1
-  cudaGpuCap: 0.8
-
-wikiEmbeddingModel:
-  backend: "SENTENCE_TRANSFORMER"
-  cleanup: false
-  batchSize: 3
-  maxLength: 4096
-  maxDim: 512
-  dtype: "float16"
+env:
+  wikipedia:
+    embeddingModelBackend: "SENTENCE_TRANSFORMER"
+    embeddingModelCleanup: false
+    embeddingModelBatchSize: 3
+    embeddingModelMaxLength: 4096
+    embeddingModelMaxDim: 512
+    debugExtraction: false #extract ingested on disk (as xml)
+    embeddingModelDtype: "float16"
+  pytorch:
+    allocConf: "max_split_size_mb:256,garbage_collection_threshold:0.7,expandable_segments:False"
+    cudaGpuCap: 0.8
+  sentenceTransformer:
+    isCpu: false
+    modelName: "Qwen/Qwen3-Embedding-0.6B"
+  postgresBatchSize: 500
 
 ####################################################
 # VALUES FOR DEPENDENCIES (PGVECTOR, RABBITMQ)
@@ -53,9 +55,7 @@ rabbitmq: #doc: https://artifacthub.io/packages/helm/cloudpirates-rabbitmq/rabbi
 podAnnotations: {}
 podLabels: {}
 
-podSecurityContext:
-  {}
-  # fsGroup: 2000
+podSecurityContext: {}
 
 livenessProbe:
   enabled: true
@@ -63,13 +63,7 @@ livenessProbe:
   periodSeconds: 10
   timeoutSeconds: 1
 
-securityContext:
-  {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
+securityContext: {}
 
 service:
   type: ClusterIP
@@ -90,12 +84,6 @@ tolerations: []
 
 affinity: {}
 
-####################################################
-# CONTENT PERSISTENT VOLUME
-# Mounted at /app/content inside the container.
-# Drop your Wikipedia (or other) zip/dump files here;
-# the service reads from /app/content/wikipedia/
-####################################################
 contentStorage:
   enabled: false
   size: 250Gi

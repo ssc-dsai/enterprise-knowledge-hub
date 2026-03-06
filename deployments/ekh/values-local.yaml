@@ -1,7 +1,9 @@
 replicaCount: 1
 
 image:
+  repository: ghcr.io/ssc-dsai/enterprise-knowledge-hub
   pullPolicy: IfNotPresent
+  tag: "0.1.0" # CPU only, for testing on minikube locally.
 
 imagePullSecrets:
   - name: ghcr-pull-secret

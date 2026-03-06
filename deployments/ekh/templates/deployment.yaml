@@ -49,24 +49,28 @@ spec:
           {{- end }}
           env:
             - name: PYTORCH_ALLOC_CONF
-              value: {{ .Values.pytorch.allocConf | quote }}
+              value: {{ .Values.env.pytorch.allocConf | quote }}
             - name: PYTORCH_CUDA_GPU_CAP
-              value: {{ .Values.pytorch.cudaGpuCap | quote }}
-            - name: LLAMA_CUDA
-              value: {{ .Values.pytorch.llamaCuda | quote }}
-            {{- with .Values.wikiEmbeddingModel }}
+              value: {{ .Values.env.pytorch.cudaGpuCap | quote }}
+            {{- with .Values.env.wikipedia }}
             - name: WIKIPEDIA_EMBEDDING_MODEL_BACKEND
-              value: {{ .backend | quote }}
+              value: {{ .embeddingModelBackend | quote }}
             - name: WIKIPEDIA_EMBEDDING_MODEL_CLEANUP
-              value: {{ .cleanup | quote }}
+              value: {{ .embeddingModelCleanup | quote }}
             - name: WIKIPEDIA_EMBEDDING_MODEL_BATCH_SIZE
-              value: {{ .batchSize | quote }}
+              value: {{ .embeddingModelBatchSize | quote }}
             - name: WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH
-              value: {{ .maxLength | quote }}
+              value: {{ .embeddingModelMaxLength | quote }}
             - name: WIKIPEDIA_EMBEDDING_MODEL_MAX_DIM
-              value: {{ .maxDim | quote }}
+              value: {{ .embeddingModelMaxDim | quote }}
             - name: WIKIPEDIA_EMBEDDING_MODEL_DTYPE
-              value: {{ .dtype | quote }}
+              value: {{ .embeddingModelDtype | quote }}
+            {{- end }}
+            {{- with .Values.env.sentenceTransformer }}
+            - name: SENTENCE_TRANSFORMER_IS_CPU
+              value: {{ .isCpu | quote }}
+            - name: SENTENCE_TRANSFORMER_MODEL_NAME
+              value: {{ .modelName | quote }}
             {{- end }}
             {{- if .Values.pgvector.enabled }}
             - name: POSTGRES_USER
