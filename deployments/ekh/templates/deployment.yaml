@@ -68,54 +68,53 @@ spec:
             - name: WIKIPEDIA_EMBEDDING_MODEL_DTYPE
               value: {{ .dtype | quote }}
             {{- end }}
-            {{- $pgvectorSecret := lookup "v1" "Secret" .Release.Namespace (printf "%s-pgvector" .Release.Name) }}
-            {{- if $pgvectorSecret }}
+            {{- if .Values.pgvector.enabled }}
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ $pgvectorSecret.metadata.name }}
+                  name: {{ printf "%s-pgvector" .Release.Name }}
                   key: username
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: {{ $pgvectorSecret.metadata.name }}
+                  name: {{ printf "%s-pgvector" .Release.Name }}
                   key: database
             - name: POSTGRES_HOST
               valueFrom:
                 secretKeyRef:
-                  name: {{ $pgvectorSecret.metadata.name }}
+                  name: {{ printf "%s-pgvector" .Release.Name }}
                   key: host
             - name: POSTGRES_PORT
               valueFrom:
                 secretKeyRef:
-                  name: {{ $pgvectorSecret.metadata.name }}
+                  name: {{ printf "%s-pgvector" .Release.Name }}
                   key: port
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ $pgvectorSecret.metadata.name }}
+                  name: {{ printf "%s-pgvector" .Release.Name }}
                   key: postgres-password
             {{- else }}
             {{- with .Values.pgvector }}
             - name: POSTGRES_USER
-              value: {{ .customUser.username | default .auth.username | quote }}
+              value: {{ .auth.username | quote }}
             - name: POSTGRES_DB
-              value: {{ .customUser.database | default .auth.database | quote }}
+              value: {{ .auth.database | quote }}
             - name: POSTGRES_HOST
-              value: {{ .host | default (printf "%s-pgvector" $.Release.Name) | quote }}
+              value: {{ .host | quote }}
             - name: POSTGRES_PORT
               value: {{ .port | quote }}
             - name: POSTGRES_PASSWORD
-              value: {{ .password | quote }}
+              value: {{ .auth.password | quote }}
             {{- end }}
             {{- end }}
-            {{- $rabbitmqSecret := lookup "v1" "Secret" .Release.Namespace (printf "%s-rabbitmq" .Release.Name) }}
-            {{- $rabbitmqPassword := .Values.rabbitmq.auth.password }}
-            {{- if $rabbitmqSecret }}
-            {{- $rabbitmqPassword = index $rabbitmqSecret.data "password" | b64dec }}
-            {{- end }}
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-rabbitmq" .Release.Name }}
+                  key: password
             - name: RABBITMQ_URL
-              value: {{ printf "amqp://%s:%s@%s-rabbitmq:%v/" .Values.rabbitmq.auth.username $rabbitmqPassword .Release.Name .Values.rabbitmq.port | quote }}
+              value: {{ printf "amqp://%s:$(RABBITMQ_PASSWORD)@%s-rabbitmq:%v/" .Values.rabbitmq.auth.username .Release.Name .Values.rabbitmq.port | quote }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           {{- if .Values.contentStorage.enabled }}
