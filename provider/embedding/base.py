@@ -18,6 +18,7 @@ class EmbeddingBackendProvider(ABC):
     model_name: str
     device: str
     max_seq_length: int
+    dimensions: int
     tokenizer: ThreadTokenizer | None = None
 
     @abstractmethod
