@@ -79,7 +79,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
 
         self.dimensions = int(os.getenv("WIKIPEDIA_EMBEDDING_MAX_DIMENSION", "256"))
         self.max_seq_length = self.model.max_seq_length = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH", "4096"))
-        self.use_rng_embedding = os.getenv("WIKIPEDIA_EMBEDDING_MODE", "") == "rng"
+        self.use_rng_embedding = os.getenv("WIKIPEDIA_EMBEDDING_IS_RNG_MODE", "false").lower() in ("1", "true", "yes")
         if self.use_rng_embedding:
             self.rng_embedder = RNGEmbedder(self.dimensions)
 
