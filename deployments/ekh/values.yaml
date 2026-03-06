@@ -47,6 +47,8 @@ rabbitmq: #doc: https://artifacthub.io/packages/helm/cloudpirates-rabbitmq/rabbi
     enabled: true
     username: "admin"
     password: ""
+  persistence:
+    size: 150Gi
 
 podAnnotations: {}
 podLabels: {}
