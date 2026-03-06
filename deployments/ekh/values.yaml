@@ -41,6 +41,8 @@ pgvector: #doc: https://artifacthub.io/packages/helm/cloudpirates-postgres/postg
     registry: docker.io
     repository: pgvector/pgvector
     tag: "pg18"
+  persistence:
+    size: 250Gi
 
 rabbitmq: #doc: https://artifacthub.io/packages/helm/cloudpirates-rabbitmq/rabbitmq
   enabled: true

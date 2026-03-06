@@ -48,6 +48,8 @@ pgvector:
     postgresqlEffectiveCacheSize: "1GB"
     postgresqlWorkMem: "256MB"
     postgresqlMaintenanceWorkMem: "4GB"
+  persistence:
+    size: 25Gi
 
   # The pgvector image runs as UID 999 (postgres). Without fsGroup=999,
   # docker-entrypoint.sh cannot chmod /var/run/postgresql → pod crashes mid-init
