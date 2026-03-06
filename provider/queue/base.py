@@ -5,6 +5,7 @@ from collections.abc import Iterator
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from services.knowledge.models import KnowledgeItem
 
 @dataclass
 class QueueProvider(ABC):
@@ -24,10 +25,10 @@ class QueueProvider(ABC):
 
     @abstractmethod
     def read_ack(self, delivery_tag: int, successful: bool = True) -> None:
-        """Read and acknowledge from the specified queue."""
+        """Acknowledge or negatively acknowledge a message from the specified queue."""
         raise NotImplementedError
 
     @abstractmethod
-    def write(self, queue_name: str, message: dict[str, object]) -> None:
+    def write(self, queue_name: str, message: KnowledgeItem) -> None:
         """Write to the specified queue."""
         raise NotImplementedError

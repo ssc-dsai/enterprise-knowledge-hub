@@ -4,9 +4,17 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Optional
 import logging
+from random import random
 import threading
+from datetime import datetime
+
+from repository.postgrespg import WikipediaPgRepository
 from services.knowledge.models import KnowledgeItem
+from services.knowledge.batch_handler import BatchHandler
+from services.knowledge.wikipedia.models import WikipediaItemProcessed
+from services.knowledge.models import RunStatus
 from services.queue.queue_worker import QueueWorker
 from services.queue.queue_service import QueueService
 from services.stats.knowledge_service_stats import KnowledgeServiceStats
@@ -17,11 +25,13 @@ class KnowledgeService(ABC):
     queue_service: QueueService
     logger: logging.Logger
     service_name: str
-    _producer_done: threading.Event = field(default_factory=threading.Event, init=False)
+    _repository: Optional[WikipediaPgRepository] = None  # assigned in subclass init after super() call
+    _run_id = None  # Assigned at runtime for tracking in logs and stats
+    _ingest_done: threading.Event = field(default_factory=threading.Event, init=False)
+    _process_done: threading.Event = field(default_factory=threading.Event, init=False)
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
     _poll_interval: float = 0.5  # seconds to wait before retrying empty queue
     _stats: KnowledgeServiceStats = field(default_factory=KnowledgeServiceStats, init=False)
-    _is_ingestion_queue_complete = False
 
     @property
     def stats(self) -> KnowledgeServiceStats:
@@ -31,17 +41,27 @@ class KnowledgeService(ABC):
     def run(self) -> None:
         """Run the knowledge ingestion/processing in parallel threads."""
         self.logger.info("Running knowledge ingestion for %s", self.service_name)
-        self._producer_done.clear()
+        self._ingest_done.clear()
+        self._process_done.clear()
         self._stop_event.clear()
         self._stats.reset()  # Reset stats at the start of each run
+        self._run_id = int(random() * 1e6)  # Assign a random run ID for tracking in logs and stats
+        # Record the start of this run in the run_history table for observability
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.RUN_STARTED, datetime.now())
+
         with ThreadPoolExecutor(max_workers=3) as executor:
             queue_future = executor.submit(self.ingest)
             process_future = executor.submit(self.process)
             insert_future = executor.submit(self.store)
-            # Wait for both to complete and propagate any exceptions
+            # Wait for completion and propagate any exceptions
             queue_future.result()
             process_future.result()
             insert_future.result()
+
+        # Record the end of this run
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.RUN_ENDED, datetime.now())
 
     @abstractmethod
     def fetch_from_source(self) -> Iterator[KnowledgeItem]:
@@ -54,7 +74,7 @@ class KnowledgeService(ABC):
         raise NotImplementedError("Subclasses must implement the emit_fetched_item method.")
 
     @abstractmethod
-    def process_item(self, knowledge_item: dict[str, object]):
+    def process_item(self, knowledge_item: Any):
         """Process ingested data from the queue. May return a single item or a list of items."""
         raise NotImplementedError("Subclasses must implement the process_item method.")
 
@@ -64,9 +84,14 @@ class KnowledgeService(ABC):
         raise NotImplementedError("Subclasses must implement the emit_processed_item method.")
 
     @abstractmethod
-    def store_item(self, item: dict[str, object]) -> None:
+    def store_item(self, item: WikipediaItemProcessed) -> None:
         """Insert the object into repository"""
         raise NotImplementedError("Subclasses must implement the store_item method.")
+
+    @abstractmethod
+    def get_batch_size(self) -> int:
+        """Get the set batch size"""
+        raise NotImplementedError("Subclasses must implement the get_batch_size method.")
 
     def _ingest_queue_name(self) -> str:
         """Return ingestion queue name.  Ingest raw source into embedding ready units"""
@@ -79,6 +104,9 @@ class KnowledgeService(ABC):
     def ingest(self) -> None:
         """Ingest data into the knowledge base."""
         self.logger.info("Ingesting data into the knowledge base. (%s)", self.service_name)
+
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.INGESTION_STARTED, datetime.now())
         try:
             for item in self.fetch_from_source():
                 if self._stop_event.is_set():
@@ -87,13 +115,26 @@ class KnowledgeService(ABC):
                 self._stats.record_added()
         except Exception:
             self.logger.exception("Error during ingestion for %s", self.service_name)
-        finally:
-            self._producer_done.set()  # Signal that producer is finished
-            self.logger.info("Done ingestion for %s", self.service_name)
+
+        try:
+            self.finalize_ingest()
+            self._ingest_done.set()  # Signal that _ingest_done is finished
+        except Exception:
+            self.logger.exception("Error during finalize_ingest for: %s",
+                                self.service_name)
+
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                              RunStatus.INGESTION_COMPLETED, datetime.now())
+        self.logger.info("Done ingestion for %s", self.service_name)
 
     def process(self) -> None:
         """Process ingested data. Keeps polling until producer is done and queue is empty."""
+
         self.logger.info("Processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
+
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                              RunStatus.PROCESSING_STARTED, datetime.now())
+        batch_size = self.get_batch_size()
 
         worker = QueueWorker(
             queue_service=self.queue_service,
@@ -102,16 +143,14 @@ class KnowledgeService(ABC):
             poll_interval=self._poll_interval
         )
 
-        def handler(item: dict[str, object]) -> None:
-            processed = self.process_item(item) # GPU work happens here
-            processed_items: list[KnowledgeItem] = processed if isinstance(processed, list) else [processed]
-            for processed_item in processed_items:
-                self.emit_processed_item(processed_item)
-            self._stats.record_processed()
+        def acknowledge(delivery_tag: int, successful: bool):
+            self.queue_service.read_ack(delivery_tag, successful)
+
+        handler = BatchHandler(self.process_item, acknowledge, batch_size, self.logger)
 
         def should_exit(drained_any: bool) -> bool:
-            #Producer done and ingestion queue empty AND queue was empty this iteration
-            return self._producer_done.is_set() and not drained_any
+            #Ingest done, AND check ingestion queue was empty this iteration
+            return self._ingest_done.is_set() and not drained_any
 
         try:
             worker.run(
@@ -123,13 +162,18 @@ class KnowledgeService(ABC):
         except Exception:
             self.logger.exception("Error during processing for queue: %s. (%s)",
                             self._ingest_queue_name(), self.service_name)
-        finally:
-            try:
-                self.finalize_processing()
-            except Exception:
-                self.logger.exception("Error during finalize_processing for queue: %s. (%s)",
+
+        try:
+            self.finalize_process()
+            self._process_done.set() # Signal that _process_done is finished
+        except Exception:
+            self.logger.exception("Error during finalize_process for queue: %s. (%s)",
                                 self._ingest_queue_name(), self.service_name)
-            self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(),
+
+
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                              RunStatus.PROCESSING_COMPLETED, datetime.now())
+        self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(),
                                                                                 self.service_name)
 
     def store(self) -> None:
@@ -137,8 +181,10 @@ class KnowledgeService(ABC):
             Process {service_name}.processed queue
             Inserts into database
         """
-        self.logger.info("Processing processed data from queue: %s. (%s)", self._processed_queue_name(),
+        self.logger.info("Storing processed data from queue: %s. (%s)", self._processed_queue_name(),
                                                                         self.service_name)
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.STORING_STARTED, datetime.now())
 
         worker = QueueWorker(
             queue_service=self.queue_service,
@@ -147,13 +193,16 @@ class KnowledgeService(ABC):
             poll_interval=self._poll_interval
         )
 
-        def handler(item: dict[str, object]) -> None:
+        def handler(item: WikipediaItemProcessed, delivery_tag: str) -> bool:
             if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
-                self.store_item(item)
+                self.store_item(WikipediaItemProcessed.model_validate(item))
+            self.logger.debug("DeliveryTag: %s", delivery_tag)
+            # this is to tell queueworker to handle ack
+            return False
 
         def should_exit(drained_any: bool) -> bool:
-            #Producer done and ingestion queue empty AND queue was empty this iteration
-            return self._producer_done.is_set() and not drained_any
+            # process is done, AND check processed queue was empty this iteration
+            return self._process_done.is_set() and not drained_any
 
         try:
             worker.run(
@@ -163,20 +212,28 @@ class KnowledgeService(ABC):
                 should_exit=should_exit
             )
         except Exception:
-            self.logger.exception("Error during processing for queue: %s. (%s)", self._processed_queue_name(),
-                                                                            self.service_name)
-        finally:
-            try:
-                self.finalize_processing()
-            except Exception:
-                self.logger.exception("Error during finalize_processing for queue: %s. (%s)",
-                                                                        self._processed_queue_name(), self.service_name)
-            self.logger.info("Done processing ingested data from queue: %s. (%s)", self._processed_queue_name(),
+            self.logger.exception("Error during storing for queue: %s. (%s)", self._processed_queue_name(),
                                                                             self.service_name)
 
-    def finalize_processing(self) -> None:
+        try:
+            self.finalize_store()
+        except Exception:
+            self.logger.exception("Error during finalize_store for queue: %s. (%s)",
+                                                                    self._processed_queue_name(), self.service_name)
+
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                              RunStatus.STORING_COMPLETED, datetime.now())
+        self.logger.info("Done storing processed data from queue: %s. (%s)", self._processed_queue_name(),
+                                                                        self.service_name)
+
+    def finalize_process(self) -> None:
         """Optional hook called after processing loop ends."""
-        self._is_ingestion_queue_complete = True
+
+    def finalize_ingest(self) -> None:
+        """Optional hook called after ingest loop ends."""
+
+    def finalize_store(self) -> None:
+        """Optional hook called after store loop ends."""
 
     def _ack_message(self, delivery_tag, successful: bool):
         """Acknoledge or unack message back to queue"""
