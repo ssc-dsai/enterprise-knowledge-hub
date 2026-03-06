@@ -15,7 +15,7 @@ from psycopg_pool import ConnectionPool
 from torch import Tensor
 
 from repository.model import DocumentRecord
-from services.knowledge.models import DatabaseWikipediaItem
+from services.knowledge.wikipedia.models import WikipediaItemProcessed
 
 load_dotenv()
 
@@ -32,7 +32,7 @@ class WikipediaDbRecord: #pylint: disable=too-many-instance-attributes
     source: str | None = None
 
     @classmethod
-    def from_item(cls, item: DatabaseWikipediaItem) -> "WikipediaDbRecord":
+    def from_item(cls, item: WikipediaItemProcessed) -> "WikipediaDbRecord":
         """Build a record from a domain object, coercing embeddings to floats."""
         embedding = cls._to_floats(item.embeddings)
         return cls(
