@@ -22,3 +22,7 @@ class QueueService:
     def write(self, queue_name: str, message: KnowledgeItem) -> None:
         """Write a message to the specified queue."""
         return self.queue_provider.write(queue_name, message)
+    
+    def close(self) -> None:
+        print('service:close()')
+        return self.queue_provider.close()

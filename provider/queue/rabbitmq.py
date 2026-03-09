@@ -6,7 +6,7 @@ import json
 import threading
 from typing import Any
 import pika
-from pika.adapters.blocking_connection import BlockingChannel
+from pika.adapters.blocking_connection import BlockingChannel, BlockingConnection
 from pika.exceptions import UnroutableError, NackError, AMQPConnectionError
 
 from provider.queue.base import QueueProvider
@@ -14,7 +14,6 @@ from services.knowledge.models import KnowledgeItem
 
 class RabbitMQProvider(QueueProvider):
     """RabbitMQ queue configuration provider"""
-
     _publish_properties = pika.BasicProperties(
         content_type="application/json",
         delivery_mode=2,
@@ -25,6 +24,8 @@ class RabbitMQProvider(QueueProvider):
         self._local = threading.local()
         self._declared_queues: set[str] = set()
         self._lock = threading.Lock()
+        self._channels: dict[int, BlockingChannel] = {}
+        self._connections: dict[int, BlockingConnection] = {}
 
     def _get_connection(self) -> pika.BlockingConnection:
         """Get or create a thread-local connection."""
@@ -32,6 +33,8 @@ class RabbitMQProvider(QueueProvider):
         if conn is None or conn.is_closed:
             self._local.connection = pika.BlockingConnection(pika.URLParameters(self.url))
             self._local.channel = None  # Reset channel when connection is new
+            tid = threading.get_ident()
+            self._connections[tid] = self._local.connection
         return self._local.connection
 
     def _get_channel(self) -> BlockingChannel:
@@ -41,6 +44,8 @@ class RabbitMQProvider(QueueProvider):
         if channel is None or channel.is_closed:
             self._local.channel = conn.channel()
             self._local.declared_queues = set()  # Reset declared queues for new channel
+            tid = threading.get_ident()
+            self._channels[tid] = self._local.channel
         return self._local.channel
 
     def _ensure_queue_declared(self, channel: BlockingChannel, queue_name: str) -> None:
@@ -105,3 +110,10 @@ class RabbitMQProvider(QueueProvider):
             conn.close()
         self._local.connection = None
         self._local.channel = None
+        for key, value in self._channels.items():
+            print(f"chaneitem: {key}")
+            print(f"is closed: {value.is_closed}")
+
+        for key, value in self._connections.items():
+            print(f"connitem: {key}")
+            print(f"is closed: {value.is_closed}")

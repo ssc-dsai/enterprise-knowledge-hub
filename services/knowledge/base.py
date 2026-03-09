@@ -203,7 +203,7 @@ class KnowledgeService(ABC):
         """Optional hook called after ingest loop ends."""
 
     def finalize_store(self) -> None:
-        """Optional hook called after store loop ends."""
+        self.queue_service.close()
 
     def _ack_message(self, delivery_tag, successful: bool):
         """Acknoledge or unack message back to queue"""
