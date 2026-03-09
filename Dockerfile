@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # BASE_IMAGE: "cpu" or "cuda" - selects which base image to use
 ARG BASE_IMAGE=cpu
 
@@ -10,7 +11,7 @@ ARG CUDA_ARCH
 ARG JOBS_AND_THREADS=8
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential ca-certificates git \
+        build-essential ca-certificates curl git \
     && rm -rf /var/lib/apt/lists/*
 
 # Install UV (build stage only - not carried to runtime)
@@ -39,7 +40,6 @@ RUN export MAX_JOBS=${JOBS_AND_THREADS} && \
 
 # ── CPU builder ────────────────────────────────────────────────────────────────
 FROM python:3.12-trixie AS builder-cpu
-ARG JOBS_AND_THREADS=8
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential ca-certificates git \
