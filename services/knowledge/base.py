@@ -4,12 +4,17 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
+from typing import Any, Optional
 import logging
+from random import random
 import threading
+from datetime import datetime
+
+from repository.postgrespg import WikipediaPgRepository
 from services.knowledge.models import KnowledgeItem
 from services.knowledge.batch_handler import BatchHandler
 from services.knowledge.wikipedia.models import WikipediaItemProcessed
+from services.knowledge.models import RunStatus
 from services.queue.queue_worker import QueueWorker
 from services.queue.queue_service import QueueService
 from services.stats.knowledge_service_stats import KnowledgeServiceStats
@@ -20,6 +25,8 @@ class KnowledgeService(ABC):
     queue_service: QueueService
     logger: logging.Logger
     service_name: str
+    _repository: Optional[WikipediaPgRepository] = None  # assigned in subclass init after super() call
+    _run_id = None  # Assigned at runtime for tracking in logs and stats
     _ingest_done: threading.Event = field(default_factory=threading.Event, init=False)
     _process_done: threading.Event = field(default_factory=threading.Event, init=False)
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
@@ -38,14 +45,23 @@ class KnowledgeService(ABC):
         self._process_done.clear()
         self._stop_event.clear()
         self._stats.reset()  # Reset stats at the start of each run
+        self._run_id = int(random() * 1e6)  # Assign a random run ID for tracking in logs and stats
+        # Record the start of this run in the run_history table for observability
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.RUN_STARTED, None, datetime.now())
+
         with ThreadPoolExecutor(max_workers=3) as executor:
             queue_future = executor.submit(self.ingest)
             process_future = executor.submit(self.process)
             insert_future = executor.submit(self.store)
-            # Wait for both to complete and propagate any exceptions
+            # Wait for completion and propagate any exceptions
             queue_future.result()
             process_future.result()
             insert_future.result()
+
+        # Record the end of this run
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.RUN_ENDED, None, datetime.now())
 
     @abstractmethod
     def fetch_from_source(self) -> Iterator[KnowledgeItem]:
@@ -89,11 +105,15 @@ class KnowledgeService(ABC):
         """Ingest data into the knowledge base."""
         self.logger.info("Ingesting data into the knowledge base. (%s)", self.service_name)
 
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.INGESTION_STARTED, None, datetime.now())
+        count = 0
         try:
             for item in self.fetch_from_source():
                 if self._stop_event.is_set():
                     break
                 self.emit_fetched_item(item)
+                count += 1
                 self._stats.record_added()
         except Exception:
             self.logger.exception("Error during ingestion for %s", self.service_name)
@@ -104,13 +124,19 @@ class KnowledgeService(ABC):
         except Exception:
             self.logger.exception("Error during finalize_ingest for: %s",
                                 self.service_name)
-
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                              RunStatus.INGESTION_COMPLETED,
+                                                              {"Count": count,
+                                                                "msg": "Records Ingested"}, datetime.now())
         self.logger.info("Done ingestion for %s", self.service_name)
 
     def process(self) -> None:
         """Process ingested data. Keeps polling until producer is done and queue is empty."""
 
         self.logger.info("Processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
+
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                              RunStatus.PROCESSING_STARTED, None, datetime.now())
         batch_size = self.get_batch_size()
 
         worker = QueueWorker(
@@ -136,6 +162,7 @@ class KnowledgeService(ABC):
                 handler=handler,
                 should_exit=should_exit
             )
+            count = worker.message_count
         except Exception:
             self.logger.exception("Error during processing for queue: %s. (%s)",
                             self._ingest_queue_name(), self.service_name)
@@ -147,6 +174,11 @@ class KnowledgeService(ABC):
             self.logger.exception("Error during finalize_process for queue: %s. (%s)",
                                 self._ingest_queue_name(), self.service_name)
 
+
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                              RunStatus.PROCESSING_COMPLETED,
+                                                              {"Count": count,
+                                                               "msg": "Messages Processed"}, datetime.now())
         self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(),
                                                                                 self.service_name)
 
@@ -155,8 +187,10 @@ class KnowledgeService(ABC):
             Process {service_name}.processed queue
             Inserts into database
         """
-        self.logger.info("Processing processed data from queue: %s. (%s)", self._processed_queue_name(),
+        self.logger.info("Storing processed data from queue: %s. (%s)", self._processed_queue_name(),
                                                                         self.service_name)
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.STORING_STARTED, None, datetime.now())
 
         worker = QueueWorker(
             queue_service=self.queue_service,
@@ -183,6 +217,7 @@ class KnowledgeService(ABC):
                 handler=handler,
                 should_exit=should_exit
             )
+            count = worker.message_count
         except Exception:
             self.logger.exception("Error during storing for queue: %s. (%s)", self._processed_queue_name(),
                                                                             self.service_name)
@@ -193,6 +228,10 @@ class KnowledgeService(ABC):
             self.logger.exception("Error during finalize_store for queue: %s. (%s)",
                                                                     self._processed_queue_name(), self.service_name)
 
+        self._repository.insert_history_table_log(self._run_id, self.service_name,
+                                                              RunStatus.STORING_COMPLETED,
+                                                              {"Count": count,
+                                                               "msg": "Messages Stored"}, datetime.now())
         self.logger.info("Done processing processed data from queue: %s. (%s)", self._processed_queue_name(),
                                                                         self.service_name)
 
@@ -206,7 +245,7 @@ class KnowledgeService(ABC):
         """Optional hook called after store loop ends."""
 
     def _ack_message(self, delivery_tag, successful: bool):
-        """Acknoledge or unack message back to queue"""
+        """Acknowledge or unack message back to queue"""
         if delivery_tag is not None:
             self.queue_service.read_ack(delivery_tag, successful=successful)
 

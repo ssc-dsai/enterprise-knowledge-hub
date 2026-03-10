@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<style>
+    th {
+        background-color: #f2f2f2;
+        padding: 8px;
+    }
+    td {
+        padding: 8px;
+    }
+</style>
+
+<body>
+    <a href ="/frontend">Back to Search</a>
+    <h1>RAG Search and Retrieve - Run History and Status</h1>
+
+    <table border="1" style="border-collapse: collapse;">
+        <thead>
+            <tr>
+                <th>Run ID</th>
+                <th>Service Name</th>
+                <th>Status</th>
+                <th>Metadata</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            <tr>
+                <td>{{ row.run_id }}</td>
+                <td>{{ row.service_name }}</td>
+                <td>{{ row.status }}</td>
+                <td>{{ row.metadata }}</td>
+                <td>{{ row.timestamp }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
