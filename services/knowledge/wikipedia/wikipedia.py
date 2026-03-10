@@ -83,7 +83,7 @@ class WikipediaKnowledgeService(KnowledgeService):
 
 
             # PLACEHOLDER for actual embedding generation. For now, we just generate dummy embeddings.
-            # embeddings = [np.random.rand(512).tolist() for _ in chunks]
+            # embeddings = [np.random.rand(512).tolist() for _ in batch]
             embeddings = self.embedder.embed(batch)
             arr = np.asarray(embeddings)
 

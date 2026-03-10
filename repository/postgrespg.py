@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from pgvector.psycopg import register_vector
 from psycopg.rows import dict_row
 from psycopg import sql
+from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool
 from torch import Tensor
 
@@ -250,17 +251,17 @@ class WikipediaPgRepository:
             rows = cur.fetchall()
         return rows
 
-    def insert_history_table_log(self, run_id: int, service_name: str, status: str, timestamp):
+    def insert_history_table_log(self, run_id: int, service_name: str, status: str, metadata: dict | None,
+                                 timestamp: datetime):
         """Insert a log entry into the history table"""
 
         query_sql = sql.SQL(
             """
-            INSERT INTO run_history (run_id, service_name, status, timestamp)
-            VALUES (%s, %s, %s, %s)
-
+            INSERT INTO run_history (run_id, service_name, status, metadata, timestamp)
+            VALUES (%s, %s, %s, %s, %s)
             """
         )
 
         with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, (run_id, service_name, status, timestamp))
+            cur.execute(query_sql, (run_id, service_name, status, Json(metadata), timestamp))
             conn.commit()

@@ -12,13 +12,14 @@ from services.queue.queue_service import QueueService
 @dataclass
 class QueueWorker:
     """
-    Worker class encompasses polling from queues 
+    Worker class encompasses polling from queues
     """
     def __init__(self, queue_service, logger, stop_event, poll_interval=0.5):
         self.queue_service: QueueService = queue_service
         self.logger: Logger = logger
         self.stop_event: Event = stop_event
         self.poll_interval = poll_interval
+        self.message_count = 0
 
     def run(self, service_name: str, queue_name: str, handler: Callable[..., Any], should_exit: Callable[[bool], bool]):
         """
@@ -37,6 +38,7 @@ class QueueWorker:
 
             for item, delivery_tag in self.queue_service.read(queue_name):
                 drained_any = True
+                self.message_count += 1
                 try:
                     if self.stop_event.is_set():
                         self.logger.info("Stop event is true. Stopping process: %s - %s", service_name, queue_name)
