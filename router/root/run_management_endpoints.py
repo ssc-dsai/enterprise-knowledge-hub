@@ -43,15 +43,6 @@ async def stop_wikipedia_run():
     #this should close rabbitmqq connn
     return {"status": "stopping"}
 
-@router.get("/wikipedia/test")
-async def test_stop_wikipedia_run():
-    """
-    Endpoint to stop current running process
-    """
-    _wikipedia_service.finalize_store()
-    #this should close rabbitmqq connn
-    return {"status": "stopping"}
-
 @router.get("/wikipedia/run")
 def wikipedia_run(background_tasks: BackgroundTasks):
     """Endpoint to trigger Wikipedia full run"""
