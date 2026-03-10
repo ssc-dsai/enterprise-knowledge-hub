@@ -254,6 +254,7 @@ class WikipediaPgRepository:
     def insert_history_table_log(self, run_id: int, service_name: str, status: str, metadata: dict | None,
                                  timestamp: datetime):
         # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-positional-arguments
         """Insert a log entry into the history table"""
 
         query_sql = sql.SQL(
