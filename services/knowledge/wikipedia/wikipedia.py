@@ -175,6 +175,9 @@ class WikipediaKnowedgeService(KnowledgeService):
         record_to_insert = WikipediaDbRecord.from_item(item)
         self._repository.insert(record_to_insert.as_mapping())
 
+    def finalize_store(self):
+        self.queue_service.cleanup()
+
     def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItemRaw]:
         """Process a single index file and yield WikipediaItems."""
         start_line = self._load_progress(index_path)
