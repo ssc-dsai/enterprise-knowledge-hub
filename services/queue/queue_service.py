@@ -24,7 +24,9 @@ class QueueService:
         return self.queue_provider.write(queue_name, message)
 
     def close(self) -> None:
+        """Close thread specific connection"""
         return self.queue_provider.close()
 
     def cleanup(self) -> None:
+        """Close all thread-local connection and channels when task is complete"""
         return self.queue_provider.cleanup()

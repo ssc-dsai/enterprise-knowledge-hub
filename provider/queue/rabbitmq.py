@@ -114,13 +114,13 @@ class RabbitMQProvider(QueueProvider):
     def cleanup(self) -> None:
         """Close all thread-local connection and channels when task is complete"""
         for key, value in self._channels.items():
-            self.logger.debug(f"chaneitem: {key}")
-            self.logger.debug(f"is closed: {value.is_closed}")
+            self.logger.debug("Channel item: %d", key)
+            self.logger.debug("Is closed: %s", value.is_closed)
             if not value.is_closed:
                 value.close()
 
         for key, value in self._connections.items():
-            self.logger.debug(f"connitem: {key}")
-            self.logger.debug(f"is closed: {value.is_closed}")
+            self.logger.debug("Connection item: %d", key)
+            self.logger.debug("Is closed: %s", value.is_closed)
             if not value.is_closed:
                 value.close()
