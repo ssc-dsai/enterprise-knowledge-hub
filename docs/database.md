@@ -24,6 +24,7 @@ CREATE TABLE run_history (
    run_id INT,
    service_name TEXT,
    status TEXT,
+   metadata json,
    timestamp TIMESTAMP
 );
 
