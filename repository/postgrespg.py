@@ -267,3 +267,26 @@ class WikipediaPgRepository:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(query_sql, (run_id, service_name, status, Json(metadata), timestamp))
             conn.commit()
+
+    def record_is_up_to_date(self, pid: int, source: str, last_date: datetime):
+        """
+        Queries the database for the documents with pid and checks if the date is currently
+        more recent than the one in the database
+
+        Returns True if the record is up to date and doesn't need to be reprocessed, False otherwise
+        """
+        query_sql = sql.SQL(
+            """
+            SELECT pid FROM {table}
+            WHERE pid = %s and source = %s and last_modified_date <= %s
+            LIMIT 1
+            """
+        ).format(table=sql.Identifier(self._table_name))
+
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (pid, source, last_date))
+            row = cur.fetchone()
+
+        if row: # finding a record means it needs to be updated
+            return False
+        return True # record is up to date, we didn't return a match
