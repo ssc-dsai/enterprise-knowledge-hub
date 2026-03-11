@@ -1,12 +1,19 @@
 services:
-  ekh:
-    build: .
+  ekh: # comment this service out if you plan to run/debug locally without docker
+    build:
+      context: .
+    # uncomment those lines for a real cuda build + flash attn build
+      args:
+        BASE_IMAGE: cuda
+    #     CUDA_ARCH: "8.6"
     container_name: ekh
     restart: unless-stopped
     env_file:
       - .env
     ports:
       - "8000:8000"
+    volumes:
+      - ./content:/app/content
     depends_on:
       - postgres
       - rabbitmq

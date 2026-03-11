@@ -36,7 +36,7 @@ RUN export MAX_JOBS=${JOBS_AND_THREADS} && \
     export FLASH_ATTENTION_FORCE_CXX11_ABI="FALSE" && \
     export FLASH_ATTENTION_SKIP_CUDA_BUILD="FALSE" && \
     export FLASH_ATTN_CUDA_ARCHS="$(echo ${CUDA_ARCH} | tr -d '.')" && \
-    uv sync --extra flash --locked
+    uv sync ${CUDA_ARCH:+--extra flash} --locked
 
 # ── CPU builder ────────────────────────────────────────────────────────────────
 FROM python:3.12-trixie AS builder-cpu
