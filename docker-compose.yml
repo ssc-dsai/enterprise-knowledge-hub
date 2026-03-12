@@ -4,7 +4,7 @@ services:
       context: .
     # uncomment those lines for a real cuda build + flash attn build
       args:
-        BASE_IMAGE: cuda
+        BASE_IMAGE: cpu # or cuda
     #     CUDA_ARCH: "8.6"
     container_name: ekh
     restart: unless-stopped
@@ -18,12 +18,12 @@ services:
       - ./content:/app/content
     deploy: # this section requires nvidia container toolkit to work
     # glhf: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+      # resources:
+      #   reservations:
+      #     devices:
+      #       - driver: nvidia
+      #         count: all
+      #         capabilities: [gpu]
     depends_on:
       - postgres
       - rabbitmq

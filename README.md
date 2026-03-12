@@ -57,6 +57,13 @@ MODEL_SHOW_PROGRESS=False
 
 ## Notes and help
 
+### SSL issues
+
+Corporate firewall might intercepts some http requests and you might end up with a SSL untrusted cert issue.
+To fix this you have to install the ICM certificates from the chain that your system doesn't trust.
+
+[Here is how to fix it](./docs/ssl-issue.md).
+
 ### WSL Space management
 
 Running this project can be space intensive especially the `./cache/huggingface` folder. 
