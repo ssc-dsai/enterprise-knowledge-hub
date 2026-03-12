@@ -17,9 +17,14 @@ Then you can grab certs you need from there and follow instructions bellow.
 
 ## How to fix
 
+First add this to the `.env` file :
+
+`REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt`
+
 The certificates are stored in the `./certs` directory:
 - `1ca-ac1-2026.pem`
 - `1ca-ac1-2037.pem`
+- `proxy.pem`
 
 ## Install the certificates (Ubuntu)
 
