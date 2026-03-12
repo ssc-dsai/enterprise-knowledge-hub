@@ -17,25 +17,20 @@ Then you can grab certs you need from there and follow instructions bellow.
 
 ## How to fix
 
-First add this to the `.env` file :
+First add this to the `.env` file (see `.env.example` for more examples):
 
-`REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt`
-
-The certificates are stored in the `./certs` directory:
-- `1ca-ac1-2026.pem`
-- `1ca-ac1-2037.pem`
-- `proxy.pem`
+```bash
+SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
+```
+Note: You can also `vi ~/.bashrc` (or `.zshrc`) and `export BLAH=var` the variables. Don't forget to `source ~/.bashrc`
+after for the changes to take effect in your current terminal.
 
 ## Install the certificates (Ubuntu)
 
-Combine both PEM files into a single `.crt` file and copy it to the trusted certificates directory:
+Copy `GOC-GDC-ROOT-A.crt` in `GOC-GDC-ROOT-A.crt and update the trust bundle.
 
 ```bash
-cat ./certs/1ca-ac1-2026.pem ./certs/1ca-ac1-2037.pem > /usr/local/share/ca-certificates/corporate-ca-bundle.crt
-```
-
-Then update the system CA store:
-
-```bash
+cp ./certs/GOC-GDC-ROOT-A.crt /usr/local/share/ca-certificates/GOC-GDC-ROOT-A.crt
 sudo update-ca-certificates
 ```
