@@ -3,15 +3,12 @@ Contains the main FastAPI application for the Enterprise Knowledge Hub.
 """
 import logging
 
-import pip_system_certs.wrapt_requests
 from fastapi import FastAPI
 
 from router.frontend.frontend import router as frontend_router
 from router.root.run_management_endpoints import KNOWLEDGE_BASE
 from router.root.run_management_endpoints import router as endpoints
 from router.root.search_retrieve_endpoints import router as db_endpoints
-
-pip_system_certs.wrapt_requests.inject_truststore()
 
 logging.basicConfig(
     level=logging.WARNING,
