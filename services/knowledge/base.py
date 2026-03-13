@@ -126,7 +126,7 @@ class KnowledgeService(ABC):
                                 self.service_name)
         self._repository.insert_history_table_log(self._run_id, self.service_name,
                                                               RunStatus.INGESTION_COMPLETED,
-                                                              {"Count": count,
+                                                              {"count": count,
                                                                 "msg": "Records Ingested"}, datetime.now())
         self.logger.info("Done ingestion for %s", self.service_name)
 
@@ -155,6 +155,8 @@ class KnowledgeService(ABC):
             #Ingest done, AND check ingestion queue was empty this iteration
             return self._ingest_done.is_set() and not drained_any
 
+        count = 0
+
         try:
             worker.run(
                 queue_name=self._ingest_queue_name(),
@@ -177,7 +179,7 @@ class KnowledgeService(ABC):
 
         self._repository.insert_history_table_log(self._run_id, self.service_name,
                                                               RunStatus.PROCESSING_COMPLETED,
-                                                              {"Count": count,
+                                                              {"count": count,
                                                                "msg": "Messages Processed"}, datetime.now())
         self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(),
                                                                                 self.service_name)
@@ -210,6 +212,8 @@ class KnowledgeService(ABC):
             # process is done, AND check processed queue was empty this iteration
             return self._process_done.is_set() and not drained_any
 
+        count = 0
+
         try:
             worker.run(
                 queue_name=self._processed_queue_name(),
@@ -230,7 +234,7 @@ class KnowledgeService(ABC):
 
         self._repository.insert_history_table_log(self._run_id, self.service_name,
                                                               RunStatus.STORING_COMPLETED,
-                                                              {"Count": count,
+                                                              {"count": count,
                                                                "msg": "Messages Stored"}, datetime.now())
         self.logger.info("Done storing processed data from queue: %s. (%s)", self._processed_queue_name(),
                                                                         self.service_name)
