@@ -232,7 +232,7 @@ class KnowledgeService(ABC):
                                                               RunStatus.STORING_COMPLETED,
                                                               {"Count": count,
                                                                "msg": "Messages Stored"}, datetime.now())
-        self.logger.info("Done processing processed data from queue: %s. (%s)", self._processed_queue_name(),
+        self.logger.info("Done storing processed data from queue: %s. (%s)", self._processed_queue_name(),
                                                                         self.service_name)
 
     def finalize_process(self) -> None:
