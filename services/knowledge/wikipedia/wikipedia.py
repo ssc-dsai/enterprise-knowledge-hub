@@ -280,10 +280,10 @@ class WikipediaKnowledgeService(KnowledgeService):
                 except Exception as exc:
                     self.logger.debug("Failed to write extracted page xml: %s", exc)
 
-            if not self._should_ignore_page(page_xml):
-                item = self._parse_page_xml(page_xml)
-                if item:
-                    item.source = source
+            item = self._parse_page_xml(page_xml)
+            if item:
+                item.source = source
+                if not self._should_ignore_page(item):
                     yield item
 
     def _save_progress(self, index_path: Path, line_number: int) -> None:
@@ -316,23 +316,27 @@ class WikipediaKnowledgeService(KnowledgeService):
                 continue
             yield node
 
-    def _should_ignore_page(self, xml_page: str) -> bool:
+    def _should_ignore_page(self, page: WikipediaItemRaw) -> bool:
         """Check if a page should be ignored based on title or type."""
 
         #Namespace detection: https://en.wikipedia.org/wiki/Wikipedia:Namespace
-        if not re.search(r"<ns>0</ns>", xml_page):
+        if not page.is_namespace_0:
             return True
 
-        if re.search(r"<redirect\s", xml_page):
+        if page.is_redirect:
             return True
 
-        # last resort, extra title checking
-        title_match = re.search(r"<title>([^<]+)</title>", xml_page)
-        if title_match:
-            title = title_match.group(1)
+        title = page.title
+        if title:
             for prefix in self._ignored_title_prefixes:
                 if title.startswith(prefix):
                     return True
+
+        # DB metadata check, last resort before we do in fact process the item.
+        # https://github.com/ssc-dsai/enterprise-knowledge-hub/issues/74
+        if self._repository.record_is_up_to_date(page.pid, page.source, page.last_modified_date):
+            return True
+
         return False
 
     def _parse_page_xml(self, xml_page: str) -> WikipediaItemRaw | None:
@@ -377,4 +381,6 @@ class WikipediaKnowledgeService(KnowledgeService):
             content=content,
             last_modified_date=last_modified_date,
             pid=pid,
+            is_namespace_0=bool(re.search(r"<ns>0</ns>", xml_page)),
+            is_redirect=bool(re.search(r"<redirect\s", xml_page)),
         )
