@@ -1,6 +1,6 @@
 apiVersion: v2
-name: knowledge-hub
-description: A Helm chart for Kubernetes
+name: ekh
+description: A Helm chart for Kubernetes for the Enterprise Knowledge Hub (EKH) application.
 
 # A chart can be either an 'application' or a 'library' chart.
 #
@@ -22,3 +22,15 @@ version: 0.1.0
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
 appVersion: "0.1.0"
+
+dependencies:
+  - name: postgres
+    version: "0.17.0"
+    repository: "oci://registry-1.docker.io/cloudpirates"
+    condition: pgvector.enabled
+    alias: pgvector
+
+  - name: rabbitmq
+    version: "0.17.1"
+    repository: "oci://registry-1.docker.io/cloudpirates"
+    condition: rabbitmq.enabled

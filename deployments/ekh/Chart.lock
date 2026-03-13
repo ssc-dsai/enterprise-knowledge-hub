@@ -1,0 +1,9 @@
+dependencies:
+- name: postgres
+  repository: oci://registry-1.docker.io/cloudpirates
+  version: 0.17.0
+- name: rabbitmq
+  repository: oci://registry-1.docker.io/cloudpirates
+  version: 0.17.1
+digest: sha256:a1d9dedded391712654f033f147a69e2e2595ed45d7734a8bad78c4104ed8877
+generated: "2026-02-27T09:19:27.270535699-05:00"

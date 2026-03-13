@@ -7,5 +7,10 @@
     "editor.detectIndentation": false,
     "pylint.args": [
         "--rcfile=.vscode/pylintrc"
-    ]
+    ],
+    "files.associations": {
+        "**/templates/**/*.yaml": "helm",
+        "**/templates/**/*.yml": "helm",
+        "**/templates/**/*.tpl": "helm"
+    }
 }

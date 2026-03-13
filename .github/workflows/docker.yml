@@ -6,7 +6,7 @@ on:
 env:
   IMAGE_NAME: enterprise-knowledge-hub
   REGISTRY: ghcr.io
-  JOBS_AND_THREADS: 8
+  JOBS_AND_THREADS: 8 # this currently runs the cuda jobs in 30ish minutes
 
 jobs:
   build-cpu:
@@ -35,6 +35,7 @@ jobs:
         with:
           context: .
           push: true
+          platforms: linux/amd64,linux/arm64
           build-args: BASE_IMAGE=cpu
           tags: ${{ env.REGISTRY }}/${{ github.repository }}:${{ steps.version.outputs.version }}
 
@@ -42,7 +43,7 @@ jobs:
   build-cuda-h100-h200:
     runs-on: arc-ssc-dsai
     env:
-      CUDA_ARCH: "9.0" # h100
+      CUDA_ARCH: "9.0" # h100/h200
     steps:
       - uses: actions/checkout@v4
 

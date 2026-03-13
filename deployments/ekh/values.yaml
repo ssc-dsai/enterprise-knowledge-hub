@@ -1,0 +1,95 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/ssc-dsai/enterprise-knowledge-hub
+  pullPolicy: IfNotPresent
+  tag: "0.1.0-cuda-9.0"
+
+imagePullSecrets: []
+
+env:
+  wikipedia:
+    embeddingModelBackend: "SENTENCE_TRANSFORMER"
+    embeddingModelCleanup: false
+    embeddingModelBatchSize: 3
+    embeddingModelMaxLength: 4096
+    embeddingModelMaxDim: 512
+    debugExtraction: false #extract ingested on disk (as xml)
+    embeddingModelDtype: "float16"
+  pytorch:
+    allocConf: "max_split_size_mb:256,garbage_collection_threshold:0.7,expandable_segments:False"
+    cudaGpuCap: 0.8
+  sentenceTransformer:
+    isCpu: false
+    modelName: "Qwen/Qwen3-Embedding-0.6B"
+  postgresBatchSize: 500
+
+####################################################
+# VALUES FOR DEPENDENCIES (PGVECTOR, RABBITMQ)
+####################################################
+# pgvector.enabled = true  → deploy the cloudpirates/postgres sub-chart (local dev)
+# pgvector.enabled = false → connect to an external PostgreSQL instance (dev/prod)
+pgvector: #doc: https://artifacthub.io/packages/helm/cloudpirates-postgres/postgres
+  enabled: false
+  host: "some-cloud-service-dns"
+  port: 5432
+  auth:
+    username: "postgres"
+    database: "postgres"
+    password: ""
+  image:
+    registry: docker.io
+    repository: pgvector/pgvector
+    tag: "pg18"
+  persistence:
+    size: 250Gi
+
+rabbitmq: #doc: https://artifacthub.io/packages/helm/cloudpirates-rabbitmq/rabbitmq
+  enabled: true
+  port: 5672
+  auth:
+    enabled: true
+    username: "admin"
+    password: ""
+  persistence:
+    size: 150Gi
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 1
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 8000
+  annotations: {}
+
+resources:
+  requests:
+    memory: "2Gi"
+    cpu: "1000m"
+  limits:
+    memory: "4Gi"
+    cpu: "4000m"
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+contentStorage:
+  enabled: false
+  size: 250Gi
+  accessModes:
+    - ReadWriteMany
+  storageClass: ""
+  annotations: {}

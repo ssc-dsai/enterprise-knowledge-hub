@@ -1,0 +1,146 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ekh.fullname" . }}
+  labels: 
+    {{ include "ekh.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit | default 1 }}
+  selector:
+    matchLabels:
+      {{ include "ekh.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 6 }}
+        {{- end }}
+      labels:
+        {{- include "ekh.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{ with .Values.imagePullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 8 }}
+      {{ end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+          {{- end }}
+          env:
+            - name: PYTORCH_ALLOC_CONF
+              value: {{ .Values.env.pytorch.allocConf | quote }}
+            - name: PYTORCH_CUDA_GPU_CAP
+              value: {{ .Values.env.pytorch.cudaGpuCap | quote }}
+            {{- with .Values.env.wikipedia }}
+            - name: WIKIPEDIA_EMBEDDING_MODEL_BACKEND
+              value: {{ .embeddingModelBackend | quote }}
+            - name: WIKIPEDIA_EMBEDDING_MODEL_CLEANUP
+              value: {{ .embeddingModelCleanup | quote }}
+            - name: WIKIPEDIA_EMBEDDING_MODEL_BATCH_SIZE
+              value: {{ .embeddingModelBatchSize | quote }}
+            - name: WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH
+              value: {{ .embeddingModelMaxLength | quote }}
+            - name: WIKIPEDIA_EMBEDDING_MODEL_MAX_DIM
+              value: {{ .embeddingModelMaxDim | quote }}
+            - name: WIKIPEDIA_EMBEDDING_MODEL_DTYPE
+              value: {{ .embeddingModelDtype | quote }}
+            {{- end }}
+            {{- with .Values.env.sentenceTransformer }}
+            - name: SENTENCE_TRANSFORMER_IS_CPU
+              value: {{ .isCpu | quote }}
+            - name: SENTENCE_TRANSFORMER_MODEL_NAME
+              value: {{ .modelName | quote }}
+            {{- end }}
+            {{- if .Values.pgvector.enabled }}
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-pgvector" .Release.Name }}
+                  key: username
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-pgvector" .Release.Name }}
+                  key: database
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-pgvector" .Release.Name }}
+                  key: host
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-pgvector" .Release.Name }}
+                  key: port
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-pgvector" .Release.Name }}
+                  key: postgres-password
+            {{- else }}
+            {{- with .Values.pgvector }}
+            - name: POSTGRES_USER
+              value: {{ .auth.username | quote }}
+            - name: POSTGRES_DB
+              value: {{ .auth.database | quote }}
+            - name: POSTGRES_HOST
+              value: {{ .host | quote }}
+            - name: POSTGRES_PORT
+              value: {{ .port | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .auth.password | quote }}
+            {{- end }}
+            {{- end }}
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ printf "%s-rabbitmq" .Release.Name }}
+                  key: password
+            - name: RABBITMQ_URL
+              value: {{ printf "amqp://%s:$(RABBITMQ_PASSWORD)@%s-rabbitmq:%v/" .Values.rabbitmq.auth.username .Release.Name .Values.rabbitmq.port | quote }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.contentStorage.enabled }}
+          volumeMounts:
+            - name: content
+              mountPath: /app/content
+          {{- end }}
+      {{- if .Values.contentStorage.enabled }}
+      volumes:
+        - name: content
+          persistentVolumeClaim:
+            claimName: {{ include "ekh.fullname" . }}-content
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
