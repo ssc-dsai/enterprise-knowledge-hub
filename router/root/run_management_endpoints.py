@@ -49,28 +49,11 @@ def wikipedia_run(background_tasks: BackgroundTasks):
     if not _wikipedia_state.try_start():
         return {
             "message": "Wikipedia run already in progress.",
-            "details": f"Follow progress here {KNOWLEDGE_BASE}/wikipedia/status"
+            "details": "Follow progress at frontend/status"
         }
 
     background_tasks.add_task(_run_wikipedia_task)
     return {
         "message": "Wikipedia run started.",
-        "details": f"Follow progress here {KNOWLEDGE_BASE}/wikipedia/status"
-    }
-
-
-@router.get("/wikipedia/status")
-def wikipedia_stats(
-    rate_window: Literal[5, 10] = Query(
-        default=10,
-        description="Time window in seconds for rate calculations (5 or 10)"
-    )
-):
-    """Return in-memory ingestion stats plus live queue depths."""
-    # Update the rate window before getting stats
-    _wikipedia_service.stats.set_rate_window(rate_window)
-
-    return {
-        "running": _wikipedia_state.is_running(),
-        "stats": _wikipedia_service.stats.get_stats()
+        "details": "Follow progress at frontend/status"
     }

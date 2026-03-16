@@ -59,9 +59,9 @@ MODEL_SHOW_PROGRESS=False
 
 ### WSL Space management
 
-Running this project can be space intensive especially the `./cache/huggingface` folder. 
+Running this project can be space intensive especially the `./cache/huggingface` folder.
 
-For those running WSL you can easily check what is the  space of the current VDI in PowerShell: 
+For those running WSL you can easily check what is the  space of the current VDI in PowerShell:
 
 ```bash
 # replace distro by distro name ... (wsl --list --verbose)
@@ -119,6 +119,3 @@ docker system prune -a --volumes -f
 #### queue/
 - **`queue_service.py`**: Handles read and write operations in the queue system.
 - **`queue_worker.py`**: Manages worker tasks for queue read operations.
-
-### stats/
-- **`knowledge_service_stats.py`**: Generates and configures statistics related to index runs.
