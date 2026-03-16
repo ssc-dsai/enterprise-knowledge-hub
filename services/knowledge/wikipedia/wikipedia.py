@@ -333,7 +333,6 @@ class WikipediaKnowledgeService(KnowledgeService):
                     return True
 
         # DB metadata check, last resort before we do in fact process the item.
-        # https://github.com/ssc-dsai/enterprise-knowledge-hub/issues/74
         if self._repository.record_is_up_to_date(page.pid, page.source, page.last_modified_date):
             return True
 

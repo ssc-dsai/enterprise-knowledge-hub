@@ -17,13 +17,13 @@ services:
     volumes:
       - ./content:/app/content
     deploy: # this section requires nvidia container toolkit to work
-    # glhf: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
-      # resources:
-      #   reservations:
-      #     devices:
-      #       - driver: nvidia
-      #         count: all
-      #         capabilities: [gpu]
+    # installation: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     depends_on:
       - postgres
       - rabbitmq
