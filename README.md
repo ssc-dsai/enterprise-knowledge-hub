@@ -28,7 +28,7 @@ source .venv/bin/activate
 # IF YOUR MACHINE DOESN'T SUPPORT CUDA skip the --extra flag
 uv sync --extra cuda
 # see how to populate your .content/<kbprovider> folder first in the README.md there
-uv run fastapi dev main.py
+uv run --env-file .env fastapi dev main.py
 ```
 
 #### Tests
@@ -56,6 +56,13 @@ MODEL_SHOW_PROGRESS=False
 ```
 
 ## Notes and help
+
+### SSL issues
+
+Corporate firewall might intercepts some http requests and you might end up with a SSL untrusted cert issue.
+To fix this you have to install the ICM certificates from the chain that your system doesn't trust.
+
+[Here is how to fix it](./docs/ssl-issue.md).
 
 ### WSL Space management
 

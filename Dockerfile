@@ -11,7 +11,7 @@ ARG CUDA_ARCH
 ARG JOBS_AND_THREADS=8
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential ca-certificates curl git \
+        build-essential ca-certificates curl git python3.12 python3.12-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install UV (build stage only - not carried to runtime)
@@ -19,6 +19,7 @@ ADD https://astral.sh/uv/install.sh /uv-installer.sh
 RUN sh /uv-installer.sh && rm /uv-installer.sh
 
 ENV UV_NO_DEV=1
+ENV UV_PYTHON_PREFERENCE=only-system
 ENV PATH="/root/.local/bin/:$PATH"
 ENV CUDA_HOME=/usr/local/cuda
 ENV PATH="$CUDA_HOME/bin:$PATH"
@@ -36,7 +37,7 @@ RUN export MAX_JOBS=${JOBS_AND_THREADS} && \
     export FLASH_ATTENTION_FORCE_CXX11_ABI="FALSE" && \
     export FLASH_ATTENTION_SKIP_CUDA_BUILD="FALSE" && \
     export FLASH_ATTN_CUDA_ARCHS="$(echo ${CUDA_ARCH} | tr -d '.')" && \
-    uv sync --extra flash --locked
+    uv sync ${CUDA_ARCH:+--extra flash} --locked
 
 # ── CPU builder ────────────────────────────────────────────────────────────────
 FROM python:3.12-trixie AS builder-cpu
@@ -66,6 +67,9 @@ FROM builder-${BASE_IMAGE} AS builder
 # ── CUDA runtime ───────────────────────────────────────────────────────────────
 # cudnn-runtime is ~4 GB lighter than cudnn-devel; no compiler/headers.
 FROM nvidia/cuda:12.9.1-cudnn-runtime-ubuntu24.04 AS runtime-cuda
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3.12 \
+    && rm -rf /var/lib/apt/lists/*
 
 # ── CPU runtime ────────────────────────────────────────────────────────────────
 # python:slim contains only the interpreter + minimal OS; no compiler toolchain.
@@ -92,4 +96,4 @@ COPY services ./services
 ENV PATH="/app/.venv/bin:$PATH"
 ENV VIRTUAL_ENV=/app/.venv
 
-CMD ["fastapi", "run", "main.py"]
+CMD ["python", "-m", "fastapi", "run", "main.py"]
