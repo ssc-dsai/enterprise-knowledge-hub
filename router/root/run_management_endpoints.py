@@ -3,9 +3,8 @@ Main endpoints for knowledge management (creation/delete/update).
 """
 import logging
 import os
-from typing import Literal
 from dotenv import load_dotenv
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 from fastapi import BackgroundTasks
 
 from provider.queue.rabbitmq import RabbitMQProvider
