@@ -17,7 +17,6 @@ from services.knowledge.wikipedia.models import WikipediaItemProcessed
 from services.knowledge.models import RunStatus
 from services.queue.queue_worker import QueueWorker
 from services.queue.queue_service import QueueService
-from services.stats.knowledge_service_stats import KnowledgeServiceStats
 
 @dataclass
 class KnowledgeService(ABC):
@@ -31,12 +30,6 @@ class KnowledgeService(ABC):
     _process_done: threading.Event = field(default_factory=threading.Event, init=False)
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
     _poll_interval: float = 0.5  # seconds to wait before retrying empty queue
-    _stats: KnowledgeServiceStats = field(default_factory=KnowledgeServiceStats, init=False)
-
-    @property
-    def stats(self) -> KnowledgeServiceStats:
-        """Get the statistics tracker for this service."""
-        return self._stats
 
     def run(self) -> None:
         """Run the knowledge ingestion/processing in parallel threads."""
@@ -44,7 +37,6 @@ class KnowledgeService(ABC):
         self._ingest_done.clear()
         self._process_done.clear()
         self._stop_event.clear()
-        self._stats.reset()  # Reset stats at the start of each run
         self._run_id = int(random() * 1e6)  # Assign a random run ID for tracking in logs and stats
         # Record the start of this run in the run_history table for observability
         self._repository.insert_history_table_log(self._run_id, self.service_name,
@@ -114,7 +106,6 @@ class KnowledgeService(ABC):
                     break
                 self.emit_fetched_item(item)
                 count += 1
-                self._stats.record_added()
         except Exception:
             self.logger.exception("Error during ingestion for %s", self.service_name)
 
