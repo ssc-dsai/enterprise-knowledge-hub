@@ -42,14 +42,33 @@ class KnowledgeService(ABC):
         self._repository.insert_history_table_log(self._run_id, self.service_name,
                                                           RunStatus.RUN_STARTED, None, datetime.now())
 
+        disable_ingestion = os.getenv("SVC_KB_DISABLE_INGESTION", "false").lower() in ("1", "true", "yes")
+        disable_processing = os.getenv("SVC_KB_DISABLE_PROCESSING", "false").lower() in ("1", "true", "yes")
+        disable_storing = os.getenv("SVC_KB_DISABLE_STORING", "false").lower() in ("1", "true", "yes")
+
         with ThreadPoolExecutor(max_workers=3) as executor:
-            queue_future = executor.submit(self.ingest)
-            process_future = executor.submit(self.process)
-            insert_future = executor.submit(self.store)
+            futures = []
+
+            if not disable_ingestion:
+                futures.append(executor.submit(self.ingest))
+            else:
+                self.logger.info("Ingestion disabled via SVC_KB_DISABLE_INGESTION (%s)", self.service_name)
+                self._ingest_done.set()
+
+            if not disable_processing:
+                futures.append(executor.submit(self.process))
+            else:
+                self.logger.info("Processing disabled via SVC_KB_DISABLE_PROCESSING (%s)", self.service_name)
+                self._process_done.set()
+
+            if not disable_storing:
+                futures.append(executor.submit(self.store))
+            else:
+                self.logger.info("Storing disabled via SVC_KB_DISABLE_STORING (%s)", self.service_name)
+
             # Wait for completion and propagate any exceptions
-            queue_future.result()
-            process_future.result()
-            insert_future.result()
+            for future in futures:
+                future.result()
 
         # Record the end of this run
         self._repository.insert_history_table_log(self._run_id, self.service_name,
