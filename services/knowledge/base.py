@@ -42,29 +42,29 @@ class KnowledgeService(ABC):
         self._repository.insert_history_table_log(self._run_id, self.service_name,
                                                           RunStatus.RUN_STARTED, None, datetime.now())
 
-        disable_ingestion = os.getenv("SVC_KB_DISABLE_INGESTION", "false").lower() in ("1", "true", "yes")
-        disable_processing = os.getenv("SVC_KB_DISABLE_PROCESSING", "false").lower() in ("1", "true", "yes")
-        disable_storing = os.getenv("SVC_KB_DISABLE_STORING", "false").lower() in ("1", "true", "yes")
+        ingestion_enabled = os.getenv("SVC_KB_ENABLE_INGESTION", "true").lower() in ("1", "true", "yes")
+        processing_enabled = os.getenv("SVC_KB_ENABLE_PROCESSING", "true").lower() in ("1", "true", "yes")
+        storing_enabled = os.getenv("SVC_KB_ENABLE_STORING", "true").lower() in ("1", "true", "yes")
 
         with ThreadPoolExecutor(max_workers=3) as executor:
             futures = []
 
-            if not disable_ingestion:
+            if ingestion_enabled:
                 futures.append(executor.submit(self.ingest))
             else:
-                self.logger.info("Ingestion disabled via SVC_KB_DISABLE_INGESTION (%s)", self.service_name)
+                self.logger.info("Ingestion disabled via SVC_KB_ENABLE_INGESTION (%s)", self.service_name)
                 self._ingest_done.set()
 
-            if not disable_processing:
+            if processing_enabled:
                 futures.append(executor.submit(self.process))
             else:
-                self.logger.info("Processing disabled via SVC_KB_DISABLE_PROCESSING (%s)", self.service_name)
+                self.logger.info("Processing disabled via SVC_KB_ENABLE_PROCESSING (%s)", self.service_name)
                 self._process_done.set()
 
-            if not disable_storing:
+            if storing_enabled:
                 futures.append(executor.submit(self.store))
             else:
-                self.logger.info("Storing disabled via SVC_KB_DISABLE_STORING (%s)", self.service_name)
+                self.logger.info("Storing disabled via SVC_KB_ENABLE_STORING (%s)", self.service_name)
 
             # Wait for completion and propagate any exceptions
             for future in futures:
