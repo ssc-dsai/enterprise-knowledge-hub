@@ -9,6 +9,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+import time
 from typing import List
 
 import numpy as np
@@ -56,7 +57,7 @@ class WikipediaKnowledgeService(KnowledgeService):
                                     "./content/wikipedia")).expanduser().resolve()
     _process_only_first_n_paragraphs: int = int(os.getenv("WIKIPEDIA_PROCESS_ONLY_FIRST_N_PARAGRAPHS", "0"))
     _progress_flush_interval: int = 1000 # for the .progress file we track the line number we stopped at
-    _batch_size: int = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_BATCH_SIZE", "100"))
+    _batch_size: int = int(os.getenv("WIKIPEDIA_PROCESS_BATCH_SIZE", "256"))
     _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
 
     def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None):
@@ -75,7 +76,7 @@ class WikipediaKnowledgeService(KnowledgeService):
     def process_item(self, knowledge_item: List[KnowledgeItem]) -> list[WikipediaItemProcessed]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
-            self.logger.info("Generating embeddings for %s", ", ".join(item['title'] for item in knowledge_item))
+            start_time = time.perf_counter()
 
             batch: List[str] = []
             for item in knowledge_item:
@@ -105,6 +106,9 @@ class WikipediaKnowledgeService(KnowledgeService):
                 )
             for processed_item in results:
                 self.emit_processed_item(processed_item)
+
+            end_time = time.perf_counter()
+            self.logger.info("Generated embeddings for %s items in %.2f seconds", len(knowledge_item), end_time - start_time)
 
         except Exception as e:
             self.logger.error("Error processing embedding for Wikipedia item: %s", e)
