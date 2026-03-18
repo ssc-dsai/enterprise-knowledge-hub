@@ -108,7 +108,8 @@ class WikipediaKnowledgeService(KnowledgeService):
                 self.emit_processed_item(processed_item)
 
             end_time = time.perf_counter()
-            self.logger.info("Generated embeddings for %s items in %.2f seconds", len(knowledge_item), end_time - start_time)
+            self.logger.info("Generated embeddings for %s items in %.2f seconds",
+                             len(knowledge_item), end_time - start_time)
 
         except Exception as e:
             self.logger.error("Error processing embedding for Wikipedia item: %s", e)
