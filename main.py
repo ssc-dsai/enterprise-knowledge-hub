@@ -11,7 +11,7 @@ from router.root.run_management_endpoints import router as endpoints
 from router.root.search_retrieve_endpoints import router as db_endpoints
 
 logging.basicConfig(
-    level=logging.WARNING,
+    level=logging.INFO,
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
 )
 
