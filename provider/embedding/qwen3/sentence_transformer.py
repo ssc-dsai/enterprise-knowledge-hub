@@ -80,6 +80,8 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
         self.logger.debug("Model loaded on device: %s", self.model.device)
         self.logger.debug("Model max sequence length: %d", self.model.max_seq_length)
 
+        self.batch_size = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_BATCH_SIZE", "1"))
+
     def embed(
         self,
         text: List[str],
@@ -107,7 +109,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
             convert_to_tensor=False,
             show_progress_bar=bool(os.getenv("MODEL_SHOW_PROGRESS", "True").lower() == "true"),
             # Lower batch size for potentially large chunks
-            batch_size=int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_BATCH_SIZE", "1")),
+            batch_size=self.get_batch_size(),
             truncate_dim=dim
         )
 
