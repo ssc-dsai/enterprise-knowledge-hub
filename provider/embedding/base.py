@@ -48,7 +48,7 @@ class EmbeddingBackendProvider(ABC):
         Get tokenizer for current thread
         """
         return self.tokenizer.get()
-    
+
     def get_batch_size(self) -> int:
         """
         Get batch size for embedding generation, which may be dynamic based on model/device

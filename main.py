@@ -22,7 +22,7 @@ logging.basicConfig(
 )
 
 if(log_config := os.getenv("LOGGING_CONFIG_FILE")):
-    with open(log_config) as f:
+    with open(log_config, encoding="UTF-8") as f:
         logging.config.dictConfig(yaml.safe_load(f))
 
 logger = logging.getLogger(__name__)
