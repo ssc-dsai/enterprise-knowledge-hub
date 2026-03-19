@@ -45,30 +45,30 @@ class KnowledgeService(ABC):
         ingestion_enabled = os.getenv("SVC_KB_ENABLE_INGESTION", "true").lower() in ("1", "true", "yes")
         processing_enabled = os.getenv("SVC_KB_ENABLE_PROCESSING", "true").lower() in ("1", "true", "yes")
         storing_enabled = os.getenv("SVC_KB_ENABLE_STORING", "true").lower() in ("1", "true", "yes")
+        self.executor = ThreadPoolExecutor(max_workers=3)
+        
+        self.futures = []
 
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            futures = []
+        if ingestion_enabled:
+            self.futures.append(self.executor.submit(self.ingest))
+        else:
+            self.logger.info("Ingestion disabled via SVC_KB_ENABLE_INGESTION (%s)", self.service_name)
+            self._ingest_done.set()
 
-            if ingestion_enabled:
-                futures.append(executor.submit(self.ingest))
-            else:
-                self.logger.info("Ingestion disabled via SVC_KB_ENABLE_INGESTION (%s)", self.service_name)
-                self._ingest_done.set()
+        if processing_enabled:
+            self.futures.append(self.executor.submit(self.process))
+        else:
+            self.logger.info("Processing disabled via SVC_KB_ENABLE_PROCESSING (%s)", self.service_name)
+            self._process_done.set()
 
-            if processing_enabled:
-                futures.append(executor.submit(self.process))
-            else:
-                self.logger.info("Processing disabled via SVC_KB_ENABLE_PROCESSING (%s)", self.service_name)
-                self._process_done.set()
+        if storing_enabled:
+            self.futures.append(self.executor.submit(self.store))
+        else:
+            self.logger.info("Storing disabled via SVC_KB_ENABLE_STORING (%s)", self.service_name)
 
-            if storing_enabled:
-                futures.append(executor.submit(self.store))
-            else:
-                self.logger.info("Storing disabled via SVC_KB_ENABLE_STORING (%s)", self.service_name)
-
-            # Wait for completion and propagate any exceptions
-            for future in futures:
-                future.result()
+        # Wait for completion and propagate any exceptions
+        for future in self.futures:
+            future.result()
 
         # Record the end of this run
         self._repository.insert_history_table_log(self._run_id, self.service_name,
@@ -265,7 +265,22 @@ class KnowledgeService(ABC):
 
     def request_stop(self) -> None:
         """Stop event for knowledge process"""
+        self.logger.info("Stop event requested")
         self._stop_event.set()
+        
+        if self.executor:
+            self.logger.info("executor shutdown()")
+            self.executor.shutdown(wait=True)
+            
+        for f in self.futures:
+            try:
+                self.logger.info("f result()")
+                f.result()
+            except Exception as e:
+                self.logger.exception("Worker error during shutdown: %s", e)
+        
+        self.logger.info("clenaup channels")
+        self.queue_service.cleanup()
 
     def should_stop(self) -> bool:
         """Return true if and only if the internal flag is true."""

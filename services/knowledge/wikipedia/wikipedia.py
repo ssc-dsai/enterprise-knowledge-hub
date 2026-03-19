@@ -137,28 +137,28 @@ class WikipediaKnowledgeService(KnowledgeService):
                 continue
 
     def emit_fetched_item(self, item) -> None:
-        max_tokens = getattr(self.embedder, "max_seq_length", None)
+        # max_tokens = getattr(self.embedder, "max_seq_length", None)
 
-        # taking item and chunking them
-        chunks = self.embedder.chunk_text_by_tokens(item.content, max_tokens=max_tokens)
-        results: list[WikipediaItemRaw] = []
-        num_chunks = len(chunks)
+        # # taking item and chunking them
+        # chunks = self.embedder.chunk_text_by_tokens(item.content, max_tokens=max_tokens)
+        # results: list[WikipediaItemRaw] = []
+        # num_chunks = len(chunks)
 
-        for idx, chunk_text in enumerate(chunks, start=1):
-            results.append(
-                WikipediaItemRaw(
-                    name=item.name,
-                    title=f"{item.title} (chunk {idx}/{num_chunks})",
-                    content=chunk_text,
-                    last_modified_date=item.last_modified_date,
-                    pid=item.pid,
-                    chunk_index=idx,
-                    chunk_count=num_chunks,
-                    source=item.source
-                )
-            )
-        for wiki_item in results:
-            self.queue_service.write(self._ingest_queue_name(), wiki_item)
+        # for idx, chunk_text in enumerate(chunks, start=1):
+        #     results.append(
+        #         WikipediaItemRaw(
+        #             name=item.name,
+        #             title=f"{item.title} (chunk {idx}/{num_chunks})",
+        #             content=chunk_text,
+        #             last_modified_date=item.last_modified_date,
+        #             pid=item.pid,
+        #             chunk_index=idx,
+        #             chunk_count=num_chunks,
+        #             source=item.source
+        #         )
+        #     )
+        # for wiki_item in results:
+        self.queue_service.write(self._ingest_queue_name(), item)
 
     def _get_dump_path(self, index_path: Path) -> Path | None:
         """Derive the dump file path from an index file path."""
@@ -183,9 +183,6 @@ class WikipediaKnowledgeService(KnowledgeService):
     def store_item(self, item: WikipediaItemProcessed) -> None:
         record_to_insert = WikipediaDbRecord.from_item(item)
         self._repository.insert(record_to_insert.as_mapping())
-
-    def finalize_store(self):
-        self.queue_service.cleanup()
 
     def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItemRaw]: #pylint: disable=too-many-locals,too-many-branches,too-many-statements
         """Process a single index file and yield WikipediaItems."""
@@ -334,15 +331,15 @@ class WikipediaKnowledgeService(KnowledgeService):
         if page.is_redirect:
             return True
 
-        title = page.title
-        if title:
-            for prefix in self._ignored_title_prefixes:
-                if title.startswith(prefix):
-                    return True
+        # title = page.title
+        # if title:
+        #     for prefix in self._ignored_title_prefixes:
+        #         if title.startswith(prefix):
+        #             return True
 
         # DB metadata check, last resort before we do in fact process the item.
-        if self._repository.record_is_up_to_date(page.pid, page.source, page.last_modified_date):
-            return True
+        # if self._repository.record_is_up_to_date(page.pid, page.source, page.last_modified_date):
+        #     return True
 
         return False
 
