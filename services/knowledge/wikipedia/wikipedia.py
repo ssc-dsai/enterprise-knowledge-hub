@@ -77,6 +77,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
             start_time = time.perf_counter()
+            gpu_batch_size = self.embedder.get_batch_size()
 
             batch: List[str] = []
             for item in knowledge_item:
@@ -108,8 +109,8 @@ class WikipediaKnowledgeService(KnowledgeService):
                 self.emit_processed_item(processed_item)
 
             end_time = time.perf_counter()
-            self.logger.info("Generated embeddings for %s items in %.2f seconds",
-                             len(knowledge_item), end_time - start_time)
+            self.logger.info("Generated embeddings for %s items in %.2f seconds per batch (GPU batch size: %s)",
+                             len(knowledge_item), (end_time - start_time)/gpu_batch_size, gpu_batch_size)
 
         except Exception as e:
             self.logger.error("Error processing embedding for Wikipedia item: %s", e)

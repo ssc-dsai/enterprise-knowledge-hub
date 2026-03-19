@@ -80,7 +80,28 @@ Docker clean up that is also safe, it will prune all unused images, containers a
 ```bash
 docker system prune -a --volumes -f
 ```
----
+
+## Logger configuration
+
+If you wish to customize the logging level you can do so by dropping in the root directory a `touch ./logging.yaml` file with the following content:
+
+The `disable_existing_loggers: false` is important since it allows you to keep config from the code.
+
+```yaml
+version: 1
+disable_existing_loggers: false
+loggers:
+  __main__:
+    level: DEBUG
+  router.root.run_management_endpoints:
+    level: DEBUG
+root:
+  level: INFO
+
+```
+
+Keep in mind you can hit http://localhost:8000/logging-info endpoint to get info on current log levels.
+
 
 ## File Descriptions and Repo Structure
 

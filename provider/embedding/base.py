@@ -20,6 +20,7 @@ class EmbeddingBackendProvider(ABC):
     max_seq_length: int
     dimensions: int
     tokenizer: ThreadTokenizer | None = None
+    batch_size: int = 32
 
     @abstractmethod
     def embed(self, text: Any, is_query: bool = False) -> np.ndarray:
@@ -47,3 +48,9 @@ class EmbeddingBackendProvider(ABC):
         Get tokenizer for current thread
         """
         return self.tokenizer.get()
+    
+    def get_batch_size(self) -> int:
+        """
+        Get batch size for embedding generation, which may be dynamic based on model/device
+        """
+        return self.batch_size
