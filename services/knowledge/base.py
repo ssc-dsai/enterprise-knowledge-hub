@@ -30,6 +30,8 @@ class KnowledgeService(ABC):
     _process_done: threading.Event = field(default_factory=threading.Event, init=False)
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
     _poll_interval: float = 0.5  # seconds to wait before retrying empty queue
+    _executor: ThreadPoolExecutor
+    _future: list
 
     def run(self) -> None:
         """Run the knowledge ingestion/processing in parallel threads."""
@@ -45,29 +47,29 @@ class KnowledgeService(ABC):
         ingestion_enabled = os.getenv("SVC_KB_ENABLE_INGESTION", "true").lower() in ("1", "true", "yes")
         processing_enabled = os.getenv("SVC_KB_ENABLE_PROCESSING", "true").lower() in ("1", "true", "yes")
         storing_enabled = os.getenv("SVC_KB_ENABLE_STORING", "true").lower() in ("1", "true", "yes")
-        self.executor = ThreadPoolExecutor(max_workers=3)
+        self._executor = ThreadPoolExecutor(max_workers=3)
 
-        self.futures = []
+        self._futures = []
 
         if ingestion_enabled:
-            self.futures.append(self.executor.submit(self.ingest))
+            self._futures.append(self._executor.submit(self.ingest))
         else:
             self.logger.info("Ingestion disabled via SVC_KB_ENABLE_INGESTION (%s)", self.service_name)
             self._ingest_done.set()
 
         if processing_enabled:
-            self.futures.append(self.executor.submit(self.process))
+            self._futures.append(self._executor.submit(self.process))
         else:
             self.logger.info("Processing disabled via SVC_KB_ENABLE_PROCESSING (%s)", self.service_name)
             self._process_done.set()
 
         if storing_enabled:
-            self.futures.append(self.executor.submit(self.store))
+            self._futures.append(self._executor.submit(self.store))
         else:
             self.logger.info("Storing disabled via SVC_KB_ENABLE_STORING (%s)", self.service_name)
 
         # Wait for completion and propagate any exceptions
-        for future in self.futures:
+        for future in self._futures:
             future.result()
 
         # Record the end of this run
@@ -270,12 +272,12 @@ class KnowledgeService(ABC):
         self._stop_event.set()
 
         # Cleanup workers and connections
-        if self.executor:
+        if self._executor:
             self.logger.info("Shutting down executor.")
-            self.executor.shutdown(wait=True)
+            self._executor.shutdown(wait=True)
 
         self.logger.info("Propogating any exceptions during shutdown")
-        for f in self.futures:
+        for f in self._futures:
             try:
                 f.result()
             except Exception as e:
