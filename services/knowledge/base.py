@@ -274,9 +274,9 @@ class KnowledgeService(ABC):
             self.logger.info("Shutting down executor.")
             self.executor.shutdown(wait=True)
 
+        self.logger.info("Propogating any exceptions during shutdown")
         for f in self.futures:
             try:
-                self.logger.info("Propogating any exceptions during shutdown")
                 f.result()
             except Exception as e:
                 self.logger.exception("Worker error during shutdown: %s", e)
