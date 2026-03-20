@@ -31,7 +31,7 @@ class KnowledgeService(ABC):
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
     _poll_interval: float = 0.5  # seconds to wait before retrying empty queue
     _executor: ThreadPoolExecutor
-    _future: list
+    _futures: list
 
     def run(self) -> None:
         """Run the knowledge ingestion/processing in parallel threads."""
