@@ -46,7 +46,7 @@ class KnowledgeService(ABC):
         processing_enabled = os.getenv("SVC_KB_ENABLE_PROCESSING", "true").lower() in ("1", "true", "yes")
         storing_enabled = os.getenv("SVC_KB_ENABLE_STORING", "true").lower() in ("1", "true", "yes")
         self.executor = ThreadPoolExecutor(max_workers=3)
-        
+
         self.futures = []
 
         if ingestion_enabled:
@@ -266,20 +266,22 @@ class KnowledgeService(ABC):
     def request_stop(self) -> None:
         """Stop event for knowledge process"""
         self.logger.info("Stop event requested")
+
         self._stop_event.set()
-        
+
+        # Cleanup workers and connections
         if self.executor:
-            self.logger.info("executor shutdown()")
+            self.logger.info("Shutting down executor.")
             self.executor.shutdown(wait=True)
-            
+
         for f in self.futures:
             try:
-                self.logger.info("f result()")
+                self.logger.info("Propogating any exceptions during shutdown")
                 f.result()
             except Exception as e:
                 self.logger.exception("Worker error during shutdown: %s", e)
-        
-        self.logger.info("clenaup channels")
+
+        self.logger.info("Cleaning up thread local queue connections and channels")
         self.queue_service.cleanup()
 
     def should_stop(self) -> bool:
