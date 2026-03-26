@@ -30,8 +30,8 @@ class KnowledgeService(ABC):
     _process_done: threading.Event = field(default_factory=threading.Event, init=False)
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
     _poll_interval: float = 0.5  # seconds to wait before retrying empty queue
-    _executor: ThreadPoolExecutor
-    _futures: list
+    _executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=3)
+    _futures: list = []
 
     def run(self) -> None:
         """Run the knowledge ingestion/processing in parallel threads."""
@@ -47,7 +47,9 @@ class KnowledgeService(ABC):
         ingestion_enabled = os.getenv("SVC_KB_ENABLE_INGESTION", "true").lower() in ("1", "true", "yes")
         processing_enabled = os.getenv("SVC_KB_ENABLE_PROCESSING", "true").lower() in ("1", "true", "yes")
         storing_enabled = os.getenv("SVC_KB_ENABLE_STORING", "true").lower() in ("1", "true", "yes")
-        self._executor = ThreadPoolExecutor(max_workers=3)
+        
+        if self._executor is None:
+            self._executor = ThreadPoolExecutor(max_workers=3)
 
         self._futures = []
 
@@ -283,6 +285,8 @@ class KnowledgeService(ABC):
             except Exception as e:
                 self.logger.exception("Worker error during shutdown: %s", e)
 
+        self._executor = None
+        self._futures = []
         self.logger.info("Cleaning up thread local queue connections and channels")
         self.queue_service.cleanup()
 
