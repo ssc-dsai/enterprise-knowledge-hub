@@ -1,31 +1,75 @@
-from time import strptime
+import json
+import os
+# import os
+
+# import sys
+# print("\n".join(sys.path))
 
 import requests
 from bs4 import BeautifulSoup
 import datetime
 
-BASE_URL = "https://dumps.wikimedia.org/enwiki/"
-# add injection from env file for the below verify statement
-page = requests.get(BASE_URL, verify="/etc/ssl/certs/ca-certificates.crt")
+# print(os.getcwd())
 
-print(f"timestamp: {datetime.datetime.now()}")
-print(f"Fetching data from {BASE_URL}...")
+# because crontab executes the process in its own directory, we need to change the current working directory to the directory of this script
+# os.chdir(os.path.dirname(os.path.abspath(__file__)))
+print(f"Current working directory: {os.getcwd()}")
 
-soup = BeautifulSoup(page.content, 'html.parser')
-print(f"Page title: {soup.title.string}")
-pre = soup.find('pre')
-if pre:
-    print(f"Found pre tag: {pre}")
-latest_dump = pre.find("a", href = "latest/")
+from scripts import wiki_dump_update
 
-print(f"Latest dump: {latest_dump}")
+BASE_ENWIKI_INDEX_URL = "https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles-multistream-index.txt.bz2-rss.xml"
+BASE_ENWIKI_CONTENT_URL = "https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles-multistream.xml.bz2-rss.xml"
 
-formatted_timestamp = latest_dump.next_sibling.strip().split(' ')[0]
-# print(f"timestamp: {latest_dump.next_sibling.strip()}")
-print(f"timestamp: {formatted_timestamp}")
 
-dated_timestamp = strptime(formatted_timestamp, "%d-%b-%Y")
-print(f"Formatted timestamp: {dated_timestamp}")
+dump_date_file = "content_scraper/latest_dump_date.json"
 
-latest_dump_url = BASE_URL + latest_dump['href']
-print(f"Latest dump URL: {latest_dump_url}")
+# print(os.getcwd())
+
+
+def load_latest_dump_date():
+    dump_dates = {}
+    try:
+        with open(dump_date_file, "r") as f:
+            dump_dates = json.load(f)
+            print(f"Loaded latest dump dates from file: {dump_dates}")
+    except FileNotFoundError:
+        print("No latest_dump_date.json file found. Must resolve.")
+        return None
+    return dump_dates
+
+def save_latest_dump_date(dump_dates):
+    with open(dump_date_file, "w") as f:
+        json.dump(dump_dates, f)
+
+def enwiki_check(dump_key, dump_dates):
+    page = requests.get(BASE_ENWIKI_INDEX_URL, verify="/etc/ssl/certs/ca-certificates.crt")
+    print(f"timestamp: {datetime.datetime.now()}")
+
+    latest_dump_date = dump_dates.get(dump_key)
+    if latest_dump_date:
+        print(f"Latest dump date from file: {latest_dump_date}")
+    else:
+        print("No latest dump date found in file.")
+        latest_dump_date = ""
+
+    soup = BeautifulSoup(page.content, "xml")
+    published_date = soup.find("pubDate")
+    string_published_date = str(published_date.string)
+    print(string_published_date)
+    print(latest_dump_date)
+    print(f"type of published_date.string: {type(string_published_date)}, type of latest_dump_date: {type(latest_dump_date)}")
+    if published_date and string_published_date != latest_dump_date:
+        print(f"Published date: {string_published_date} is different from latest dump date: {latest_dump_date}")
+        dump_dates[dump_key] = string_published_date
+        wiki_dump_update.download_latest_dump()
+
+    else:
+        print("No new dump detected.")
+
+if __name__ == "__main__":
+    dump_dates = load_latest_dump_date()
+
+    print("Starting enwiki check...")
+    enwiki_check("enwiki", dump_dates)
+
+    save_latest_dump_date(dump_dates)
