@@ -30,6 +30,9 @@ class BatchHandler: # pylint: disable=too-few-public-methods
         if len(self.item_list) < self.batch_size:
             return
 
+        self.flush()
+
+    def flush(self) -> None:
         items = [items for items, tags in self.item_list]
         tags = [tags for items, tags in self.item_list]
         self.item_list = []

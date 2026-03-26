@@ -174,6 +174,11 @@ class KnowledgeService(ABC):
                 handler=handler,
                 should_exit=should_exit
             )
+
+            # flushes last batch that hangs in memory, due to not reaching batch size.
+            if handler.item_list:
+                handler.flush()
+
             count = worker.message_count
         except Exception:
             self.logger.exception("Error during processing for queue: %s. (%s)",
