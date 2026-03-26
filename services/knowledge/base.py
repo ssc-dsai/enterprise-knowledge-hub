@@ -47,7 +47,7 @@ class KnowledgeService(ABC):
         ingestion_enabled = os.getenv("SVC_KB_ENABLE_INGESTION", "true").lower() in ("1", "true", "yes")
         processing_enabled = os.getenv("SVC_KB_ENABLE_PROCESSING", "true").lower() in ("1", "true", "yes")
         storing_enabled = os.getenv("SVC_KB_ENABLE_STORING", "true").lower() in ("1", "true", "yes")
-        
+
         if self._executor is None:
             self._executor = ThreadPoolExecutor(max_workers=3)
 
