@@ -23,8 +23,9 @@ def search_database(
 
 @router.get("/retrieve/{title}")
 def retrieve_wiki_articles(
-    title:str
+    title: str,
+    source: str
 ):
     """Get wiki article content"""
     print(f"(search_retrieve endpoints) Retrieving wiki articles for title: {title}")
-    return _query_service.get_article_content_by_title(title)
+    return _query_service.get_article_content_by_title(title, source)

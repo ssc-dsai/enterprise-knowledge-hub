@@ -394,3 +394,4 @@ class WikipediaKnowledgeService(KnowledgeService):
             is_namespace_0=bool(re.search(r"<ns>0</ns>", xml_page)),
             is_redirect=bool(re.search(r"<redirect\s", xml_page)),
         )
+        

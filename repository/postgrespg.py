@@ -295,3 +295,4 @@ class WikipediaPgRepository:
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(query_sql, (pid, source))
             conn.commit()
+            
