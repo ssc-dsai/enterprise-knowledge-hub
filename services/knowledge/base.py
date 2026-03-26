@@ -3,7 +3,7 @@ import os
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, Future
 from typing import Any, Optional
 import logging
 from random import random
@@ -31,7 +31,7 @@ class KnowledgeService(ABC):
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
     _poll_interval: float = 0.5  # seconds to wait before retrying empty queue
     _executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=3)
-    _futures: list = []
+    _futures: list[Future] = field(default_factory=list)
 
     def run(self) -> None:
         """Run the knowledge ingestion/processing in parallel threads."""
