@@ -1,18 +1,23 @@
+"""
+Script to manage download of either French or English wiki dumps,
+through donwloading both index and content files.
+"""
+
 import requests
 from bs4 import BeautifulSoup
-from base_cronjob import BASE_ENWIKI_INDEX_URL, BASE_ENWIKI_CONTENT_URL
 
 DOWNLOAD_DIRECTORY = "content/content_storage"
 
-def download_latest_dump():
+def download_latest_dump(wiki_dump_content_url, wiki_dump_index_url):
+    """Downloads the latest dump from the given wiki dump content and index URLs."""
+
     print("============Downloading latest dump...============")
 
-    list = list_maker()
+    list = list_maker(wiki_dump_content_url, wiki_dump_index_url)
     print(f"List of download links: {list}")
 
     for url in list:
         print(f"Processing URL: {url}")
-        print(type(url))
         final_url = url.replace("http://download.wikimedia.org", "https://dumps.wikimedia.org")
 
         print(f"Constructed final URL: {final_url}")
@@ -23,17 +28,18 @@ def download_latest_dump():
             with open(f"{DOWNLOAD_DIRECTORY}/{filename}", "wb") as f:
                 print(f"Saving to {DOWNLOAD_DIRECTORY}/{filename}...")
                 for chunk in response.iter_content(chunk_size=8192):
-                    # print(f"Writing chunk of size {len(chunk)} bytes...")
                     f.write(chunk)
             print(f"Successfully downloaded {filename} to {DOWNLOAD_DIRECTORY}")
         else:
             print(f"Failed to download {filename}. HTTP status code: {response.status_code}")
 
-def list_maker():
+def list_maker(wiki_dump_content_url, wiki_dump_index_url):
+    """Helper function to extract download links from the content and index RSS feeds."""
+
     link_list = []
 
-    content_file = requests.get(BASE_ENWIKI_CONTENT_URL, verify = "/etc/ssl/certs/ca-certificates.crt")
-    index_file = requests.get(BASE_ENWIKI_INDEX_URL, verify = "/etc/ssl/certs/ca-certificates.crt")
+    content_file = requests.get(wiki_dump_content_url, verify = "/etc/ssl/certs/ca-certificates.crt")
+    index_file = requests.get(wiki_dump_index_url, verify = "/etc/ssl/certs/ca-certificates.crt")
 
     content_soup = BeautifulSoup(content_file.content, "xml")
     index_soup = BeautifulSoup(index_file.content, "xml")
