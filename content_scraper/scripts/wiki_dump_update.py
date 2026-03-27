@@ -1,16 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
-import os
-import sys
-
-# ALSO DO THE LOGIC FOR FRENCH ONE- DOWNLOAD TOA  SEPARATE FOLDER MAYBE CONTENT STORAGE OR SOMETHING
-# create env flag!!
 from base_cronjob import BASE_ENWIKI_INDEX_URL, BASE_ENWIKI_CONTENT_URL
 
-print(os.getcwd())
-print(sys.path)
-# DOWNLOAD_DIRECTORY = "./"
-#ABOVE WORKSS try below tommorow
 DOWNLOAD_DIRECTORY = "content/content_storage"
 
 def download_latest_dump():
@@ -20,11 +11,14 @@ def download_latest_dump():
     print(f"List of download links: {list}")
 
     for url in list:
-        new_url = "https://dumps.wikimedia.org/enwiki/20260301/enwiki-20260301-pages-articles-multistream-index.txt.bz2"
-        print(f"Downloading from URL: {new_url}")
-        filename = new_url.split("/")[-1]
+        print(f"Processing URL: {url}")
+        print(type(url))
+        final_url = url.replace("http://download.wikimedia.org", "https://dumps.wikimedia.org")
+
+        print(f"Constructed final URL: {final_url}")
+        filename = final_url.split("/")[-1]
         print(f"Extracted filename: {filename}")
-        response = requests.get(new_url, stream = True, verify="/etc/ssl/certs/ca-certificates.crt")
+        response = requests.get(final_url, stream = True, verify="/etc/ssl/certs/ca-certificates.crt")
         if response.status_code == 200:
             with open(f"{DOWNLOAD_DIRECTORY}/{filename}", "wb") as f:
                 print(f"Saving to {DOWNLOAD_DIRECTORY}/{filename}...")
@@ -35,8 +29,6 @@ def download_latest_dump():
         else:
             print(f"Failed to download {filename}. HTTP status code: {response.status_code}")
 
-# test using script only
-# Add simplicity notice- no need to use loops if this just works
 def list_maker():
     link_list = []
 
