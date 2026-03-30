@@ -33,6 +33,10 @@ class BatchHandler: # pylint: disable=too-few-public-methods
         self.flush()
 
     def flush(self) -> None:
+        """
+            Process/action item_list batch and flush
+        """
+
         items = [items for items, tags in self.item_list]
         tags = [tags for items, tags in self.item_list]
         self.item_list = []
