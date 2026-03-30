@@ -125,13 +125,6 @@ class WikipediaPgRepository:
             INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
             VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s,
                 %(last_modified_date)s, %(embedding)s, %(source)s)
-            ON CONFLICT (pid, chunk_index) DO UPDATE SET
-                name = EXCLUDED.name,
-                title = EXCLUDED.title,
-                content = EXCLUDED.content,
-                last_modified_date = EXCLUDED.last_modified_date,
-                embedding = EXCLUDED.embedding,
-                source = EXCLUDED.source
             """
         ).format(table=sql.Identifier(self._table_name))
         with self._pool.connection() as conn, conn.cursor() as cur:
@@ -147,13 +140,6 @@ class WikipediaPgRepository:
             """
             INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
             VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s, %(last_modified_date)s, %(embedding)s, %(source)s) #pylint: disable=line-too-long
-            ON CONFLICT (pid, chunk_index) DO UPDATE SET
-                name = EXCLUDED.name,
-                title = EXCLUDED.title,
-                content = EXCLUDED.content,
-                last_modified_date = EXCLUDED.last_modified_date,
-                embedding = EXCLUDED.embedding,
-                source = EXCLUDED.source
             """
         ).format(table=sql.Identifier(self._table_name))
 
@@ -202,38 +188,40 @@ class WikipediaPgRepository:
                     rows = cur.fetchall()
         return rows
 
-    def get_pid_by_title(self, title: str) -> int | None:
+    def get_pid_by_title(self, title: str, source: str) -> int | None:
         """Query for pid based on title"""
 
         query_sql = sql.SQL(
             """
             SELECT pid FROM {table}
             WHERE name = %s
+            AND source = %s
             """
         ).format(table=sql.Identifier(self._table_name))
 
         with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, (title,))
+            cur.execute(query_sql, (title, source))
             row = cur.fetchone()
 
         if row:
             return row[0]
         return None
 
-    def get_record_full_chunks_content(self, pid: int) -> list[DocumentRecord]:
+    def get_record_full_chunks_content(self, pid: int, source: str) -> list[DocumentRecord]:
         """Query for entire record chunks based on title"""
 
         query_sql = sql.SQL(
             """
             SELECT title, content FROM {table}
             WHERE pid = %s
+            AND source = %s
             """
         ).format(table=sql.Identifier(self._table_name))
 
         pattern=pid
 
         with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(query_sql, (pattern,))
+            cur.execute(query_sql, (pattern, source))
             rows = cur.fetchall()
         return rows
 
@@ -293,3 +281,17 @@ class WikipediaPgRepository:
         if row:
             return True # exists and is up to date
         return False # either doesn't exist or is outdated
+
+    def delete_by_pid_source(self, pid: int, source: str) -> None:
+        """Delete chunks for a given pid and source"""
+        query_sql = sql.SQL(
+            """
+            DELETE FROM {table}
+            WHERE pid = %s 
+            AND source = %s
+            """
+        ).format(table=sql.Identifier(self._table_name))
+
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (pid, source))
+            conn.commit()

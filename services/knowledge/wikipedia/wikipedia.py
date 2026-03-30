@@ -183,6 +183,8 @@ class WikipediaKnowledgeService(KnowledgeService):
 
     def store_item(self, item: WikipediaItemProcessed) -> None:
         record_to_insert = WikipediaDbRecord.from_item(item)
+        if record_to_insert.chunk_index == 1:
+            self._repository.delete_by_pid_source(record_to_insert.pid, record_to_insert.source)
         self._repository.insert(record_to_insert.as_mapping())
 
     def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItemRaw]: #pylint: disable=too-many-locals,too-many-branches,too-many-statements
