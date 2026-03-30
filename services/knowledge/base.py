@@ -151,33 +151,33 @@ class KnowledgeService(ABC):
 
         self._repository.insert_history_table_log(self._run_id, self.service_name,
                                                               RunStatus.PROCESSING_STARTED, None, datetime.now())
-        batch_size = self.get_batch_size()
-
-        worker = QueueWorker(
-            queue_service=self.queue_service,
-            logger=self.logger,
-            stop_event=self._stop_event,
-            poll_interval=self._poll_interval
-        )
-
-        def acknowledge(delivery_tag: int, successful: bool):
-            self.queue_service.read_ack(delivery_tag, successful)
-
-        handler = BatchHandler(self.process_item, acknowledge, batch_size, self.logger)
-
-        def should_exit(drained_any: bool) -> bool:
-            #Ingest done, AND check ingestion queue was empty this iteration
-            return self._ingest_done.is_set() and not drained_any
-
-        count = 0
 
         try:
+            batch_size = self.get_batch_size()
+
+            worker = QueueWorker(
+                queue_service=self.queue_service,
+                logger=self.logger,
+                stop_event=self._stop_event,
+                poll_interval=self._poll_interval
+            )
+
+            def acknowledge(delivery_tag: int, successful: bool):
+                self.queue_service.read_ack(delivery_tag, successful)
+
+            handler = BatchHandler(self.process_item, acknowledge, batch_size, self.logger)
+
+            def should_exit(drained_any: bool) -> bool:
+                #Ingest done, AND check ingestion queue was empty this iteration
+                return self._ingest_done.is_set() and not drained_any
+
             worker.run(
                 queue_name=self._ingest_queue_name(),
                 service_name=self.service_name,
                 handler=handler,
                 should_exit=should_exit
             )
+            
             count = worker.message_count
         except Exception:
             self.logger.exception("Error during processing for queue: %s. (%s)",
