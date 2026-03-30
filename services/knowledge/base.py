@@ -3,7 +3,7 @@ import os
 from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, Future
 from typing import Any, Optional
 import logging
 from random import random
@@ -30,6 +30,8 @@ class KnowledgeService(ABC):
     _process_done: threading.Event = field(default_factory=threading.Event, init=False)
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
     _poll_interval: float = 0.5  # seconds to wait before retrying empty queue
+    _executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=3)
+    _futures: list[Future] = field(default_factory=list)
 
     def run(self) -> None:
         """Run the knowledge ingestion/processing in parallel threads."""
@@ -46,29 +48,31 @@ class KnowledgeService(ABC):
         processing_enabled = os.getenv("SVC_KB_ENABLE_PROCESSING", "true").lower() in ("1", "true", "yes")
         storing_enabled = os.getenv("SVC_KB_ENABLE_STORING", "true").lower() in ("1", "true", "yes")
 
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            futures = []
+        if self._executor is None:
+            self._executor = ThreadPoolExecutor(max_workers=3)
 
-            if ingestion_enabled:
-                futures.append(executor.submit(self.ingest))
-            else:
-                self.logger.info("Ingestion disabled via SVC_KB_ENABLE_INGESTION (%s)", self.service_name)
-                self._ingest_done.set()
+        self._futures = []
 
-            if processing_enabled:
-                futures.append(executor.submit(self.process))
-            else:
-                self.logger.info("Processing disabled via SVC_KB_ENABLE_PROCESSING (%s)", self.service_name)
-                self._process_done.set()
+        if ingestion_enabled:
+            self._futures.append(self._executor.submit(self.ingest))
+        else:
+            self.logger.info("Ingestion disabled via SVC_KB_ENABLE_INGESTION (%s)", self.service_name)
+            self._ingest_done.set()
 
-            if storing_enabled:
-                futures.append(executor.submit(self.store))
-            else:
-                self.logger.info("Storing disabled via SVC_KB_ENABLE_STORING (%s)", self.service_name)
+        if processing_enabled:
+            self._futures.append(self._executor.submit(self.process))
+        else:
+            self.logger.info("Processing disabled via SVC_KB_ENABLE_PROCESSING (%s)", self.service_name)
+            self._process_done.set()
 
-            # Wait for completion and propagate any exceptions
-            for future in futures:
-                future.result()
+        if storing_enabled:
+            self._futures.append(self._executor.submit(self.store))
+        else:
+            self.logger.info("Storing disabled via SVC_KB_ENABLE_STORING (%s)", self.service_name)
+
+        # Wait for completion and propagate any exceptions
+        for future in self._futures:
+            future.result()
 
         # Record the end of this run
         self._repository.insert_history_table_log(self._run_id, self.service_name,
@@ -265,7 +269,26 @@ class KnowledgeService(ABC):
 
     def request_stop(self) -> None:
         """Stop event for knowledge process"""
+        self.logger.info("Stop event requested")
+
         self._stop_event.set()
+
+        # Cleanup workers and connections
+        if self._executor:
+            self.logger.info("Shutting down executor.")
+            self._executor.shutdown(wait=True)
+
+        self.logger.info("Propogating any exceptions during shutdown")
+        for f in self._futures:
+            try:
+                f.result()
+            except Exception as e:
+                self.logger.exception("Worker error during shutdown: %s", e)
+
+        self._executor = None
+        self._futures = []
+        self.logger.info("Cleaning up thread local queue connections and channels")
+        self.queue_service.cleanup()
 
     def should_stop(self) -> bool:
         """Return true if and only if the internal flag is true."""
