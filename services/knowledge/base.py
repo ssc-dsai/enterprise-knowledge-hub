@@ -177,7 +177,7 @@ class KnowledgeService(ABC):
                 handler=handler,
                 should_exit=should_exit
             )
-            
+
             count = worker.message_count
         except Exception:
             self.logger.exception("Error during processing for queue: %s. (%s)",
@@ -233,7 +233,7 @@ class KnowledgeService(ABC):
                 handler=handler,
                 should_exit=should_exit
             )
-            
+
             count = worker.message_count
         except Exception:
             self.logger.exception("Error during storing for queue: %s. (%s)", self._processed_queue_name(),

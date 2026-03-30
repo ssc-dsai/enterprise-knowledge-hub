@@ -62,9 +62,9 @@ class QueueWorker:
                 self.logger.exception(
                     "Error reading item from queue %s - %s", queue_name, service_name
                 )
-                
+
                 time.sleep(self.poll_interval)
-            
+
             # Queue is empty - check if we should exit or wait
             if should_exit(drained_any):
                 break
