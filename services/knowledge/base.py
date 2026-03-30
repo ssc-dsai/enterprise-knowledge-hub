@@ -208,33 +208,32 @@ class KnowledgeService(ABC):
         self._repository.insert_history_table_log(self._run_id, self.service_name,
                                                           RunStatus.STORING_STARTED, None, datetime.now())
 
-        worker = QueueWorker(
-            queue_service=self.queue_service,
-            logger=self.logger,
-            stop_event=self._stop_event,
-            poll_interval=self._poll_interval
-        )
-
-        def handler(item: WikipediaItemProcessed, delivery_tag: str) -> bool:
-            if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
-                self.store_item(WikipediaItemProcessed.model_validate(item))
-            self.logger.debug("DeliveryTag: %s", delivery_tag)
-            # this is to tell queueworker to handle ack
-            return False
-
-        def should_exit(drained_any: bool) -> bool:
-            # process is done, AND check processed queue was empty this iteration
-            return self._process_done.is_set() and not drained_any
-
-        count = 0
-
         try:
+            worker = QueueWorker(
+                queue_service=self.queue_service,
+                logger=self.logger,
+                stop_event=self._stop_event,
+                poll_interval=self._poll_interval
+            )
+
+            def handler(item: WikipediaItemProcessed, delivery_tag: str) -> bool:
+                if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
+                    self.store_item(WikipediaItemProcessed.model_validate(item))
+                self.logger.debug("DeliveryTag: %s", delivery_tag)
+                # this is to tell queueworker to handle ack
+                return False
+
+            def should_exit(drained_any: bool) -> bool:
+                # process is done, AND check processed queue was empty this iteration
+                return self._process_done.is_set() and not drained_any
+
             worker.run(
                 queue_name=self._processed_queue_name(),
                 service_name=self.service_name,
                 handler=handler,
                 should_exit=should_exit
             )
+            
             count = worker.message_count
         except Exception:
             self.logger.exception("Error during storing for queue: %s. (%s)", self._processed_queue_name(),
