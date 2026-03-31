@@ -1,12 +1,29 @@
 services:
-  ekh:
-    build: .
+  ekh: # comment this service out if you plan to run/debug locally without docker
+    build:
+      context: .
+    # uncomment those lines for a real cuda build + flash attn build
+      args:
+        BASE_IMAGE: cpu # or cuda
+    #     CUDA_ARCH: "8.6"
     container_name: ekh
     restart: unless-stopped
     env_file:
       - .env
     ports:
       - "8000:8000"
+    expose:
+      - "8000"
+    volumes:
+      - ./content:/app/content
+    deploy: # this section requires nvidia container toolkit to work
+    # installation: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     depends_on:
       - postgres
       - rabbitmq

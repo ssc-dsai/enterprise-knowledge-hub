@@ -28,7 +28,7 @@ source .venv/bin/activate
 # IF YOUR MACHINE DOESN'T SUPPORT CUDA skip the --extra flag
 uv sync --extra cuda
 # see how to populate your .content/<kbprovider> folder first in the README.md there
-uv run fastapi dev main.py
+uv run --env-file .env fastapi dev main.py
 ```
 
 #### Tests
@@ -57,11 +57,18 @@ MODEL_SHOW_PROGRESS=False
 
 ## Notes and help
 
+### SSL issues
+
+Corporate firewall might intercepts some http requests and you might end up with a SSL untrusted cert issue.
+To fix this you have to install the ICM certificates from the chain that your system doesn't trust.
+
+[Here is how to fix it](./docs/ssl-issue.md).
+
 ### WSL Space management
 
-Running this project can be space intensive especially the `./cache/huggingface` folder. 
+Running this project can be space intensive especially the `./cache/huggingface` folder.
 
-For those running WSL you can easily check what is the  space of the current VDI in PowerShell: 
+For those running WSL you can easily check what is the  space of the current VDI in PowerShell:
 
 ```bash
 # replace distro by distro name ... (wsl --list --verbose)
@@ -73,7 +80,28 @@ Docker clean up that is also safe, it will prune all unused images, containers a
 ```bash
 docker system prune -a --volumes -f
 ```
----
+
+## Logger configuration
+
+If you wish to customize the logging level you can do so by dropping in the root directory a `touch ./logging.yaml` file with the following content:
+
+The `disable_existing_loggers: false` is important since it allows you to keep config from the code.
+
+```yaml
+version: 1
+disable_existing_loggers: false
+loggers:
+  __main__:
+    level: DEBUG
+  router.root.run_management_endpoints:
+    level: DEBUG
+root:
+  level: INFO
+
+```
+
+Keep in mind you can hit http://localhost:8000/logging-info endpoint to get info on current log levels.
+
 
 ## File Descriptions and Repo Structure
 
@@ -119,6 +147,3 @@ docker system prune -a --volumes -f
 #### queue/
 - **`queue_service.py`**: Handles read and write operations in the queue system.
 - **`queue_worker.py`**: Manages worker tasks for queue read operations.
-
-### stats/
-- **`knowledge_service_stats.py`**: Generates and configures statistics related to index runs.

@@ -74,6 +74,9 @@ class WikipediaItemRaw(KnowledgeItem):
     source: Source | None = Source.WIKIPEDIA_EN
     chunk_index: int = 1
     chunk_count: int = 1
+    # fields for processing article initially (seeing if we ignore it or not, etc)
+    is_namespace_0: bool = True # we only process articles in ns 0
+    is_redirect: bool = False
 
 class WikipediaItemProcessed(WikipediaItemRaw):
     """Knowledge item representing a Wikipedia page stored in a database."""

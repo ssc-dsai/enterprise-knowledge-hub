@@ -9,6 +9,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+import time
 from typing import List
 
 import numpy as np
@@ -56,7 +57,7 @@ class WikipediaKnowledgeService(KnowledgeService):
                                     "./content/wikipedia")).expanduser().resolve()
     _process_only_first_n_paragraphs: int = int(os.getenv("WIKIPEDIA_PROCESS_ONLY_FIRST_N_PARAGRAPHS", "0"))
     _progress_flush_interval: int = 1000 # for the .progress file we track the line number we stopped at
-    _batch_size: int = int(os.getenv("WIKIPEDIA_EMBEDDING_MODEL_BATCH_SIZE", "100"))
+    _batch_size: int = int(os.getenv("WIKIPEDIA_PROCESS_BATCH_SIZE", "256"))
     _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
 
     def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None):
@@ -75,7 +76,8 @@ class WikipediaKnowledgeService(KnowledgeService):
     def process_item(self, knowledge_item: List[KnowledgeItem]) -> list[WikipediaItemProcessed]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
-            self.logger.info("Generating embeddings for %s", ", ".join(item['title'] for item in knowledge_item))
+            start_time = time.perf_counter()
+            gpu_batch_size = self.embedder.get_batch_size()
 
             batch: List[str] = []
             for item in knowledge_item:
@@ -83,7 +85,7 @@ class WikipediaKnowledgeService(KnowledgeService):
 
 
             # PLACEHOLDER for actual embedding generation. For now, we just generate dummy embeddings.
-            # embeddings = [np.random.rand(512).tolist() for _ in chunks]
+            # embeddings = [np.random.rand(512).tolist() for _ in batch]
             embeddings = self.embedder.embed(batch)
             arr = np.asarray(embeddings)
 
@@ -105,6 +107,10 @@ class WikipediaKnowledgeService(KnowledgeService):
                 )
             for processed_item in results:
                 self.emit_processed_item(processed_item)
+
+            end_time = time.perf_counter()
+            self.logger.info("Generated embeddings for %s items in %.2f seconds per batch (GPU batch size: %s)",
+                             len(knowledge_item), (end_time - start_time)/gpu_batch_size, gpu_batch_size)
 
         except Exception as e:
             self.logger.error("Error processing embedding for Wikipedia item: %s", e)
@@ -177,6 +183,8 @@ class WikipediaKnowledgeService(KnowledgeService):
 
     def store_item(self, item: WikipediaItemProcessed) -> None:
         record_to_insert = WikipediaDbRecord.from_item(item)
+        if record_to_insert.chunk_index == 1:
+            self._repository.delete_by_pid_source(record_to_insert.pid, record_to_insert.source)
         self._repository.insert(record_to_insert.as_mapping())
 
     def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItemRaw]: #pylint: disable=too-many-locals,too-many-branches,too-many-statements
@@ -280,10 +288,10 @@ class WikipediaKnowledgeService(KnowledgeService):
                 except Exception as exc:
                     self.logger.debug("Failed to write extracted page xml: %s", exc)
 
-            if not self._should_ignore_page(page_xml):
-                item = self._parse_page_xml(page_xml)
-                if item:
-                    item.source = source
+            item = self._parse_page_xml(page_xml)
+            if item:
+                item.source = source
+                if not self._should_ignore_page(item):
                     yield item
 
     def _save_progress(self, index_path: Path, line_number: int) -> None:
@@ -316,23 +324,26 @@ class WikipediaKnowledgeService(KnowledgeService):
                 continue
             yield node
 
-    def _should_ignore_page(self, xml_page: str) -> bool:
+    def _should_ignore_page(self, page: WikipediaItemRaw) -> bool:
         """Check if a page should be ignored based on title or type."""
 
         #Namespace detection: https://en.wikipedia.org/wiki/Wikipedia:Namespace
-        if not re.search(r"<ns>0</ns>", xml_page):
+        if not page.is_namespace_0:
             return True
 
-        if re.search(r"<redirect\s", xml_page):
+        if page.is_redirect:
             return True
 
-        # last resort, extra title checking
-        title_match = re.search(r"<title>([^<]+)</title>", xml_page)
-        if title_match:
-            title = title_match.group(1)
+        title = page.title
+        if title:
             for prefix in self._ignored_title_prefixes:
                 if title.startswith(prefix):
                     return True
+
+        # DB metadata check, last resort before we do in fact process the item.
+        if self._repository.record_is_up_to_date(page.pid, page.source, page.last_modified_date):
+            return True
+
         return False
 
     def _parse_page_xml(self, xml_page: str) -> WikipediaItemRaw | None:
@@ -377,4 +388,6 @@ class WikipediaKnowledgeService(KnowledgeService):
             content=content,
             last_modified_date=last_modified_date,
             pid=pid,
+            is_namespace_0=bool(re.search(r"<ns>0</ns>", xml_page)),
+            is_redirect=bool(re.search(r"<redirect\s", xml_page)),
         )

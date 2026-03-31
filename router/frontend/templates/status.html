@@ -25,6 +25,7 @@
                 <th>Run ID</th>
                 <th>Service Name</th>
                 <th>Status</th>
+                <th>Metadata</th>
                 <th>Timestamp</th>
             </tr>
         </thead>
@@ -34,6 +35,7 @@
                 <td>{{ row.run_id }}</td>
                 <td>{{ row.service_name }}</td>
                 <td>{{ row.status }}</td>
+                <td>{{ row.metadata }}</td>
                 <td>{{ row.timestamp }}</td>
             </tr>
             {% endfor %}

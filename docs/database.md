@@ -16,7 +16,7 @@ CREATE TABLE documents (
    source TEXT,
    last_modified_date DATE,
    embedding VECTOR(512),
-   CONSTRAINT documents_pid_chunk_index_key UNIQUE (pid, chunk_index)
+   CONSTRAINT documents_pid_chunk_index_key UNIQUE (pid, source, chunk_index)
 );
 
 CREATE TABLE run_history (
@@ -24,6 +24,7 @@ CREATE TABLE run_history (
    run_id INT,
    service_name TEXT,
    status TEXT,
+   metadata json,
    timestamp TIMESTAMP
 );
 

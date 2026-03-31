@@ -32,3 +32,8 @@ class QueueProvider(ABC):
     def write(self, queue_name: str, message: KnowledgeItem) -> None:
         """Write to the specified queue."""
         raise NotImplementedError
+
+    @abstractmethod
+    def cleanup(self) -> None:
+        """Cleanup all connections and channels after task complete"""
+        raise NotImplementedError

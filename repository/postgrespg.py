@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from pgvector.psycopg import register_vector
 from psycopg.rows import dict_row
 from psycopg import sql
+from psycopg.types.json import Json
 from psycopg_pool import ConnectionPool
 from torch import Tensor
 
@@ -124,13 +125,6 @@ class WikipediaPgRepository:
             INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
             VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s,
                 %(last_modified_date)s, %(embedding)s, %(source)s)
-            ON CONFLICT (pid, chunk_index) DO UPDATE SET
-                name = EXCLUDED.name,
-                title = EXCLUDED.title,
-                content = EXCLUDED.content,
-                last_modified_date = EXCLUDED.last_modified_date,
-                embedding = EXCLUDED.embedding,
-                source = EXCLUDED.source
             """
         ).format(table=sql.Identifier(self._table_name))
         with self._pool.connection() as conn, conn.cursor() as cur:
@@ -146,13 +140,6 @@ class WikipediaPgRepository:
             """
             INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
             VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s, %(last_modified_date)s, %(embedding)s, %(source)s) #pylint: disable=line-too-long
-            ON CONFLICT (pid, chunk_index) DO UPDATE SET
-                name = EXCLUDED.name,
-                title = EXCLUDED.title,
-                content = EXCLUDED.content,
-                last_modified_date = EXCLUDED.last_modified_date,
-                embedding = EXCLUDED.embedding,
-                source = EXCLUDED.source
             """
         ).format(table=sql.Identifier(self._table_name))
 
@@ -201,38 +188,40 @@ class WikipediaPgRepository:
                     rows = cur.fetchall()
         return rows
 
-    def get_pid_by_title(self, title: str) -> int | None:
+    def get_pid_by_title(self, title: str, source: str) -> int | None:
         """Query for pid based on title"""
 
         query_sql = sql.SQL(
             """
             SELECT pid FROM {table}
             WHERE name = %s
+            AND source = %s
             """
         ).format(table=sql.Identifier(self._table_name))
 
         with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, (title,))
+            cur.execute(query_sql, (title, source))
             row = cur.fetchone()
 
         if row:
             return row[0]
         return None
 
-    def get_record_full_chunks_content(self, pid: int) -> list[DocumentRecord]:
+    def get_record_full_chunks_content(self, pid: int, source: str) -> list[DocumentRecord]:
         """Query for entire record chunks based on title"""
 
         query_sql = sql.SQL(
             """
             SELECT title, content FROM {table}
             WHERE pid = %s
+            AND source = %s
             """
         ).format(table=sql.Identifier(self._table_name))
 
         pattern=pid
 
         with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(query_sql, (pattern,))
+            cur.execute(query_sql, (pattern, source))
             rows = cur.fetchall()
         return rows
 
@@ -250,17 +239,59 @@ class WikipediaPgRepository:
             rows = cur.fetchall()
         return rows
 
-    def insert_history_table_log(self, run_id: int, service_name: str, status: str, timestamp):
+    def insert_history_table_log(self, run_id: int, service_name: str, status: str, metadata: dict | None,
+                                 timestamp: datetime):
+        # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-positional-arguments
         """Insert a log entry into the history table"""
 
         query_sql = sql.SQL(
             """
-            INSERT INTO run_history (run_id, service_name, status, timestamp)
-            VALUES (%s, %s, %s, %s)
-
+            INSERT INTO run_history (run_id, service_name, status, metadata, timestamp)
+            VALUES (%s, %s, %s, %s, %s)
             """
         )
 
         with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, (run_id, service_name, status, timestamp))
+            cur.execute(query_sql, (run_id, service_name, status, Json(metadata), timestamp))
+            conn.commit()
+
+    def record_is_up_to_date(self, pid: int, source: str, last_date_modified: datetime):
+        """
+        Queries the database for the documents with pid and checks if the date is currently
+        more recent than the one in the database
+
+        --- Query needs to return a record (it needs to exists) AND make sure current db date is 
+            greater or equal to current passed date
+
+        Returns True if the record EXISTS AND is UP TO DATE, False otherwise
+        """
+        query_sql = sql.SQL(
+            """
+            SELECT pid FROM {table}
+            WHERE pid = %s and source LIKE %s and last_modified_date >= %s
+            LIMIT 1
+            """
+        ).format(table=sql.Identifier(self._table_name))
+
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (pid, source, last_date_modified))
+            row = cur.fetchone()
+
+        if row:
+            return True # exists and is up to date
+        return False # either doesn't exist or is outdated
+
+    def delete_by_pid_source(self, pid: int, source: str) -> None:
+        """Delete chunks for a given pid and source"""
+        query_sql = sql.SQL(
+            """
+            DELETE FROM {table}
+            WHERE pid = %s 
+            AND source = %s
+            """
+        ).format(table=sql.Identifier(self._table_name))
+
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (pid, source))
             conn.commit()

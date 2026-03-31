@@ -69,6 +69,10 @@ class Qwen3LlamaCpp(EmbeddingBackendProvider):
 
         return embeddings
 
+    def get_batch_size(self) -> int:
+        """Return embedding batch size."""
+        return 1
+
     def chunk_text_by_tokens(self, text: str, max_tokens: int = None, overlap_tokens: int = 200) -> list[str]:
         """Split text into chunks based on token count with overlap."""
         if max_tokens is None:
