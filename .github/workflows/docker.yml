@@ -2,6 +2,9 @@ name: Docker (Build/Push)
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - "v*"
 
 env:
   IMAGE_NAME: enterprise-knowledge-hub
@@ -11,14 +14,30 @@ env:
 jobs:
   build-cpu:
     runs-on: arc-ssc-dsai
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
       - name: Extract version from pyproject.toml
         id: version
+        shell: bash
         run: |
-          VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "(.*)"/\1/')
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tag matches pyproject version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "${TAG_VERSION}" != "${{ steps.version.outputs.version }}" ]; then
+            echo "Tag version (${TAG_VERSION}) does not match pyproject.toml version (${{ steps.version.outputs.version }})."
+            exit 1
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -36,11 +55,16 @@ jobs:
           context: .
           push: true
           build-args: BASE_IMAGE=cpu
-          tags: ${{ env.REGISTRY }}/${{ github.repository }}:${{ steps.version.outputs.version }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}:${{ steps.version.outputs.version }}
+            ${{ env.REGISTRY }}/${{ github.repository }}:sha-${{ github.sha }}
 
   # Build for h100/h200 series
   build-cuda-h100-h200:
     runs-on: arc-ssc-dsai
+    permissions:
+      contents: read
+      packages: write
     env:
       CUDA_ARCH: "9.0" # h100
     steps:
@@ -48,9 +72,22 @@ jobs:
 
       - name: Extract version from pyproject.toml
         id: version
+        shell: bash
         run: |
-          VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "(.*)"/\1/')
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tag matches pyproject version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "${TAG_VERSION}" != "${{ steps.version.outputs.version }}" ]; then
+            echo "Tag version (${TAG_VERSION}) does not match pyproject.toml version (${{ steps.version.outputs.version }})."
+            exit 1
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -71,11 +108,16 @@ jobs:
             BASE_IMAGE=cuda
             CUDA_ARCH=${{ env.CUDA_ARCH }}
             JOBS_AND_THREADS=${{ env.JOBS_AND_THREADS }}
-          tags: ${{ env.REGISTRY }}/${{ github.repository }}:${{ steps.version.outputs.version }}-cuda-${{ env.CUDA_ARCH }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}:${{ steps.version.outputs.version }}-cuda-${{ env.CUDA_ARCH }}
+            ${{ env.REGISTRY }}/${{ github.repository }}:sha-${{ github.sha }}-cuda-${{ env.CUDA_ARCH }}
 
   # Build for l40 series
   build-cuda-l40:
     runs-on: arc-ssc-dsai
+    permissions:
+      contents: read
+      packages: write
     env:
       CUDA_ARCH: "8.9" #l40, etc.
     steps:
@@ -83,9 +125,22 @@ jobs:
 
       - name: Extract version from pyproject.toml
         id: version
+        shell: bash
         run: |
-          VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          set -euo pipefail
+          VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "(.*)"/\1/')
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tag matches pyproject version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "${TAG_VERSION}" != "${{ steps.version.outputs.version }}" ]; then
+            echo "Tag version (${TAG_VERSION}) does not match pyproject.toml version (${{ steps.version.outputs.version }})."
+            exit 1
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -106,4 +161,6 @@ jobs:
             BASE_IMAGE=cuda
             CUDA_ARCH=${{ env.CUDA_ARCH }}
             JOBS_AND_THREADS=${{ env.JOBS_AND_THREADS }}
-          tags: ${{ env.REGISTRY }}/${{ github.repository }}:${{ steps.version.outputs.version }}-cuda-${{ env.CUDA_ARCH }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}:${{ steps.version.outputs.version }}-cuda-${{ env.CUDA_ARCH }}
+            ${{ env.REGISTRY }}/${{ github.repository }}:sha-${{ github.sha }}-cuda-${{ env.CUDA_ARCH }}
