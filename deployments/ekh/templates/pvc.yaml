@@ -1,0 +1,21 @@
+{{- if .Values.contentStorage.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ekh.fullname" . }}-content
+  labels:
+    {{- include "ekh.labels" . | nindent 4 }}
+  {{- with .Values.contentStorage.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- toYaml .Values.contentStorage.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.contentStorage.size }}
+  {{- if .Values.contentStorage.storageClass }}
+  storageClassName: {{ .Values.contentStorage.storageClass }}
+  {{- end }}
+{{- end }}
