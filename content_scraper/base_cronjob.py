@@ -49,23 +49,21 @@ def save_latest_dump_date(dump_dates):
 def wiki_check(wiki_dump_content_url, wiki_dump_index_url, dump_key, dump_dates):
     """Checks wikidump rss feed for latest dumpdate, if different, call update function and save new date to file."""
     page = requests.get(wiki_dump_index_url, verify="/etc/ssl/certs/ca-certificates.crt")
-    print(f"timestamp: {datetime.datetime.now()}")
+    print(f"Current timestamp: {datetime.datetime.now()}")
 
     latest_dump_date = dump_dates.get(dump_key)
     if latest_dump_date:
-        print(f"Latest dump date from file: {latest_dump_date}")
+        print(f"Latest stored dump date in our records: {latest_dump_date}")
     else:
-        print("No latest dump date found in file.")
+        print("No latest dump date found in our records.")
         latest_dump_date = ""
 
     soup = BeautifulSoup(page.content, "xml")
     published_date = soup.find("pubDate")
     string_published_date = str(published_date.string)
-    print(string_published_date)
-    print(latest_dump_date)
 
     if published_date and string_published_date != latest_dump_date:
-        print(f"Published date: {string_published_date} is different from latest dump date: {latest_dump_date}")
+        print(f"Link published date from the RSS feed: {string_published_date} is different from latest recorded dump date: {latest_dump_date}")
         dump_dates[dump_key] = string_published_date
         wiki_dump_update.download_latest_dump(wiki_dump_content_url, wiki_dump_index_url)
     else:
