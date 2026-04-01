@@ -25,7 +25,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "(.*)"/\1/')
+          VERSION=$(grep -m1 '^version' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Validate tag matches pyproject version
@@ -76,7 +76,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "(.*)"/\1/')
+          VERSION=$(grep -m1 '^version' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Validate tag matches pyproject version
@@ -129,7 +129,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "(.*)"/\1/')
+          VERSION=$(grep -m1 '^version' pyproject.toml | sed -E 's/version = "(.*)"/\1/')
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Validate tag matches pyproject version
