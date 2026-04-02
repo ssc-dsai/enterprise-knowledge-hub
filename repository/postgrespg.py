@@ -19,6 +19,8 @@ from repository.model import DocumentRecord, WikipediaDbRecord
 
 load_dotenv()
 
+VECTOR_TABLE_NAME = "documents"
+RUN_HISTORY_TABLE_NAME = "run_history"
 
 class WikipediaPgRepository:
     """Lightweight repository to write Wikipedia records into Postgres/pgvector."""
@@ -26,12 +28,10 @@ class WikipediaPgRepository:
     def __init__(
         self,
         conninfo: str,
-        table_name: str = "wikipedia_pages",
         pool_size: int = 5,
         batch_size: int = 500,
     ) -> None:
         """Initialize the repository and open a connection pool."""
-        self._table_name = table_name
         self._batch_size = batch_size
         self._pool = ConnectionPool(
             conninfo,
@@ -58,12 +58,13 @@ class WikipediaPgRepository:
         dbname = os.getenv("POSTGRES_DB", "postgres")
         user = os.getenv("POSTGRES_USER", "postgres")
         password = os.getenv("POSTGRES_PASSWORD", "postgres")
-        table_name = os.getenv("WIKIPEDIA_TABLE", "documents")
         pool_size = int(os.getenv("POSTGRES_POOL_SIZE", "5"))
         batch_size = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
         conninfo = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
 
-        return cls(conninfo=conninfo, table_name=table_name, pool_size=pool_size, batch_size=batch_size)
+        return cls(conninfo=conninfo, pool_size=pool_size, batch_size=batch_size)
+    
+    # --- Embeddings Table (documents) ---- #
 
     def insert(self, row: WikipediaDbRecord) -> None:
         """Insert row"""
@@ -73,7 +74,7 @@ class WikipediaPgRepository:
             VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s,
                 %(last_modified_date)s, %(embedding)s, %(source)s)
             """
-        ).format(table=sql.Identifier(self._table_name))
+        ).format(table=sql.Identifier(VECTOR_TABLE_NAME))
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(insert_sql, (row))
             conn.commit()
@@ -88,7 +89,7 @@ class WikipediaPgRepository:
             INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
             VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s, %(last_modified_date)s, %(embedding)s, %(source)s) #pylint: disable=line-too-long
             """
-        ).format(table=sql.Identifier(self._table_name))
+        ).format(table=sql.Identifier(VECTOR_TABLE_NAME))
 
         params = [row.as_mapping() for row in rows]
         with self._pool.connection() as conn, conn.cursor() as cur:
@@ -125,7 +126,7 @@ class WikipediaPgRepository:
             ORDER BY embedding <=> %s::vector
             LIMIT %s
             """
-        ).format(table=sql.Identifier(self._table_name))
+        ).format(table=sql.Identifier(VECTOR_TABLE_NAME))
 
         with self._pool.connection() as conn:
             with conn.transaction():
@@ -144,7 +145,7 @@ class WikipediaPgRepository:
             WHERE name = %s
             AND source = %s
             """
-        ).format(table=sql.Identifier(self._table_name))
+        ).format(table=sql.Identifier(VECTOR_TABLE_NAME))
 
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(query_sql, (title, source))
@@ -163,7 +164,7 @@ class WikipediaPgRepository:
             WHERE pid = %s
             AND source = %s
             """
-        ).format(table=sql.Identifier(self._table_name))
+        ).format(table=sql.Identifier(VECTOR_TABLE_NAME))
 
         pattern=pid
 
@@ -171,37 +172,6 @@ class WikipediaPgRepository:
             cur.execute(query_sql, (pattern, source))
             rows = cur.fetchall()
         return rows
-
-    def run_history_table_rows(self):
-        """Query all rows from the run_history table for debugging/observability purposes."""
-
-        query_sql = sql.SQL(
-                """
-                SELECT * FROM run_history ORDER BY id DESC;
-                """
-            )
-
-        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(query_sql)
-            rows = cur.fetchall()
-        return rows
-
-    def insert_history_table_log(self, run_id: int, service_name: str, status: str, metadata: dict | None,
-                                 timestamp: datetime):
-        # pylint: disable=too-many-arguments
-        # pylint: disable=too-many-positional-arguments
-        """Insert a log entry into the history table"""
-
-        query_sql = sql.SQL(
-            """
-            INSERT INTO run_history (run_id, service_name, status, metadata, timestamp)
-            VALUES (%s, %s, %s, %s, %s)
-            """
-        )
-
-        with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, (run_id, service_name, status, Json(metadata), timestamp))
-            conn.commit()
 
     def record_is_up_to_date(self, pid: int, source: str, last_date_modified: datetime):
         """
@@ -219,7 +189,7 @@ class WikipediaPgRepository:
             WHERE pid = %s and source LIKE %s and last_modified_date >= %s
             LIMIT 1
             """
-        ).format(table=sql.Identifier(self._table_name))
+        ).format(table=sql.Identifier(VECTOR_TABLE_NAME))
 
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(query_sql, (pid, source, last_date_modified))
@@ -237,8 +207,41 @@ class WikipediaPgRepository:
             WHERE pid = %s 
             AND source = %s
             """
-        ).format(table=sql.Identifier(self._table_name))
+        ).format(table=sql.Identifier(VECTOR_TABLE_NAME))
 
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(query_sql, (pid, source))
+            conn.commit()
+
+    # --- Run History Table (run_history) ---- #
+
+    def run_history_table_rows(self):
+        """Query all rows from the run_history table for debugging/observability purposes."""
+
+        query_sql = sql.SQL(
+                """
+                SELECT * FROM {table} ORDER BY id DESC;
+                """
+            ).format(table=sql.Identifier(RUN_HISTORY_TABLE_NAME))
+
+        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(query_sql)
+            rows = cur.fetchall()
+        return rows
+
+    def insert_history_table_log(self, run_id: int, service_name: str, status: str, metadata: dict | None,
+                                 timestamp: datetime):
+        # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-positional-arguments
+        """Insert a log entry into the history table"""
+
+        query_sql = sql.SQL(
+            """
+            INSERT INTO {table} (run_id, service_name, status, metadata, timestamp)
+            VALUES (%s, %s, %s, %s, %s)
+            """
+        ).format(table=sql.Identifier(RUN_HISTORY_TABLE_NAME))
+
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (run_id, service_name, status, Json(metadata), timestamp))
             conn.commit()
