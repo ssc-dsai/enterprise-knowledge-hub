@@ -25,7 +25,7 @@ KNOWLEDGE_BASE = "/knowledge"
 _queue_service = QueueService(queue_provider=RabbitMQProvider(url=os.getenv("RABBITMQ_URL"),
                                                               logger=logger), logger=logger)
 _run_history_service = RunHistoryService(logger)
-_wikipedia_service = WikipediaKnowledgeService(queue_service=_queue_service, logger=logger, 
+_wikipedia_service = WikipediaKnowledgeService(queue_service=_queue_service, logger=logger,
                                                run_history_service=_run_history_service)
 _wikipedia_state = RunState()
 

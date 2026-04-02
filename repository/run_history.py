@@ -1,3 +1,4 @@
+"""Run history table repository"""
 from datetime import datetime
 from psycopg import sql
 from psycopg.types.json import Json
@@ -9,7 +10,7 @@ RUN_HISTORY_TABLE_NAME = "run_history"
 
 class RunHistoryRepository(BaseRepository):
     """Repository for run_history table."""
-        
+
     def run_history_table_rows(self) -> list[DictRow]:
         """Query all rows from the run_history table for debugging/observability purposes."""
 

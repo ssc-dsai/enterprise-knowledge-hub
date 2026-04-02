@@ -29,7 +29,7 @@ class PoolProvider:
             configure=register_vector,
         )
         cls._pool.open()
-        # TODO AR: we manually open, so we gotta manually close
+        # we manually open, so we gotta manually close
 
     @classmethod
     def get_pool(cls) -> ConnectionPool:
