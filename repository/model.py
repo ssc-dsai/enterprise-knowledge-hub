@@ -14,7 +14,7 @@ class DocumentRecord(TypedDict):
     content: str
     chunk_index: int
     similarity: float | None
-    
+
 @dataclass(slots=True)
 class WikipediaDbRecord: #pylint: disable=too-many-instance-attributes
     """Serializable record for Postgres storage."""

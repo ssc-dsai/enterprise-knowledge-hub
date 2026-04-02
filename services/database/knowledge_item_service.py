@@ -53,10 +53,22 @@ class KnowledgeItemService():
         return full_chunks
 
     def delete_by_pid_source(self, pid: int, source: str) -> None:
+        """Delete all records by PID and source"""
         self._repository.delete_by_pid_source(pid, source)
 
     def insert(self, row: WikipediaDbRecord) -> None:
+        """Insert a record"""
         self._repository.insert(row)
 
     def record_is_up_to_date(self, pid: int, source: str, last_date_modified: datetime) -> bool:
+        """
+        Queries the database for the documents with pid and checks if the date is currently
+        more recent than the one in the database
+
+        --- Query needs to return a record (it needs to exists) AND make sure current db date is
+            greater or equal to current passed date
+
+        Returns True if the record EXISTS AND is UP TO DATE, False otherwise
+
+        """
         return self._repository.record_is_up_to_date(pid, source, last_date_modified)
