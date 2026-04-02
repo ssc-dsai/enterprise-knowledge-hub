@@ -1,6 +1,6 @@
 """Data models for Wikipedia items."""
 from datetime import datetime
-from typing import Any, Dict, Optional, Union, Literal
+from typing import Any, Literal
 import base64
 from enum import StrEnum
 from pydantic import ConfigDict, field_serializer, field_validator

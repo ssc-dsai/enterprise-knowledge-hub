@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, Future
-from typing import Any, Optional
+from typing import Any
 import logging
 from random import random
 import threading

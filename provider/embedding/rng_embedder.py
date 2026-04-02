@@ -1,7 +1,6 @@
 """Fake embedding generator"""
 import os
 import hashlib
-from typing import List
 
 import numpy as np
 

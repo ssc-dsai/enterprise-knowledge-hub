@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 import time
-from typing import List
 
 import numpy as np
 from dotenv import load_dotenv

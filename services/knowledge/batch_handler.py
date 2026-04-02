@@ -1,5 +1,4 @@
 """BatchHandler to enable the ability to handle multiple items at once vs processing one item at a time"""
-from typing import List, Tuple
 from collections.abc import Callable
 from logging import Logger
 
