@@ -1,23 +1,18 @@
 """Postgres/pgvector helper utilities."""
 from __future__ import annotations
 
-import os
 from datetime import datetime
 from typing import Sequence
 
 
-from dotenv import load_dotenv
 import numpy as np
-from pgvector.psycopg import register_vector
 from psycopg.rows import dict_row
 from psycopg import sql
 from psycopg.types.json import Json
-from psycopg_pool import ConnectionPool
 
+from repository.connection_pool import ConnectionPoolPG
 from repository.model import DocumentRecord, WikipediaDbRecord
 
-
-load_dotenv()
 
 VECTOR_TABLE_NAME = "documents"
 RUN_HISTORY_TABLE_NAME = "run_history"
@@ -25,45 +20,14 @@ RUN_HISTORY_TABLE_NAME = "run_history"
 class WikipediaPgRepository:
     """Lightweight repository to write Wikipedia records into Postgres/pgvector."""
 
+    _pool: ConnectionPoolPG
+    
     def __init__(
         self,
-        conninfo: str,
-        pool_size: int = 5,
-        batch_size: int = 500,
+        pool: ConnectionPoolPG
     ) -> None:
-        """Initialize the repository and open a connection pool."""
-        self._batch_size = batch_size
-        self._pool = ConnectionPool(
-            conninfo,
-            min_size=1,
-            max_size=pool_size,
-            open=False,
-            configure=register_vector,
-        )
-        self._pool.open()
-
-    @classmethod
-    def from_env(cls) -> "WikipediaPgRepository":
-        """
-        Docstring for from_env
-
-
-        :param cls: Description
-        :return: Description
-        :rtype: WikipediaPgRepository
-        """
-
-        host = os.getenv("POSTGRES_HOST", "localhost")
-        port = int(os.getenv("POSTGRES_PORT", "5432"))
-        dbname = os.getenv("POSTGRES_DB", "postgres")
-        user = os.getenv("POSTGRES_USER", "postgres")
-        password = os.getenv("POSTGRES_PASSWORD", "postgres")
-        pool_size = int(os.getenv("POSTGRES_POOL_SIZE", "5"))
-        batch_size = int(os.getenv("POSTGRES_BATCH_SIZE", "500"))
-        conninfo = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
-
-        return cls(conninfo=conninfo, pool_size=pool_size, batch_size=batch_size)
-    
+        self._pool = pool
+ 
     # --- Embeddings Table (documents) ---- #
 
     def insert(self, row: WikipediaDbRecord) -> None:
