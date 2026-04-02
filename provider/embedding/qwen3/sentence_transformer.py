@@ -85,7 +85,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
 
     def embed(
         self,
-        text: List[str],
+        text: list[str],
         is_query: bool = False,
         dim: int = int(os.getenv("WIKIPEDIA_EMBEDDING_MAX_DIMENSION", "512")),
     ) -> np.ndarray:
@@ -159,7 +159,7 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
 
         return chunks
 
-    def encode_rng(self, text:List[str]) -> np.ndarray:
+    def encode_rng(self, text:list[str]) -> np.ndarray:
         """
         Return dummy RNG vectors instead of using GPU processing.
         Not real vectors.

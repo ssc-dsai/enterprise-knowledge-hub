@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 from dotenv import load_dotenv
@@ -33,7 +33,7 @@ class WikipediaDbRecord: #pylint: disable=too-many-instance-attributes
     source: str | None = None
 
     @classmethod
-    def from_item(cls, item: WikipediaItemProcessed) -> "WikipediaDbRecord":
+    def from_item(cls, item: WikipediaItemProcessed) -> WikipediaDbRecord:
         """Build a record from a domain object, coercing embeddings to floats."""
         embedding = cls._to_floats(item.embeddings)
         return cls(
@@ -96,7 +96,7 @@ class WikipediaPgRepository:
         self._pool.open()
 
     @classmethod
-    def from_env(cls) -> "WikipediaPgRepository":
+    def from_env(cls) -> WikipediaPgRepository:
         """
         Docstring for from_env
 

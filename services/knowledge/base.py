@@ -24,7 +24,7 @@ class KnowledgeService(ABC):
     queue_service: QueueService
     logger: logging.Logger
     service_name: str
-    _repository: Optional[WikipediaPgRepository] = None  # assigned in subclass init after super() call
+    _repository: WikipediaPgRepository | None = None  # assigned in subclass init after super() call
     _run_id = None  # Assigned at runtime for tracking in logs and stats
     _ingest_done: threading.Event = field(default_factory=threading.Event, init=False)
     _process_done: threading.Event = field(default_factory=threading.Event, init=False)

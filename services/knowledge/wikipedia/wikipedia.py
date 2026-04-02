@@ -78,13 +78,13 @@ class WikipediaKnowledgeService(KnowledgeService):
     def get_batch_size(self):
         return self._batch_size
 
-    def process_item(self, knowledge_item: List[KnowledgeItem]) -> list[WikipediaItemProcessed]:
+    def process_item(self, knowledge_item: list[KnowledgeItem]) -> list[WikipediaItemProcessed]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
             start_time = time.perf_counter()
             gpu_batch_size = self.embedder.get_batch_size()
 
-            batch: List[str] = []
+            batch: list[str] = []
             for item in knowledge_item:
                 batch.append(item['content'])
 
