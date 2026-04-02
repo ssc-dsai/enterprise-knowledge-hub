@@ -8,7 +8,8 @@ load_dotenv()
 class PoolProvider:
     _pool: ConnectionPool | None = None
 
-    def initialize(self):
+    @classmethod
+    def initialize(cls):
         """Init connection pool"""
         pool_size = int(os.getenv("POSTGRES_POOL_SIZE", "5"))
         host = os.getenv("POSTGRES_HOST", "localhost")
@@ -18,14 +19,14 @@ class PoolProvider:
         password = os.getenv("POSTGRES_PASSWORD", "postgres")
         conninfo = f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
         
-        self._pool = ConnectionPool(
+        cls._pool = ConnectionPool(
             conninfo,
             min_size=1,
             max_size=pool_size,
             open=False,
             configure=register_vector,
         )
-        self._pool.open()  #TODO AR: we manually open, so we gotta manually close?
+        cls._pool.open()  #TODO AR: we manually open, so we gotta manually close?
 
     @classmethod
     def get_pool(cls) -> ConnectionPool:
