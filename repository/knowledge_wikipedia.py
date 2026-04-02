@@ -8,23 +8,14 @@ import numpy as np
 from psycopg.rows import dict_row
 from psycopg import sql
 
-from repository.connection_pool import ConnectionPoolPG
+from repository.base import BaseRepository
 from repository.model import DocumentRecord, WikipediaDbRecord
 
 
 VECTOR_TABLE_NAME = "documents"
 
-class KnowledgeWikipedia:
-    """Repository to write Wikipedia records into Postgres/pgvector."""
-
-    _pool: ConnectionPoolPG
-    
-    def __init__(
-        self,
-        pool: ConnectionPoolPG
-    ) -> None:
-        self._pool = pool
-
+class KnowledgeWikipedia(BaseRepository):
+    """Repository to write Wikipedia records"""
 
     def insert(self, row: WikipediaDbRecord) -> None:
         """Insert row"""

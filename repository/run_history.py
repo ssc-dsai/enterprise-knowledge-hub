@@ -3,21 +3,12 @@ from psycopg import sql
 from psycopg.types.json import Json
 from psycopg.rows import dict_row
 
-from repository.connection_pool import ConnectionPoolPG
-
+from repository.base import BaseRepository
 
 RUN_HISTORY_TABLE_NAME = "run_history"
 
-class RunHistory:
+class RunHistory(BaseRepository):
     """Repository for run_history table."""
-
-    _pool: ConnectionPoolPG
-    
-    def __init__(
-        self,
-        pool: ConnectionPoolPG
-    ) -> None:
-        self._pool = pool
         
     def run_history_table_rows(self):
         """Query all rows from the run_history table for debugging/observability purposes."""
