@@ -28,6 +28,11 @@ PROGRESS_SUFFIX: str = ".progress"
 INDEX_FILENAME = re.compile(r"(?P<prefix>.+)-index(?P<chunk>\d*)\.txt\.bz2")
 QUEUE_BATCH_NAME = "wikipedia_embeddings_sink"
 
+# Regex to detect internal wikilinks.
+# Per https://www.mediawiki.org/wiki/Manual:Article_count a page is an "article" only if it
+# contains at least one internal wikilink (https://www.mediawiki.org/wiki/Help:Links#Internal_links).
+_ARTICLE_WIKILINK_RE = re.compile(r'\[\[[^\]]+\]\]')
+
 @dataclass
 class WikipediaKnowledgeService(KnowledgeService):
     """Knowledge service for Wikipedia ingestion."""
@@ -334,6 +339,9 @@ class WikipediaKnowledgeService(KnowledgeService):
         if page.is_redirect:
             return True
 
+        if not page.has_wikilinks:
+            return True
+
         title = page.title
         if title:
             for prefix in self._ignored_title_prefixes:
@@ -359,6 +367,13 @@ class WikipediaKnowledgeService(KnowledgeService):
         # Extract content (wiki markup text)
         text_match = re.search(r"<text[^>]*>([^<]*(?:<(?!/text>)[^<]*)*)</text>", xml_page, re.DOTALL)
         content = text_match.group(1) if text_match else ""
+
+        # Detect internal wikilinks BEFORE stripping markup (Wikipedia requires >=1 to count as "article")
+        # Excludes Category/File/Image links which don't count toward the pagelinks table
+        has_wikilinks = bool(_ARTICLE_WIKILINK_RE.search(content))
+
+        # Detect content-based redirects (#REDIRECT in wikitext) before markup removal destroys the marker
+        is_content_redirect = content.lstrip().upper().startswith("#REDIRECT")
 
         # REMOVE WIKI MARKUP (note: one of those 2 methods might be faster than the other?? they yield the same results)
         content = remove_markup(content)
@@ -389,5 +404,7 @@ class WikipediaKnowledgeService(KnowledgeService):
             last_modified_date=last_modified_date,
             pid=pid,
             is_namespace_0=bool(re.search(r"<ns>0</ns>", xml_page)),
-            is_redirect=bool(re.search(r"<redirect\s", xml_page)),
+            is_redirect=(bool(re.search(r"<redirect\s", xml_page)) or is_content_redirect),
+            has_wikilinks=has_wikilinks,
         )
+
