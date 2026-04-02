@@ -13,7 +13,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory="router/frontend/templates")
-run_history_service = RunHistoryService()
+run_history_service = RunHistoryService(logger)
 
 @router.get("/")
 def dev_frontend():

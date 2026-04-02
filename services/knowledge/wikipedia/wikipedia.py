@@ -63,7 +63,7 @@ class WikipediaKnowledgeService(KnowledgeService):
 
     def __init__(self, queue_service, logger, run_history_service):
         super().__init__(queue_service=queue_service, logger=logger, run_history_service=run_history_service, service_name="wikipedia")
-        self._knowledge_wikipedia_service = KnowledgeItemService()
+        self._knowledge_wikipedia_service = KnowledgeItemService(logger)
         self._pending: list[WikipediaDbRecord] = []
 
     @property
