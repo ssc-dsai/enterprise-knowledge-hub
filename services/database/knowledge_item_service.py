@@ -4,17 +4,20 @@ from dataclasses import dataclass
 
 from provider.embedding.qwen3.embedder_factory import get_embedder
 from repository.model import DocumentRecord
-from repository.postgrespg import WikipediaPgRepository
+from repository.knowledge_wikipedia import KnowledgeWikipediaRepository
+from repository.pool_provider import PoolProvider
 
 
 @dataclass
-class QueryService():
+class KnowledgeItemService():
     """Service to query wiki embeddings"""
 
     logger: logging.Logger
+    _repository: KnowledgeWikipediaRepository
 
-    def __init__(self, repository: WikipediaPgRepository | None = None):
-        self._repository = repository or WikipediaPgRepository.from_env()
+    def __init__(self):
+        pool = PoolProvider.get_pool()
+        self._repository = KnowledgeWikipediaRepository(pool)
 
     @property
     def embedder(self):
