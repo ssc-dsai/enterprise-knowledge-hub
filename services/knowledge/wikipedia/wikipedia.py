@@ -6,7 +6,7 @@ import bz2
 import os
 import re
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 import time
@@ -26,7 +26,8 @@ load_dotenv()
 
 PROGRESS_SUFFIX: str = ".progress"
 INDEX_FILENAME = re.compile(r"(?P<prefix>.+)-index(?P<chunk>\d*)\.txt\.bz2")
-QUEUE_BATCH_NAME = "wikipedia_embeddings_sink"
+PROCESS_TIME_BATCH_THRESHOLD = 100
+
 
 @dataclass
 class WikipediaKnowledgeService(KnowledgeService):
@@ -59,6 +60,7 @@ class WikipediaKnowledgeService(KnowledgeService):
     _progress_flush_interval: int = 1000 # for the .progress file we track the line number we stopped at
     _batch_size: int = int(os.getenv("WIKIPEDIA_PROCESS_BATCH_SIZE", "256"))
     _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
+    _batch_average_counter: list[float] = field(default_factory=list)
 
     def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None):
         super().__init__(queue_service=queue_service, logger=logger, service_name="wikipedia")
@@ -116,6 +118,16 @@ class WikipediaKnowledgeService(KnowledgeService):
             self.logger.error("Error processing embedding for Wikipedia item: %s", e)
             # logger debug for what item?
             raise e
+        
+    def store_batch_process_time(self, time: float) -> None:
+        self._batch_average_counter.append(time)
+        
+        if len(self._batch_average_counter) > PROCESS_TIME_BATCH_THRESHOLD:
+            self._repository.insert_history_table_log()
+            self._batch_average_counter = []
+        
+        # add batch time to _batch_average_counter
+        # once it hits list size, send to history table and flush.  include run_id
 
     def fetch_from_source(self) -> Iterator[WikipediaItemRaw]:
         """Read data from Wikipedia index.txt.bz2 source.
