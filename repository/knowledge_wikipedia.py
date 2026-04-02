@@ -14,7 +14,7 @@ from repository.model import DocumentRecord, WikipediaDbRecord
 
 VECTOR_TABLE_NAME = "documents"
 
-class KnowledgeWikipedia(BaseRepository):
+class KnowledgeWikipediaRepository(BaseRepository):
     """Repository to write Wikipedia records"""
 
     def insert(self, row: WikipediaDbRecord) -> None:

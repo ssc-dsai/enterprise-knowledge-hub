@@ -1,16 +1,16 @@
 from datetime import datetime
 from psycopg import sql
 from psycopg.types.json import Json
-from psycopg.rows import dict_row
+from psycopg.rows import DictRow, dict_row
 
 from repository.base import BaseRepository
 
 RUN_HISTORY_TABLE_NAME = "run_history"
 
-class RunHistory(BaseRepository):
+class RunHistoryRepository(BaseRepository):
     """Repository for run_history table."""
         
-    def run_history_table_rows(self):
+    def run_history_table_rows(self) -> list[DictRow]:
         """Query all rows from the run_history table for debugging/observability purposes."""
 
         query_sql = sql.SQL(
