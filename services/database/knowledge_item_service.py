@@ -1,9 +1,10 @@
 """Service layer to query embedding in persistance layer"""
+from datetime import datetime
 import logging
 from dataclasses import dataclass
 
 from provider.embedding.qwen3.embedder_factory import get_embedder
-from repository.model import DocumentRecord
+from repository.model import DocumentRecord, WikipediaDbRecord
 from repository.knowledge_wikipedia import KnowledgeWikipediaRepository
 from repository.pool_provider import PoolProvider
 
@@ -15,7 +16,8 @@ class KnowledgeItemService():
     logger: logging.Logger
     _repository: KnowledgeWikipediaRepository
 
-    def __init__(self):
+    def __init__(self, logger):
+        self._logger = logger
         pool = PoolProvider.get_pool()
         self._repository = KnowledgeWikipediaRepository(pool)
 
@@ -49,3 +51,12 @@ class KnowledgeItemService():
         article_pid = self._repository.get_pid_by_title(title, source)
         full_chunks = self._repository.get_record_full_chunks_content(article_pid, source)
         return full_chunks
+
+    def delete_by_pid_source(self, pid: int, source: str) -> None:
+        self._repository.delete_by_pid_source(pid, source)
+
+    def insert(self, row: WikipediaDbRecord) -> None:
+        self._repository.insert(row)
+
+    def record_is_up_to_date(self, pid: int, source: str, last_date_modified: datetime) -> bool:
+        return self._repository.record_is_up_to_date(pid, source, last_date_modified)

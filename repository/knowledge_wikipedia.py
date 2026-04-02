@@ -124,12 +124,12 @@ class KnowledgeWikipediaRepository(BaseRepository):
             rows = cur.fetchall()
         return rows
 
-    def record_is_up_to_date(self, pid: int, source: str, last_date_modified: datetime):
+    def record_is_up_to_date(self, pid: int, source: str, last_date_modified: datetime) -> bool:
         """
         Queries the database for the documents with pid and checks if the date is currently
         more recent than the one in the database
 
-        --- Query needs to return a record (it needs to exists) AND make sure current db date is 
+        --- Query needs to return a record (it needs to exists) AND make sure current db date is
             greater or equal to current passed date
 
         Returns True if the record EXISTS AND is UP TO DATE, False otherwise
@@ -155,7 +155,7 @@ class KnowledgeWikipediaRepository(BaseRepository):
         query_sql = sql.SQL(
             """
             DELETE FROM {table}
-            WHERE pid = %s 
+            WHERE pid = %s
             AND source = %s
             """
         ).format(table=sql.Identifier(VECTOR_TABLE_NAME))

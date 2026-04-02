@@ -15,13 +15,14 @@ class RunHistoryService():
     logger: logging.Logger
     _repository: RunHistoryRepository
 
-    def __init__(self):
+    def __init__(self, logger):
+        self._logger = logger
         pool = PoolProvider.get_pool()
         self._repository = RunHistoryRepository(pool)
-        
+
     def insert_history_table_log(self, run_id: int, service_name: str, status: str, metadata: dict | None,
                                  timestamp: datetime) -> None:
         self._repository.insert_history_table_log(run_id, service_name, status, metadata, timestamp)
-        
+
     def run_history_table_rows(self) -> list[DictRow]:
         return self._repository.run_history_table_rows()
