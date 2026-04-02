@@ -17,7 +17,8 @@ from dotenv import load_dotenv
 from wikitextparser import remove_markup
 
 from provider.embedding.qwen3.embedder_factory import get_embedder
-from repository.postgrespg import WikipediaDbRecord, WikipediaPgRepository
+from repository.model import WikipediaDbRecord
+from repository.postgrespg import WikipediaPgRepository
 from services.knowledge.base import KnowledgeService
 from services.knowledge.models import KnowledgeItem
 from services.knowledge.wikipedia.models import WikipediaItemProcessed, Source, WikipediaItemRaw
