@@ -407,4 +407,3 @@ class WikipediaKnowledgeService(KnowledgeService):
             is_redirect=(bool(re.search(r"<redirect\s", xml_page)) or is_content_redirect),
             has_wikilinks=has_wikilinks,
         )
-
