@@ -283,18 +283,18 @@ class WikipediaPgRepository:
         return False # either doesn't exist or is outdated
 
     def delete_by_pid_source(self, pid: int, source: str) -> None:
-            """Delete chunks for a given pid and source"""
-            query_sql = sql.SQL(
-                """
-                DELETE FROM {table}
-                WHERE pid = %s
-                AND source = %s
-                """
-            ).format(table=sql.Identifier(self._table_name))
+        """Delete chunks for a given pid and source"""
+        query_sql = sql.SQL(
+            """
+            DELETE FROM {table}
+            WHERE pid = %s
+            AND source = %s
+            """
+        ).format(table=sql.Identifier(self._table_name))
 
-            with self._pool.connection() as conn, conn.cursor() as cur:
-                cur.execute(query_sql, (pid, source))
-                conn.commit()
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (pid, source))
+            conn.commit()
 
     def cronjob_insert_new_log(self, service_name: str, status: str,
                                metadata: dict | None, timestamp: datetime) -> datetime | None:
