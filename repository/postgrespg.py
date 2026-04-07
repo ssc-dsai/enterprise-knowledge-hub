@@ -261,7 +261,7 @@ class WikipediaPgRepository:
         Queries the database for the documents with pid and checks if the date is currently
         more recent than the one in the database
 
-        --- Query needs to return a record (it needs to exists) AND make sure current db date is 
+        --- Query needs to return a record (it needs to exists) AND make sure current db date is
             greater or equal to current passed date
 
         Returns True if the record EXISTS AND is UP TO DATE, False otherwise
@@ -283,15 +283,55 @@ class WikipediaPgRepository:
         return False # either doesn't exist or is outdated
 
     def delete_by_pid_source(self, pid: int, source: str) -> None:
-        """Delete chunks for a given pid and source"""
+            """Delete chunks for a given pid and source"""
+            query_sql = sql.SQL(
+                """
+                DELETE FROM {table}
+                WHERE pid = %s
+                AND source = %s
+                """
+            ).format(table=sql.Identifier(self._table_name))
+
+            with self._pool.connection() as conn, conn.cursor() as cur:
+                cur.execute(query_sql, (pid, source))
+                conn.commit()
+
+    def cronjob_insert_new_log(self, service_name: str, status: str,
+                               metadata: dict | None, timestamp: datetime) -> datetime | None:
+        """
+        Queries the database for the most recent last_modified_date for a given source (e.g. wikipedia dump)
+
+        Returns the most recent last_modified_date for the given source, or None if no records are found
+        """
         query_sql = sql.SQL(
             """
-            DELETE FROM {table}
-            WHERE pid = %s 
-            AND source = %s
+            INSERT INTO run_history (service_name, status, metadata, timestamp)
+            VALUES (%s, %s, %s, %s)
             """
         ).format(table=sql.Identifier(self._table_name))
 
         with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, (pid, source))
-            conn.commit()
+            cur.execute(query_sql, (service_name, status, Json(metadata), timestamp))
+
+    def cronjob_get_most_recent_dump_date(self, source: str) -> str | None:
+        """
+        Queries the database for the most recent last_modified_date for a given source (e.g. wikipedia dump)
+
+        Returns the most recent last_modified_date for the given source, or None if no records are found
+        """
+        query_sql = sql.SQL(
+            """
+            SELECT metadata->>'dump_date' AS dump_date FROM run_history
+            WHERE service_name = %s AND status = %s
+            ORDER BY timestamp DESC
+            LIMIT 1
+            """
+        ).format(table=sql.Identifier(self._table_name))
+
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (source, "New Dump Link Detected and Downloaded"))
+            row = cur.fetchone()
+
+        if row and row[0]:
+            return row[0]
+        return None
