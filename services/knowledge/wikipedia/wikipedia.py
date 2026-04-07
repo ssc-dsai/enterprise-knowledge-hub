@@ -188,8 +188,6 @@ class WikipediaKnowledgeService(KnowledgeService):
 
     def store_item(self, item: WikipediaItemProcessed) -> None:
         record_to_insert = WikipediaDbRecord.from_item(item)
-        if record_to_insert.chunk_index == 1:
-            self._repository.delete_by_pid_source(record_to_insert.pid, record_to_insert.source)
         self._repository.insert(record_to_insert.as_mapping())
 
     def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItemRaw]: #pylint: disable=too-many-locals,too-many-branches,too-many-statements
@@ -297,6 +295,9 @@ class WikipediaKnowledgeService(KnowledgeService):
             if item:
                 item.source = source
                 if not self._should_ignore_page(item):
+                    # if item is to be processed, we need to ensure we delete
+                    # any existing record of "older" version of this article
+                    self._repository.delete_by_pid_source(item.pid, item.source)
                     yield item
 
     def _save_progress(self, index_path: Path, line_number: int) -> None:
