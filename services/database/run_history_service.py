@@ -12,7 +12,6 @@ from repository.run_history import RunHistoryRepository
 @dataclass
 class RunHistoryService():
     """Run history service class for run_history table"""
-    """Service to query wiki embeddings"""
 
     logger: logging.Logger
     _repository: RunHistoryRepository
