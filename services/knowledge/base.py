@@ -178,6 +178,10 @@ class KnowledgeService(ABC):
                 should_exit=should_exit
             )
 
+            # flushes last batch that hangs in memory, due to not reaching batch size.
+            if handler.item_list:
+                handler.flush()
+
             count = worker.message_count
         except Exception:
             self.logger.exception("Error during processing for queue: %s. (%s)",
@@ -225,7 +229,7 @@ class KnowledgeService(ABC):
 
             def should_exit(drained_any: bool) -> bool:
                 # process is done, AND check processed queue was empty this iteration
-                return self._process_done.is_set() and not drained_any
+                return self._ingest_done.is_set() and self._process_done.is_set() and not drained_any
 
             worker.run(
                 queue_name=self._processed_queue_name(),
