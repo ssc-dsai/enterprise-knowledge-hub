@@ -12,7 +12,7 @@ from repository.base import BaseRepository
 from repository.model import DocumentRecord, WikipediaDbRecord
 
 
-VECTOR_TABLE_NAME = "documents"
+VECTOR_TABLE_NAME = "kb_wikipedia"
 
 class KnowledgeWikipediaRepository(BaseRepository):
     """Repository to write Wikipedia records"""
