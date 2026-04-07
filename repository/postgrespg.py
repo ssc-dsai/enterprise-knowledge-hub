@@ -282,7 +282,6 @@ class WikipediaPgRepository:
             return True # exists and is up to date
         return False # either doesn't exist or is outdated
 
-<<<<<<< HEAD
     def delete_by_pid_source(self, pid: int, source: str) -> None:
             """Delete chunks for a given pid and source"""
             query_sql = sql.SQL(
@@ -297,8 +296,6 @@ class WikipediaPgRepository:
                 cur.execute(query_sql, (pid, source))
                 conn.commit()
 
-=======
->>>>>>> 7c2d4fa (Lint fix!)
     def cronjob_insert_new_log(self, service_name: str, status: str,
                                metadata: dict | None, timestamp: datetime) -> datetime | None:
         """
@@ -320,7 +317,7 @@ class WikipediaPgRepository:
         """
         Queries the database for the most recent last_modified_date for a given source (e.g. wikipedia dump)
 
-        Returns the most recent last_modified_date for the given source, or None if no records are found
+        Returns the most recent last_modified_date for the given source, or none if no records are found
         """
         query_sql = sql.SQL(
             """
