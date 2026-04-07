@@ -295,7 +295,7 @@ class WikipediaKnowledgeService(KnowledgeService):
             if item:
                 item.source = source
                 if not self._should_ignore_page(item):
-                    # if item is to be processed, we need to ensure we delete 
+                    # if item is to be processed, we need to ensure we delete
                     # any existing record of "older" version of this article
                     self._repository.delete_by_pid_source(item.pid, item.source)
                     yield item
