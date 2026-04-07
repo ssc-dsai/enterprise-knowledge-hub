@@ -4,11 +4,11 @@ through downloading both index and content files, which will be stored in the co
 """
 
 import os
-
-import requests
-from bs4 import BeautifulSoup
 import hashlib
 import logging
+import requests
+from bs4 import BeautifulSoup
+
 
 DOWNLOAD_DIRECTORY = "content/content_storage"
 
@@ -19,37 +19,39 @@ def download_latest_dump(wiki_dump_content_url, wiki_dump_index_url):
 
     logger.info("============Downloading latest dump...============")
 
-    list = list_maker(wiki_dump_content_url, wiki_dump_index_url)
-    logger.info(f"List of download links retrieved: {list}")
+    list_of_links = list_maker(wiki_dump_content_url, wiki_dump_index_url)
+    logger.info("List of download links retrieved: %s", list_of_links)
 
-    for url in list:
-        logger.info(f"Processing URL: {url}")
+    for url in list_of_links:
+        logger.info("Processing URL: %s", url)
 
         # Since the URLs in the RSS feed may start with http, we need to replace it with https and also change the
-        # domain from download.wikimedia.org to dumps.wikimedia.org to successfully download the files (to fix redirect issue)
+        # domain from download.wikimedia.org to dumps.wikimedia.org to successfully download the files
+        # (to fix redirect issue)
         final_url = url.replace("http://download.wikimedia.org", "https://dumps.wikimedia.org")
 
         filename = final_url.split("/")[-1]
-        logger.info(f"Extracted filename: {filename}")
+        logger.info("Extracted filename: %s", filename)
 
-        response = requests.get(final_url, stream = True, verify="/etc/ssl/certs/ca-certificates.crt")
+        response = requests.get(final_url, stream = True, verify="/etc/ssl/certs/ca-certificates.crt", timeout=30)
         if response.status_code == 200:
             with open(f"{DOWNLOAD_DIRECTORY}/{filename}", "wb") as f:
-                logger.info(f"Saving to {DOWNLOAD_DIRECTORY}/{filename}...")
+                logger.info("Saving to %s/%s...", DOWNLOAD_DIRECTORY, filename)
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
-            logger.info(f"Successfully downloaded {filename} to {DOWNLOAD_DIRECTORY}, launching checksum verification...")
+            logger.info("Successfully downloaded %s to %s, launching checksum verification...",
+                        filename, DOWNLOAD_DIRECTORY)
             checksum_verification(filename)
         else:
-            logger.error(f"Failed to download {filename}. HTTP status code: {response.status_code}")
+            logger.error("Failed to download %s. HTTP status code: %s", filename, response.status_code)
 
 def list_maker(wiki_dump_content_url, wiki_dump_index_url):
     """Helper function to extract download links from the content and index RSS feeds."""
 
     link_list = []
 
-    content_file = requests.get(wiki_dump_content_url, verify = "/etc/ssl/certs/ca-certificates.crt")
-    index_file = requests.get(wiki_dump_index_url, verify = "/etc/ssl/certs/ca-certificates.crt")
+    content_file = requests.get(wiki_dump_content_url, verify = "/etc/ssl/certs/ca-certificates.crt", timeout=30)
+    index_file = requests.get(wiki_dump_index_url, verify = "/etc/ssl/certs/ca-certificates.crt", timeout=30)
 
     content_soup = BeautifulSoup(content_file.content, "xml")
     index_soup = BeautifulSoup(index_file.content, "xml")
@@ -70,13 +72,13 @@ def list_maker(wiki_dump_content_url, wiki_dump_index_url):
 
 def checksum_verification(filename):
     """Placeholder function for checksum verification of downloaded files."""
-    dump_Date = filename.split("-")[1]
+    dump_date = filename.split("-")[1]
     dump_lang = filename.split("-")[0]
 
-    md5_url = f"https://dumps.wikimedia.org/{dump_lang}/{dump_Date}/{dump_lang}-{dump_Date}-md5sums.txt"
-    logger.info(f"Constructed MD5 URL: {md5_url}")
+    md5_url = f"https://dumps.wikimedia.org/{dump_lang}/{dump_date}/{dump_lang}-{dump_date}-md5sums.txt"
+    logger.info("Constructed MD5 URL: %s", md5_url)
 
-    page = requests.get(md5_url, verify="/etc/ssl/certs/ca-certificates.crt")
+    page = requests.get(md5_url, verify="/etc/ssl/certs/ca-certificates.crt", timeout=30)
     if page.status_code == 200:
         soup = BeautifulSoup(page.content, "html.parser")
         md5_text = soup.get_text()
@@ -85,8 +87,8 @@ def checksum_verification(filename):
         find_filename = md5_text.find(filename)
 
         if find_filename == -1:
-            logger.error(f"Filename {filename} not found in MD5 checksums, check to ensure it exists/ensure that dump was not",
-                  "aborted (https://dumps.wikimedia.org/backup-index.html). Deleting file...")
+            logger.error("Filename %s not found in MD5 checksums, check to ensure it exists/ensure that",
+                         filename)
             os.remove(f"{DOWNLOAD_DIRECTORY}/{filename}")
             return
 
@@ -108,7 +110,8 @@ def hashing_verification_md5(filename, good_hash):
     calculated_hash = hash_md5.hexdigest()
 
     if calculated_hash == good_hash:
-        logger.info(f"MD5 hash verification successful for {filename}.")
+        logger.info("MD5 hash verification successful for %s.", filename)
     else:
-        logger.error(f"MD5 hash verification failed for {filename}. Expected: {good_hash}, Got: {calculated_hash}, deleting file...")
+        logger.error("MD5 hash verification failed for %s. Expected: %s, Got: %s, deleting file...",
+                     filename, good_hash, calculated_hash)
         os.remove(f"{DOWNLOAD_DIRECTORY}/{filename}")
