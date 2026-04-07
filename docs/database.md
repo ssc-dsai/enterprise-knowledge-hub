@@ -16,7 +16,7 @@ CREATE TABLE kb_wikipedia (
    source TEXT,
    last_modified_date DATE,
    embedding VECTOR(512),
-   CONSTRAINT kb_wikipedia_pid_chunk_index_key UNIQUE (pid, source, chunk_index)
+   CONSTRAINT kb_wikipedia_pid_source_chunk_index_key UNIQUE (pid, source, chunk_index)
 );
 
 CREATE TABLE run_history (
@@ -66,6 +66,19 @@ First run mistakes! Here are the fixes.
 ALTER TABLE kb_wikipedia DROP COLUMN IF EXISTS source;
 ALTER TABLE kb_wikipedia ADD COLUMN source TEXT DEFAULT 'enwiki';
 DELETE FROM kb_wikipedia WHERE title LIKE 'Template:%';
+```
+
+### Adding source to unique constraint
+
+When ingesting both English and French Wikipedia dumps, `pid` values can collide across sources.
+The unique constraint must include `source` to allow the same `pid + chunk_index` pair from different sources.
+
+```sql
+-- Drop the old constraint
+ALTER TABLE kb_wikipedia DROP CONSTRAINT IF EXISTS kb_wikipedia_pid_chunk_index_key;
+
+-- Add the new constraint with source
+ALTER TABLE kb_wikipedia ADD CONSTRAINT documents_pid_source_chunk_index_key UNIQUE (pid, source, chunk_index);
 ```
 
 ## Gathering info
