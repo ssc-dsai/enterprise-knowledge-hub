@@ -10,6 +10,22 @@ To start the docker container: `docker compose up -d`
 
 * Wikipedia; ensure you `mkdir wikipedia` within the `./content/` folder and drop your files there.
 
+### Cronjob Setup (Knowledge base links and sources update)
+IMPORTANT: For knowledge base scraping cronjob to run, you require a `mkdir content_Storage` within the `./content`
+folder
+
+To open crontab:
+`crontab -e`
+
+Cronjob logs are recorded to /tmp directory on the system and run from the root of the project:
+`1 * * * * cd PATH_TO_EKH_REPO && .venv/bin/python3 base_cronjob.py > /tmp/base_cronjob.log 2>&1`
+
+For example:
+`1 * * * * cd /mnt/c/Users/ImranM/Documents/rag-service2/enterprise-knowledge-hub && .venv/bin/python3 base_cronjob.py > /tmp/base_cronjob.log 2>&1`
+
+Which can be viewed with:
+`cat /tmp/base_cronjob.log`
+
 ### Database Setup
 
 ```bash

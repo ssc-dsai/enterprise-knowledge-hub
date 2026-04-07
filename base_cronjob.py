@@ -2,13 +2,12 @@
 Master script for Knowledge Hub content scraper cronjob.
 
 wiki_check() checks the RSS feed of the wiki dumps for both content and index files, and if a new dump is detected,
-calls the download_latest_dump() function from wiki_dump_update.py to download the latest dump.
+calls the download_latest_dump() function from content_scraper/scripts/wiki_dump_update.py to download the latest dump.
 
 As such, future knowledge base update functions can be created here, and the actual individual download/management
 functions can be created in separate files in the scripts directory, which can be called here when needed.
 
-The latest dump dates are stored in a latest_dump_date.json file, which is loaded at the start of the script and
-updated if a new dump is detected.
+The latest dump dates are stored in the run history table
 
 TO TEST USING PSQL, we insert logs with a different dump_date in the metadata field, and check if the cronjob detects
 the new dump and updates the log accordingly:
@@ -65,7 +64,6 @@ def wiki_check(wiki_dump_content_url, wiki_dump_index_url, dump_key):
     logging.info("Current timestamp: %s", datetime.datetime.now())
 
     latest_dump_date = run_history_repository.cronjob_get_most_recent_dump_date("cronjob-" + dump_key)
-    logging.info("Latest dump date from DB: %s", latest_dump_date)
 
     if latest_dump_date:
         logging.info("Latest stored dump date in our records: %s", latest_dump_date)
