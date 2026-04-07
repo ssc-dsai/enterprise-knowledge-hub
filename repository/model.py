@@ -8,7 +8,7 @@ import numpy as np
 from services.knowledge.wikipedia.models import WikipediaItemProcessed
 
 class DocumentRecord(TypedDict):
-    """Model for records in documents table"""
+    """Model for records in kb_wikipedia table"""
     name: str
     title: str
     content: str
