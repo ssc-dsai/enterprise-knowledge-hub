@@ -77,6 +77,7 @@ class WikipediaItemRaw(KnowledgeItem):
     # fields for processing article initially (seeing if we ignore it or not, etc)
     is_namespace_0: bool = True # we only process articles in ns 0
     is_redirect: bool = False
+    has_wikilinks: bool = True  # Wikipedia only counts ns-0 pages with >=1 internal wikilink as "articles"
 
 class WikipediaItemProcessed(WikipediaItemRaw):
     """Knowledge item representing a Wikipedia page stored in a database."""
