@@ -38,9 +38,12 @@ async def stop_wikipedia_run():
     """
     Endpoint to stop current running process
     """
+    if not _wikipedia_state.is_running():
+        return {"message": "No wikipedia run is currently in progress"}
+
     _wikipedia_service.request_stop()
-    #this should close rabbitmqq connn
-    return {"status": "stopping"}
+    _wikipedia_state.stop()
+    return {"message": "Stop event requested for current wikipedia run"}
 
 @router.get("/wikipedia/run")
 def wikipedia_run(background_tasks: BackgroundTasks):
