@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Sequence
+from collections.abc import Sequence
 
 import numpy as np
 from psycopg.rows import dict_row
@@ -12,7 +12,7 @@ from repository.base import BaseRepository
 from repository.model import DocumentRecord, WikipediaDbRecord
 
 
-VECTOR_TABLE_NAME = "kb_wikipedia"
+KB_TABLE_NAME = "kb_wikipedia"
 
 class KnowledgeWikipediaRepository(BaseRepository):
     """Repository to write Wikipedia records"""
@@ -25,7 +25,7 @@ class KnowledgeWikipediaRepository(BaseRepository):
             VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s,
                 %(last_modified_date)s, %(embedding)s, %(source)s)
             """
-        ).format(table=sql.Identifier(VECTOR_TABLE_NAME))
+        ).format(table=sql.Identifier(KB_TABLE_NAME))
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(insert_sql, (row))
             conn.commit()
@@ -40,7 +40,7 @@ class KnowledgeWikipediaRepository(BaseRepository):
             INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
             VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s, %(last_modified_date)s, %(embedding)s, %(source)s) #pylint: disable=line-too-long
             """
-        ).format(table=sql.Identifier(VECTOR_TABLE_NAME))
+        ).format(table=sql.Identifier(KB_TABLE_NAME))
 
         params = [row.as_mapping() for row in rows]
         with self._pool.connection() as conn, conn.cursor() as cur:
@@ -77,7 +77,7 @@ class KnowledgeWikipediaRepository(BaseRepository):
             ORDER BY embedding <=> %s::vector
             LIMIT %s
             """
-        ).format(table=sql.Identifier(VECTOR_TABLE_NAME))
+        ).format(table=sql.Identifier(KB_TABLE_NAME))
 
         with self._pool.connection() as conn:
             with conn.transaction():
@@ -96,7 +96,7 @@ class KnowledgeWikipediaRepository(BaseRepository):
             WHERE name = %s
             AND source = %s
             """
-        ).format(table=sql.Identifier(VECTOR_TABLE_NAME))
+        ).format(table=sql.Identifier(KB_TABLE_NAME))
 
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(query_sql, (title, source))
@@ -115,7 +115,7 @@ class KnowledgeWikipediaRepository(BaseRepository):
             WHERE pid = %s
             AND source = %s
             """
-        ).format(table=sql.Identifier(VECTOR_TABLE_NAME))
+        ).format(table=sql.Identifier(KB_TABLE_NAME))
 
         pattern=pid
 
@@ -140,7 +140,7 @@ class KnowledgeWikipediaRepository(BaseRepository):
             WHERE pid = %s and source LIKE %s and last_modified_date >= %s
             LIMIT 1
             """
-        ).format(table=sql.Identifier(VECTOR_TABLE_NAME))
+        ).format(table=sql.Identifier(KB_TABLE_NAME))
 
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(query_sql, (pid, source, last_date_modified))
@@ -158,7 +158,7 @@ class KnowledgeWikipediaRepository(BaseRepository):
             WHERE pid = %s
             AND source = %s
             """
-        ).format(table=sql.Identifier(VECTOR_TABLE_NAME))
+        ).format(table=sql.Identifier(KB_TABLE_NAME))
 
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(query_sql, (pid, source))
