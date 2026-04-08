@@ -6,7 +6,7 @@ Information on the setup for the Postgres DB we have setup with vectors (pg vect
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
-CREATE TABLE kb_wikipedia (
+CREATE TABLE documents (
    id SERIAL PRIMARY KEY,
    pid INT,
    name TEXT,
@@ -16,7 +16,7 @@ CREATE TABLE kb_wikipedia (
    source TEXT,
    last_modified_date DATE,
    embedding VECTOR(512),
-   CONSTRAINT kb_wikipedia_pid_source_chunk_index_key UNIQUE (pid, source, chunk_index)
+   CONSTRAINT documents_pid_source_chunk_index_key UNIQUE (pid, source, chunk_index)
 );
 
 CREATE TABLE run_history (
@@ -32,23 +32,23 @@ CREATE TABLE run_history (
 -- using sqrt(12millions) using approximate record size for wikipedia.
 SET maintenance_work_mem = '8GB';
 CREATE INDEX IF NOT EXISTS wikipedia_embedding_index
-   ON kb_wikipedia USING ivfflat (embedding vector_cosine_ops) WITH (lists = 3464);
+   ON documents USING ivfflat (embedding vector_cosine_ops) WITH (lists = 3464);
 
 -- OR
 -- HNSW index
 SET maintenance_work_mem = '20GB';
 SET max_parallel_maintenance_workers = 24;
 CREATE INDEX wikipedia_embedding_index
-   ON kb_wikipedia USING hnsw (embedding vector_cosine_ops)
+   ON documents USING hnsw (embedding vector_cosine_ops)
    WITH (m = 16, ef_construction = 64);
 -- indexing progress
 -- https://github.com/pgvector/pgvector/blob/master/README.md#hnsw
 SELECT phase, round(100.0 * blocks_done / nullif(blocks_total, 0), 1) AS "%" FROM pg_stat_progress_create_index;
 
 -- Indexes for text search on name and title
-CREATE INDEX IF NOT EXISTS kb_wikipedia_name_idx ON kb_wikipedia (name);
-CREATE INDEX IF NOT EXISTS kb_wikipedia_title_idx ON kb_wikipedia (title);
-CREATE INDEX IF NOT EXISTS kb_wikipedia_source_idx ON kb_wikipedia (source);
+CREATE INDEX IF NOT EXISTS documents_name_idx ON documents (name);
+CREATE INDEX IF NOT EXISTS documents_title_idx ON documents (title);
+CREATE INDEX IF NOT EXISTS documents_source_idx ON documents (source);
 
 -- Readonly user created
 CREATE USER readonly_user WITH PASSWORD 'readonly';
@@ -63,9 +63,9 @@ First run mistakes! Here are the fixes.
 
 ```sql
 -- Add the source column to existing table
-ALTER TABLE kb_wikipedia DROP COLUMN IF EXISTS source;
-ALTER TABLE kb_wikipedia ADD COLUMN source TEXT DEFAULT 'enwiki';
-DELETE FROM kb_wikipedia WHERE title LIKE 'Template:%';
+ALTER TABLE documents DROP COLUMN IF EXISTS source;
+ALTER TABLE documents ADD COLUMN source TEXT DEFAULT 'enwiki';
+DELETE FROM documents WHERE title LIKE 'Template:%';
 ```
 
 ### Adding source to unique constraint
@@ -75,17 +75,17 @@ The unique constraint must include `source` to allow the same `pid + chunk_index
 
 ```sql
 -- Drop the old constraint
-ALTER TABLE kb_wikipedia DROP CONSTRAINT IF EXISTS kb_wikipedia_pid_chunk_index_key;
+ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_pid_chunk_index_key;
 
 -- Add the new constraint with source
-ALTER TABLE kb_wikipedia ADD CONSTRAINT documents_pid_source_chunk_index_key UNIQUE (pid, source, chunk_index);
+ALTER TABLE documents ADD CONSTRAINT documents_pid_source_chunk_index_key UNIQUE (pid, source, chunk_index);
 ```
 
 ## Gathering info
 
 ```sql
 SELECT pg_indexes_size();
-SELECT pg_size_pretty(pg_relation_size('kb_wikipedia_embedding_idx'));
+SELECT pg_size_pretty(pg_relation_size('documents_embedding_idx'));
 
 -- Check index sizes for all tables
 SELECT relname as table_name,
