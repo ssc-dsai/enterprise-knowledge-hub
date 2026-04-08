@@ -36,27 +36,34 @@ class QueueWorker:
         while not self.stop_event.is_set():
             drained_any = False # to check if any messages read/drained this iteration
 
-            for item, delivery_tag in self.queue_service.read(queue_name):
-                drained_any = True
-                self.message_count += 1
-                try:
-                    if self.stop_event.is_set():
-                        self.logger.info("Stop event is true. Stopping process: %s - %s", service_name, queue_name)
-                        self._acknowledge(delivery_tag, successful=False)
-                        break
-                    is_handler_manages_ack = handler(item, delivery_tag)
-                    # if handler manages acknowledgement back to queue then ignore
-                    if is_handler_manages_ack is False:
-                        self._acknowledge(delivery_tag, successful=True)
-                    else:
-                        pass
+            try:
+                for item, delivery_tag in self.queue_service.read(queue_name):
+                    drained_any = True
+                    self.message_count += 1
+                    try:
+                        if self.stop_event.is_set():
+                            self.logger.info("Stop event is true. Stopping process: %s - %s", service_name, queue_name)
+                            self._acknowledge(delivery_tag, successful=False)
+                            break
+                        is_handler_manages_ack = handler(item, delivery_tag)
+                        # if handler manages acknowledgement back to queue then ignore
+                        if is_handler_manages_ack is False:
+                            self._acknowledge(delivery_tag, successful=True)
+                        else:
+                            pass
 
-                except Exception as e:
-                    self.logger.exception(
-                        "Error processing item in queue %s - %s", queue_name, service_name
-                    )
-                    self.logger.exception("Error: %s", e)
-                    self._acknowledge(delivery_tag, successful=False)
+                    except Exception:
+                        self.logger.exception(
+                            "Error processing item in queue %s - %s", queue_name, service_name
+                        )
+                        self._acknowledge(delivery_tag, successful=False)
+            except Exception:
+                self.logger.exception(
+                    "Error reading item from queue %s - %s", queue_name, service_name
+                )
+
+                time.sleep(self.poll_interval)
+
             # Queue is empty - check if we should exit or wait
             if should_exit(drained_any):
                 break
