@@ -18,7 +18,6 @@ class QueueWorker:
         self.queue_service: QueueService = queue_service
         self.logger: Logger = logger
         self.stop_event: Event = stop_event
-        # for time.sleep() to avoid constant hammering
         self.poll_interval = poll_interval
         self.message_count = 0
 
