@@ -1,10 +1,10 @@
-name: Pyupgrade
+name: Pre-commit
 
 on:
   pull_request:
 
 jobs:
-  build:
+  pre-commit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +20,5 @@ jobs:
       - name: Sync dependencies with uv
         run: uv sync
 
-      - name: Run pyupgrade
-        run: |
-          uv run pyupgrade --py312-plus $(git ls-files '*.py')
+      - name: Run pre-commit hooks
+        uses: pre-commit/action@v3.0.1
