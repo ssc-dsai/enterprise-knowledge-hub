@@ -38,26 +38,6 @@ _ARTICLE_WIKILINK_RE = re.compile(r'\[\[[^\]]+\]\]')
 class WikipediaKnowledgeService(KnowledgeService):
     """Knowledge service for Wikipedia ingestion."""
 
-    _ignored_title_prefixes: tuple[str, ...] = (
-            "Draft:",
-            "Category:",
-            "File:",
-            "Wikipedia:",
-            "Ébauche:",
-            "Catégorie:",
-            "Fichier:",
-            "Wikipédia:",
-            "Portal:",
-            "Portail:",
-            "Template:",
-            "Modèle:",
-            "Help:",
-            "Aide:",
-            "User:",
-            "Utilisateur:",
-            "Project:",
-            "Projet:",
-        )
 
     _content_folder_path: Path = Path(os.getenv("WIKIPEDIA_CONTENT_FOLDER",
                                     "./content/wikipedia")).expanduser().resolve()
@@ -342,13 +322,6 @@ class WikipediaKnowledgeService(KnowledgeService):
         if not page.has_wikilinks:
             return True
 
-        # title = page.title
-        # if title:
-        #     for prefix in self._ignored_title_prefixes:
-        #         if title.startswith(prefix):
-        #             print("item: " + str(page))
-        #             time.sleep(7200)
-        #             return True
 
         # DB metadata check, last resort before we do in fact process the item.
         if self._knowledge_wikipedia_service.record_is_up_to_date(page.pid, page.source, page.last_modified_date):
