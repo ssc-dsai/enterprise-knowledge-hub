@@ -331,6 +331,26 @@ class WikipediaKnowledgeService(KnowledgeService):
 
     def _parse_page_xml(self, xml_page: str) -> WikipediaItemRaw | None:
         """Parse a Wikipedia page XML and extract relevant fields."""
+        
+        # AR: we're doing 3 loops on one xml page to find different content.  and 2 loops on content.  
+        
+        # AR: if we want to make ingestion quicker, this could be a place to look at.  won't be a big win, but could try
+        # match = re.search(
+        #     r"<title>(?P<title>[^<]+)</title>.*?"
+        #     r"<id>(?P<pid>\d+)</id>.*?"
+        #     r"<text[^>]*>(?P<text>[^<]*(?:<(?!/text>)[^<]*)*)</text>",
+        #     xml_page,
+        #     re.DOTALL,
+        # )
+        
+        # if match:
+        #     comTitle = match.group("title")
+        #     compid= match.group("pid")
+        #     comptxt = match.group("text")
+        #     print("match: " + str(match))
+        #     print("matchTitle: " + str(comTitle))
+        #     print("matchid = " + str(compid))
+        
         # Extract title
         title_match = re.search(r"<title>([^<]+)</title>", xml_page)
         title = title_match.group(1) if title_match else ""
@@ -343,6 +363,14 @@ class WikipediaKnowledgeService(KnowledgeService):
         text_match = re.search(r"<text[^>]*>([^<]*(?:<(?!/text>)[^<]*)*)</text>", xml_page, re.DOTALL)
         content = text_match.group(1) if text_match else ""
 
+        # with open("test123456.txt", "w") as file:
+        #     file.write("matchTitle: " + str(comTitle) + "\n")
+        #     file.write("matchid: " + str(compid) + "\n")
+        #     file.write("matchcontent: " + str(comptxt))
+        #     file.write("title: " + str(title) +  "\n")
+        #     file.write("pid: " + str(pid)  + "\n")
+        #     file.write("content: " + str(content))
+        
         # Detect internal wikilinks BEFORE stripping markup (Wikipedia requires >=1 to count as "article")
         # Excludes Category/File/Image links which don't count toward the pagelinks table
         has_wikilinks = bool(_ARTICLE_WIKILINK_RE.search(content))
@@ -350,6 +378,8 @@ class WikipediaKnowledgeService(KnowledgeService):
         # Detect content-based redirects (#REDIRECT in wikitext) before markup removal destroys the marker
         is_content_redirect = content.lstrip().upper().startswith("#REDIRECT")
 
+        # AR: this could also be moved to AFTER should_ignore_page() method.  
+        
         # REMOVE WIKI MARKUP (note: one of those 2 methods might be faster than the other?? they yield the same results)
         content = remove_markup(content)
         #content = parse(content).plain_text()
