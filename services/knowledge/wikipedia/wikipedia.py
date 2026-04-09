@@ -101,7 +101,6 @@ class WikipediaKnowledgeService(KnowledgeService):
                 results.append(
                     WikipediaItemProcessed(
                         name=item['name'],
-                        title=f"{item['title']}",
                         content=item['content'],
                         last_modified_date=item['last_modified_date'],
                         pid=item['pid'],
@@ -155,7 +154,6 @@ class WikipediaKnowledgeService(KnowledgeService):
             results.append(
                 WikipediaItemRaw(
                     name=item.name,
-                    title=f"{item.title} (chunk {idx}/{num_chunks})",
                     content=chunk_text,
                     last_modified_date=item.last_modified_date,
                     pid=item.pid,
@@ -344,11 +342,13 @@ class WikipediaKnowledgeService(KnowledgeService):
         if not page.has_wikilinks:
             return True
 
-        title = page.title
-        if title:
-            for prefix in self._ignored_title_prefixes:
-                if title.startswith(prefix):
-                    return True
+        # title = page.title
+        # if title:
+        #     for prefix in self._ignored_title_prefixes:
+        #         if title.startswith(prefix):
+        #             print("item: " + str(page))
+        #             time.sleep(7200)
+        #             return True
 
         # DB metadata check, last resort before we do in fact process the item.
         if self._knowledge_wikipedia_service.record_is_up_to_date(page.pid, page.source, page.last_modified_date):
@@ -401,7 +401,6 @@ class WikipediaKnowledgeService(KnowledgeService):
 
         return WikipediaItemRaw(
             name=title,
-            title=title,
             content=content,
             last_modified_date=last_modified_date,
             pid=pid,

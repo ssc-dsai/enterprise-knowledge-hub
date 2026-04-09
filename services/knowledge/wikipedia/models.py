@@ -67,7 +67,6 @@ def _decode_embeddings(payload: Optional[Dict[str, Any]]) -> Union[np.ndarray, T
 
 class WikipediaItemRaw(KnowledgeItem):
     """Knowledge item representing a Wikipedia page."""
-    title: str = ""
     content: str = ""  # Wiki markup content
     last_modified_date: datetime | None = None
     pid: int = 0

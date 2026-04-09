@@ -21,8 +21,8 @@ class KnowledgeWikipediaRepository(BaseRepository):
         """Insert row"""
         insert_sql = sql.SQL(
             """
-            INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
-            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s,
+            INSERT INTO {table} (pid, chunk_index, name, content, last_modified_date, embedding, source)
+            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(content)s,
                 %(last_modified_date)s, %(embedding)s, %(source)s)
             """
         ).format(table=sql.Identifier(KB_TABLE_NAME))
@@ -37,8 +37,8 @@ class KnowledgeWikipediaRepository(BaseRepository):
 
         insert_sql = sql.SQL(
             """
-            INSERT INTO {table} (pid, chunk_index, name, title, content, last_modified_date, embedding, source)
-            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(title)s, %(content)s, %(last_modified_date)s, %(embedding)s, %(source)s) #pylint: disable=line-too-long
+            INSERT INTO {table} (pid, chunk_index, name, content, last_modified_date, embedding, source)
+            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(content)s, %(last_modified_date)s, %(embedding)s, %(source)s) #pylint: disable=line-too-long
             """
         ).format(table=sql.Identifier(KB_TABLE_NAME))
 
@@ -107,11 +107,11 @@ class KnowledgeWikipediaRepository(BaseRepository):
         return None
 
     def get_record_full_chunks_content(self, pid: int, source: str) -> list[DocumentRecord]:
-        """Query for entire record chunks based on title"""
+        """Query for entire record chunks based on article title/name"""
 
         query_sql = sql.SQL(
             """
-            SELECT title, content FROM {table}
+            SELECT name, content FROM {table}
             WHERE pid = %s
             AND source = %s
             """
