@@ -81,6 +81,12 @@ ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_pid_chunk_index_key;
 ALTER TABLE documents ADD CONSTRAINT documents_pid_source_chunk_index_key UNIQUE (pid, source, chunk_index);
 ```
 
+### Changing documents table name
+
+```sql
+ALTER TABLE documents RENAME TO kb_wikipedia 
+```
+
 ## Gathering info
 
 ```sql

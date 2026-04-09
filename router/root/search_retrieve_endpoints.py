@@ -1,11 +1,14 @@
 """
 Endpoints for interacting with the knowledge database.
 """
+import logging
+
 from fastapi import APIRouter, Query
-from services.database.database_service import QueryService
+from services.database.knowledge_item_service import KnowledgeItemService
 
 router = APIRouter()
-_query_service = QueryService()
+logger = logging.getLogger(__name__)
+_knowledge_item_service = KnowledgeItemService(logger)
 
 @router.get("/search")
 def search_database(
@@ -15,7 +18,7 @@ def search_database(
     """Endpoint to search Wikipedia articles by query."""
     # Call the service layer to perform the search
     print(f"Searching database for query: {query} with limit: {limit}")
-    results = _query_service.search(query, limit)
+    results = _knowledge_item_service.search(query, limit)
     return {
         "query": query,
         "results": results
@@ -28,4 +31,4 @@ def retrieve_wiki_articles(
 ):
     """Get wiki article content"""
     print(f"(search_retrieve endpoints) Retrieving wiki articles for title: {title}")
-    return _query_service.get_article_content_by_title(title, source)
+    return _knowledge_item_service.get_article_content_by_title(title, source)

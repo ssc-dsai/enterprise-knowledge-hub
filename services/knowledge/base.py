@@ -4,13 +4,13 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, Future
-from typing import Any, Optional
+from typing import Any
 import logging
 from random import random
 import threading
 from datetime import datetime
 
-from repository.postgrespg import WikipediaPgRepository
+from services.database.run_history_service import RunHistoryService
 from services.knowledge.models import KnowledgeItem
 from services.knowledge.batch_handler import BatchHandler
 from services.knowledge.wikipedia.models import WikipediaItemProcessed
@@ -23,8 +23,8 @@ class KnowledgeService(ABC):
     """Abstract base class for knowledge services."""
     queue_service: QueueService
     logger: logging.Logger
+    run_history_service: RunHistoryService
     service_name: str
-    _repository: Optional[WikipediaPgRepository] = None  # assigned in subclass init after super() call
     _run_id = None  # Assigned at runtime for tracking in logs and stats
     _ingest_done: threading.Event = field(default_factory=threading.Event, init=False)
     _process_done: threading.Event = field(default_factory=threading.Event, init=False)
@@ -41,7 +41,7 @@ class KnowledgeService(ABC):
         self._stop_event.clear()
         self._run_id = int(random() * 1e6)  # Assign a random run ID for tracking in logs and stats
         # Record the start of this run in the run_history table for observability
-        self._repository.insert_history_table_log(self._run_id, self.service_name,
+        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                           RunStatus.RUN_STARTED, None, datetime.now())
 
         ingestion_enabled = os.getenv("SVC_KB_ENABLE_INGESTION", "true").lower() in ("1", "true", "yes")
@@ -75,7 +75,7 @@ class KnowledgeService(ABC):
             future.result()
 
         # Record the end of this run
-        self._repository.insert_history_table_log(self._run_id, self.service_name,
+        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                           RunStatus.RUN_ENDED, None, datetime.now())
 
     @abstractmethod
@@ -120,7 +120,7 @@ class KnowledgeService(ABC):
         """Ingest data into the knowledge base."""
         self.logger.info("Ingesting data into the knowledge base. (%s)", self.service_name)
 
-        self._repository.insert_history_table_log(self._run_id, self.service_name,
+        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                           RunStatus.INGESTION_STARTED, None, datetime.now())
         count = 0
         try:
@@ -138,7 +138,7 @@ class KnowledgeService(ABC):
         except Exception:
             self.logger.exception("Error during finalize_ingest for: %s",
                                 self.service_name)
-        self._repository.insert_history_table_log(self._run_id, self.service_name,
+        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                               RunStatus.INGESTION_COMPLETED,
                                                               {"count": count,
                                                                 "msg": "Records Ingested"}, datetime.now())
@@ -149,7 +149,7 @@ class KnowledgeService(ABC):
 
         self.logger.info("Processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
 
-        self._repository.insert_history_table_log(self._run_id, self.service_name,
+        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                               RunStatus.PROCESSING_STARTED, None, datetime.now())
 
         try:
@@ -195,7 +195,7 @@ class KnowledgeService(ABC):
                                 self._ingest_queue_name(), self.service_name)
 
 
-        self._repository.insert_history_table_log(self._run_id, self.service_name,
+        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                               RunStatus.PROCESSING_COMPLETED,
                                                               {"count": count,
                                                                "msg": "Messages Processed"}, datetime.now())
@@ -209,7 +209,7 @@ class KnowledgeService(ABC):
         """
         self.logger.info("Storing processed data from queue: %s. (%s)", self._processed_queue_name(),
                                                                         self.service_name)
-        self._repository.insert_history_table_log(self._run_id, self.service_name,
+        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                           RunStatus.STORING_STARTED, None, datetime.now())
 
         try:
@@ -249,7 +249,7 @@ class KnowledgeService(ABC):
             self.logger.exception("Error during finalize_store for queue: %s. (%s)",
                                                                     self._processed_queue_name(), self.service_name)
 
-        self._repository.insert_history_table_log(self._run_id, self.service_name,
+        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                               RunStatus.STORING_COMPLETED,
                                                               {"count": count,
                                                                "msg": "Messages Stored"}, datetime.now())

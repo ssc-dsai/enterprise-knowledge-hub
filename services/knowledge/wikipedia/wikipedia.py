@@ -17,7 +17,8 @@ from dotenv import load_dotenv
 from wikitextparser import remove_markup
 
 from provider.embedding.qwen3.embedder_factory import get_embedder
-from repository.postgrespg import WikipediaDbRecord, WikipediaPgRepository
+from repository.model import WikipediaDbRecord
+from services.database.knowledge_item_service import KnowledgeItemService
 from services.knowledge.base import KnowledgeService
 from services.knowledge.models import KnowledgeItem
 from services.knowledge.wikipedia.models import WikipediaItemProcessed, Source, WikipediaItemRaw
@@ -65,9 +66,10 @@ class WikipediaKnowledgeService(KnowledgeService):
     _batch_size: int = int(os.getenv("WIKIPEDIA_PROCESS_BATCH_SIZE", "256"))
     _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
 
-    def __init__(self, queue_service, logger, repository: WikipediaPgRepository | None = None):
-        super().__init__(queue_service=queue_service, logger=logger, service_name="wikipedia")
-        self._repository = repository or WikipediaPgRepository.from_env()
+    def __init__(self, queue_service, logger, run_history_service):
+        super().__init__(queue_service=queue_service, logger=logger,
+                         run_history_service=run_history_service, service_name="wikipedia")
+        self._knowledge_wikipedia_service = KnowledgeItemService(logger)
 
     @property
     def embedder(self):
@@ -187,7 +189,7 @@ class WikipediaKnowledgeService(KnowledgeService):
 
     def store_item(self, item: WikipediaItemProcessed) -> None:
         record_to_insert = WikipediaDbRecord.from_item(item)
-        self._repository.insert(record_to_insert.as_mapping())
+        self._knowledge_wikipedia_service.insert(record_to_insert.as_mapping())
 
     def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItemRaw]: #pylint: disable=too-many-locals,too-many-branches,too-many-statements
         """Process a single index file and yield WikipediaItems."""
@@ -296,7 +298,7 @@ class WikipediaKnowledgeService(KnowledgeService):
                 if not self._should_ignore_page(item):
                     # if item is to be processed, we need to ensure we delete
                     # any existing record of "older" version of this article
-                    self._repository.delete_by_pid_source(item.pid, item.source)
+                    self._knowledge_wikipedia_service.delete_by_pid_source(item.pid, item.source)
                     yield item
 
     def _save_progress(self, index_path: Path, line_number: int) -> None:
@@ -349,7 +351,7 @@ class WikipediaKnowledgeService(KnowledgeService):
                     return True
 
         # DB metadata check, last resort before we do in fact process the item.
-        if self._repository.record_is_up_to_date(page.pid, page.source, page.last_modified_date):
+        if self._knowledge_wikipedia_service.record_is_up_to_date(page.pid, page.source, page.last_modified_date):
             return True
 
         return False

@@ -9,6 +9,7 @@ from fastapi import BackgroundTasks
 
 from provider.queue.rabbitmq import RabbitMQProvider
 from router.root.run_state import RunState
+from services.database.run_history_service import RunHistoryService
 from services.knowledge.wikipedia.wikipedia import WikipediaKnowledgeService
 from services.queue.queue_service import QueueService
 
@@ -23,7 +24,9 @@ KNOWLEDGE_BASE = "/knowledge"
 # initialize the queue service here
 _queue_service = QueueService(queue_provider=RabbitMQProvider(url=os.getenv("RABBITMQ_URL"),
                                                               logger=logger), logger=logger)
-_wikipedia_service = WikipediaKnowledgeService(queue_service=_queue_service, logger=logger)
+_run_history_service = RunHistoryService(logger)
+_wikipedia_service = WikipediaKnowledgeService(queue_service=_queue_service, logger=logger,
+                                               run_history_service=_run_history_service)
 _wikipedia_state = RunState()
 
 def _run_wikipedia_task():
