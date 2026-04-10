@@ -41,7 +41,6 @@ class WikipediaKnowledgeService(KnowledgeService):
 
     _content_folder_path: Path = Path(os.getenv("WIKIPEDIA_CONTENT_FOLDER",
                                     "./content/wikipedia")).expanduser().resolve()
-    _process_only_first_n_paragraphs: int = int(os.getenv("WIKIPEDIA_PROCESS_ONLY_FIRST_N_PARAGRAPHS", "0"))
     _progress_flush_interval: int = 1000 # for the .progress file we track the line number we stopped at
     _batch_size: int = int(os.getenv("WIKIPEDIA_PROCESS_BATCH_SIZE", "256"))
     _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
@@ -275,7 +274,8 @@ class WikipediaKnowledgeService(KnowledgeService):
                 item.source = source
                 if not self._should_ignore_page(item):
 
-                    # REMOVE WIKI MARKUP (note: one of those 2 methods might be faster than the other?? they yield the same results)
+                    # REMOVE WIKI MARKUP (note: one of those 2 methods might be faster than the other?? 
+                    # they yield the same results)
                     item.content = remove_markup(item.content)
                     # content = parse(content).plain_text()
 
