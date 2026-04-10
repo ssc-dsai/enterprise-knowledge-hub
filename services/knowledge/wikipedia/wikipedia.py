@@ -38,7 +38,6 @@ _ARTICLE_WIKILINK_RE = re.compile(r'\[\[[^\]]+\]\]')
 class WikipediaKnowledgeService(KnowledgeService):
     """Knowledge service for Wikipedia ingestion."""
 
-
     _content_folder_path: Path = Path(os.getenv("WIKIPEDIA_CONTENT_FOLDER",
                                     "./content/wikipedia")).expanduser().resolve()
     _progress_flush_interval: int = 1000 # for the .progress file we track the line number we stopped at
@@ -274,7 +273,7 @@ class WikipediaKnowledgeService(KnowledgeService):
                 item.source = source
                 if not self._should_ignore_page(item):
 
-                    # REMOVE WIKI MARKUP (note: one of those 2 methods might be faster than the other?? 
+                    # REMOVE WIKI MARKUP (note: one of those 2 methods might be faster than the other??
                     # they yield the same results)
                     item.content = remove_markup(item.content)
                     # content = parse(content).plain_text()
