@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from collections.abc import Sequence
-from collections.abc import Sequence
 
 import numpy as np
 from psycopg.rows import dict_row
