@@ -38,30 +38,8 @@ _ARTICLE_WIKILINK_RE = re.compile(r'\[\[[^\]]+\]\]')
 class WikipediaKnowledgeService(KnowledgeService):
     """Knowledge service for Wikipedia ingestion."""
 
-    _ignored_title_prefixes: tuple[str, ...] = (
-            "Draft:",
-            "Category:",
-            "File:",
-            "Wikipedia:",
-            "Ébauche:",
-            "Catégorie:",
-            "Fichier:",
-            "Wikipédia:",
-            "Portal:",
-            "Portail:",
-            "Template:",
-            "Modèle:",
-            "Help:",
-            "Aide:",
-            "User:",
-            "Utilisateur:",
-            "Project:",
-            "Projet:",
-        )
-
     _content_folder_path: Path = Path(os.getenv("WIKIPEDIA_CONTENT_FOLDER",
                                     "./content/wikipedia")).expanduser().resolve()
-    _process_only_first_n_paragraphs: int = int(os.getenv("WIKIPEDIA_PROCESS_ONLY_FIRST_N_PARAGRAPHS", "0"))
     _progress_flush_interval: int = 1000 # for the .progress file we track the line number we stopped at
     _batch_size: int = int(os.getenv("WIKIPEDIA_PROCESS_BATCH_SIZE", "256"))
     _debug_extraction: bool = os.getenv("DEBUG_EXTRACTION", "false").lower() in ("1", "true", "yes")
@@ -101,7 +79,6 @@ class WikipediaKnowledgeService(KnowledgeService):
                 results.append(
                     WikipediaItemProcessed(
                         name=item['name'],
-                        title=f"{item['title']}",
                         content=item['content'],
                         last_modified_date=item['last_modified_date'],
                         pid=item['pid'],
@@ -155,7 +132,6 @@ class WikipediaKnowledgeService(KnowledgeService):
             results.append(
                 WikipediaItemRaw(
                     name=item.name,
-                    title=f"{item.title} (chunk {idx}/{num_chunks})",
                     content=chunk_text,
                     last_modified_date=item.last_modified_date,
                     pid=item.pid,
@@ -296,6 +272,12 @@ class WikipediaKnowledgeService(KnowledgeService):
             if item:
                 item.source = source
                 if not self._should_ignore_page(item):
+
+                    # REMOVE WIKI MARKUP (note: one of those 2 methods might be faster than the other??
+                    # they yield the same results)
+                    item.content = remove_markup(item.content)
+                    # content = parse(content).plain_text()
+
                     # if item is to be processed, we need to ensure we delete
                     # any existing record of "older" version of this article
                     self._knowledge_wikipedia_service.delete_by_pid_source(item.pid, item.source)
@@ -344,12 +326,6 @@ class WikipediaKnowledgeService(KnowledgeService):
         if not page.has_wikilinks:
             return True
 
-        title = page.title
-        if title:
-            for prefix in self._ignored_title_prefixes:
-                if title.startswith(prefix):
-                    return True
-
         # DB metadata check, last resort before we do in fact process the item.
         if self._knowledge_wikipedia_service.record_is_up_to_date(page.pid, page.source, page.last_modified_date):
             return True
@@ -358,17 +334,21 @@ class WikipediaKnowledgeService(KnowledgeService):
 
     def _parse_page_xml(self, xml_page: str) -> WikipediaItemRaw | None:
         """Parse a Wikipedia page XML and extract relevant fields."""
-        # Extract title
-        title_match = re.search(r"<title>([^<]+)</title>", xml_page)
-        title = title_match.group(1) if title_match else ""
 
-        # Extract page ID
-        pid_match = re.search(r"<id>(\d+)</id>", xml_page)
-        pid = int(pid_match.group(1)) if pid_match else 0
+        match = re.search(
+            r"<title>(?P<title>[^<]+)</title>.*?"
+            r"<id>(?P<pid>\d+)</id>.*?"
+            r"<text[^>]*>(?P<text>[^<]*(?:<(?!/text>)[^<]*)*)</text>",
+            xml_page,
+            re.DOTALL,
+        )
 
-        # Extract content (wiki markup text)
-        text_match = re.search(r"<text[^>]*>([^<]*(?:<(?!/text>)[^<]*)*)</text>", xml_page, re.DOTALL)
-        content = text_match.group(1) if text_match else ""
+        if not match:
+            return None
+
+        title = match.group("title") # Extract title
+        pid= match.group("pid") # Extract page ID
+        content = match.group("text") # Extract content (wiki markup text)
 
         # Detect internal wikilinks BEFORE stripping markup (Wikipedia requires >=1 to count as "article")
         # Excludes Category/File/Image links which don't count toward the pagelinks table
@@ -376,16 +356,6 @@ class WikipediaKnowledgeService(KnowledgeService):
 
         # Detect content-based redirects (#REDIRECT in wikitext) before markup removal destroys the marker
         is_content_redirect = content.lstrip().upper().startswith("#REDIRECT")
-
-        # REMOVE WIKI MARKUP (note: one of those 2 methods might be faster than the other?? they yield the same results)
-        content = remove_markup(content)
-        #content = parse(content).plain_text()
-
-        if self._process_only_first_n_paragraphs > 0:
-            # untested bit of code ... to be tweaked, online it says a line is needed for markdown to do a
-            # paragraph break, so just using \n for this ...
-            paragraphs = re.split(r'\n{2,}', content)
-            content = '\n\n'.join(paragraphs[:self._process_only_first_n_paragraphs])
 
         # Extract last modified date (timestamp)
         timestamp_match = re.search(r"<timestamp>([^<]+)</timestamp>", xml_page)
@@ -401,7 +371,6 @@ class WikipediaKnowledgeService(KnowledgeService):
 
         return WikipediaItemRaw(
             name=title,
-            title=title,
             content=content,
             last_modified_date=last_modified_date,
             pid=pid,

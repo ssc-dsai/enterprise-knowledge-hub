@@ -10,7 +10,6 @@ from services.knowledge.wikipedia.models import WikipediaItemProcessed
 class DocumentRecord(TypedDict):
     """Model for records in kb_wikipedia table"""
     name: str
-    title: str
     content: str
     chunk_index: int
     similarity: float | None
@@ -21,7 +20,6 @@ class WikipediaDbRecord: #pylint: disable=too-many-instance-attributes
     pid: int
     chunk_index: int
     name: str
-    title: str
     content: str
     last_modified_date: datetime | None
     embedding: list[float]
@@ -35,7 +33,6 @@ class WikipediaDbRecord: #pylint: disable=too-many-instance-attributes
             pid=item.pid,
             chunk_index=item.chunk_index,
             name=item.name,
-            title=item.title,
             content=item.content,
             last_modified_date=item.last_modified_date,
             embedding=embedding,
@@ -48,7 +45,6 @@ class WikipediaDbRecord: #pylint: disable=too-many-instance-attributes
             "pid": self.pid,
             "chunk_index": self.chunk_index,
             "name": self.name,
-            "title": self.title,
             "content": self.content,
             "last_modified_date": self.last_modified_date,
             "embedding": self.embedding,

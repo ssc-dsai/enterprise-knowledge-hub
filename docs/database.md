@@ -87,6 +87,12 @@ ALTER TABLE documents ADD CONSTRAINT documents_pid_source_chunk_index_key UNIQUE
 ALTER TABLE documents RENAME TO kb_wikipedia 
 ```
 
+### Removing title column
+
+```sql
+ALTER TABLE kb_wikipedia DROP COLUMN title
+```
+
 ## Gathering info
 
 ```sql

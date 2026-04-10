@@ -37,7 +37,6 @@ class KnowledgeItemService():
             res = DocumentRecord(
                 chunk_index=res[2],
                 name=res[0],
-                title=res[0],
                 content=res[1],
                 similarity=res[3],)
             parsed_results.append(res)
