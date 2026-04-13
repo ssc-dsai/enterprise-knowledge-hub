@@ -53,22 +53,19 @@ BASE_FRWIKI_CONTENT_URL = (
 
 run_history_repository =  WikipediaPgRepository.from_env()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s [%(name)s] %(message)s",
-)
+logger = logging.getLogger(__name__)
 
 def wiki_check(wiki_dump_content_url, wiki_dump_index_url, dump_key):
     """Checks wikidump rss feed for latest dumpdate, if different, call update function and save new date to file."""
     page = requests.get(wiki_dump_index_url, verify="/etc/ssl/certs/ca-certificates.crt", timeout=30)
-    logging.info("Current timestamp: %s", datetime.datetime.now())
+    logger.info("Current timestamp: %s", datetime.datetime.now())
 
     latest_dump_date = run_history_repository.cronjob_get_most_recent_dump_date("cronjob-" + dump_key)
 
     if latest_dump_date:
-        logging.info("Latest stored dump date in our records: %s", latest_dump_date)
+        logger.info("Latest stored dump date in our records: %s", latest_dump_date)
     else:
-        logging.info("No latest dump date found in our records.")
+        logger.info("No latest dump date found in our records.")
         latest_dump_date = ""
 
     soup = BeautifulSoup(page.content, "xml")
@@ -76,23 +73,23 @@ def wiki_check(wiki_dump_content_url, wiki_dump_index_url, dump_key):
     string_published_date = str(published_date.string)
 
     if published_date and string_published_date != latest_dump_date:
-        logging.info("Link published date from the RSS feed: %s is different from latest recorded dump date: %s",
+        logger.info("Link published date from the RSS feed: %s is different from latest recorded dump date: %s",
                      string_published_date, latest_dump_date)
 
         wiki_dump_update.download_latest_dump(wiki_dump_content_url, wiki_dump_index_url)
 
-        logging.info("inserting into DB")
+        logger.info("inserting into DB")
         run_history_repository.cronjob_insert_new_log("cronjob-" + dump_key, RunStatus.DUMP_LINK_UPDATED,
                                                       {"dump_date": string_published_date}, datetime.datetime.now())
 
     else:
-        logging.info("No new dump detected.")
+        logger.info("No new dump detected.")
 
-if __name__ == "__main__":
-    logging.info("Starting enwiki check...")
+def main():
+    logger.info("Starting enwiki check...")
     wiki_check(BASE_ENWIKI_CONTENT_URL, BASE_ENWIKI_INDEX_URL, "enwiki")
 
-    logging.info("==========================================================")
+    logger.info("==========================================================")
 
-    logging.info("Starting frwiki check...")
+    logger.info("Starting frwiki check...")
     wiki_check(BASE_FRWIKI_CONTENT_URL, BASE_FRWIKI_INDEX_URL, "frwiki")
