@@ -21,6 +21,7 @@ from repository.model import WikipediaDbRecord
 from services.database.knowledge_item_service import KnowledgeItemService
 from services.knowledge.base import KnowledgeService
 from services.knowledge.models import KnowledgeItem
+from services.knowledge.wikipedia.batch_time_tracker import BatchTimeTracker
 from services.knowledge.wikipedia.models import WikipediaItemProcessed, Source, WikipediaItemRaw
 
 load_dotenv()
@@ -48,6 +49,10 @@ class WikipediaKnowledgeService(KnowledgeService):
         super().__init__(queue_service=queue_service, logger=logger,
                          run_history_service=run_history_service, service_name="wikipedia")
         self._knowledge_wikipedia_service = KnowledgeItemService(logger)
+        
+        #think of better env config name
+        interval = int(os.getenv("BATCH_TIME_LOG_INTERVAL", "10000"))
+        self.batch_time_tracker = BatchTimeTracker(interval, self._run_id, self.service_name, logger, run_history_service)
 
     @property
     def embedder(self):
