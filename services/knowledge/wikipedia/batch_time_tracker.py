@@ -11,7 +11,7 @@ class BatchTimeTracker:
         self.logger = logger
         self.count = 0
         self.history_service = history_service
-        self.start: float = 0
+        self.start: float
         self.run_id = run_id
         self.service_name = service_name
     
@@ -39,3 +39,11 @@ class BatchTimeTracker:
     def start_timer(self) -> None:
         """start the timer"""
         self.start = time.perf_counter()
+        
+    def batch_start(self) -> None:
+        self.batch_start = time.perf_counter()
+
+    def print_current_batch_time(self, knowledge_item_len: int, gpu_batch_size: int) -> None:
+        batch_time = time.perf_counter() - self.batch_start
+        self.logger.info("Generated embeddings for %s items in %.2f seconds per batch (GPU batch size: %s)",
+                             knowledge_item_len, (batch_time)/gpu_batch_size, gpu_batch_size)

@@ -51,7 +51,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         self._knowledge_wikipedia_service = KnowledgeItemService(logger)
         
         #think of better env config name
-        interval = int(os.getenv("BATCH_TIME_LOG_INTERVAL", "10000"))
+        interval = int(os.getenv("BATCH_TIME_LOG_INTERVAL", "20"))
         self.batch_time_tracker = BatchTimeTracker(interval, self._run_id, self.service_name, logger, run_history_service)
 
     @property
@@ -65,7 +65,11 @@ class WikipediaKnowledgeService(KnowledgeService):
     def process_item(self, knowledge_item: List[KnowledgeItem]) -> list[WikipediaItemProcessed]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
-            start_time = time.perf_counter()
+            if self.batch_time_tracker.start is None:
+                self.batch_time_tracker.start_time()
+            self.batch_time_tracker.batch_start()
+            
+            # start_time = time.perf_counter()
             gpu_batch_size = self.embedder.get_batch_size()
 
             batch: List[str] = []
@@ -96,9 +100,11 @@ class WikipediaKnowledgeService(KnowledgeService):
             for processed_item in results:
                 self.emit_processed_item(processed_item)
 
-            end_time = time.perf_counter()
-            self.logger.info("Generated embeddings for %s items in %.2f seconds per batch (GPU batch size: %s)",
-                             len(knowledge_item), (end_time - start_time)/gpu_batch_size, gpu_batch_size)
+            # end_time = time.perf_counter()
+            # self.logger.info("Generated embeddings for %s items in %.2f seconds per batch (GPU batch size: %s)",
+            #                  len(knowledge_item), (end_time - start_time)/gpu_batch_size, gpu_batch_size)
+            self.batch_time_tracker.print_current_batch_time(len(knowledge_item), gpu_batch_size)
+            self.batch_time_tracker.tick()
 
         except Exception as e:
             self.logger.error("Error processing embedding for Wikipedia item: %s", e)
