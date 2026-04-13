@@ -126,7 +126,6 @@ Keep in mind you can hit http://localhost:8000/logging-info endpoint to get info
 - **`base.py`**: Abstract base class for implementing embedding models.
 - **qwen3/**:
   - `embedder_factory.py`: A factory to dynamically select embedding models at runtime.
-  - `llama_embed.py`: Embedding implementation that can extend or customize `embedding/base.py`.
   - `sentence_transformer.py`: Embedding implementation using sentence transformers.
 
 #### queue/
