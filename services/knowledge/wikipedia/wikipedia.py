@@ -49,7 +49,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         super().__init__(queue_service=queue_service, logger=logger,
                          run_history_service=run_history_service, service_name="wikipedia")
         self._knowledge_wikipedia_service = KnowledgeItemService(logger)
-        
+
         #think of better env config name
         interval = int(os.getenv("BATCH_TIME_LOG_INTERVAL", "20"))
         self.batch_time_tracker = BatchTimeTracker(interval, self._run_id, self.service_name, logger, run_history_service)
@@ -68,7 +68,7 @@ class WikipediaKnowledgeService(KnowledgeService):
             if self.batch_time_tracker.start is None:
                 self.batch_time_tracker.start_timer()
             self.batch_time_tracker.batch_start()
-            
+
             # start_time = time.perf_counter()
             gpu_batch_size = self.embedder.get_batch_size()
 
