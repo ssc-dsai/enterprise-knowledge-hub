@@ -85,6 +85,7 @@ def wiki_check(wiki_dump_content_url, wiki_dump_index_url, dump_key):
         logger.info("No new dump detected.")
 
 def main():
+    """Main function to run the KB checks, which will be run as a cronjob cyclically"""
     logger.info("Starting enwiki check...")
     wiki_check(BASE_ENWIKI_CONTENT_URL, BASE_ENWIKI_INDEX_URL, "enwiki")
 
