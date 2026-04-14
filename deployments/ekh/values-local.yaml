@@ -36,7 +36,7 @@ pgvector:
           title TEXT,
           content TEXT,
           source TEXT,
-          last_modified_date DATE,
+          last_modified_date TIMESTAMPTZ,
           embedding VECTOR(512),
           CONSTRAINT documents_pid_chunk_index_key UNIQUE (pid, chunk_index)
         );

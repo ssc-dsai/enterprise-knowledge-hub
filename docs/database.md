@@ -14,7 +14,7 @@ CREATE TABLE documents (
    title TEXT,
    content TEXT,
    source TEXT,
-   last_modified_date DATE,
+   last_modified_date TIMESTAMPTZ,
    embedding VECTOR(512),
    CONSTRAINT documents_pid_source_chunk_index_key UNIQUE (pid, source, chunk_index)
 );
@@ -91,6 +91,25 @@ ALTER TABLE documents RENAME TO kb_wikipedia
 
 ```sql
 ALTER TABLE kb_wikipedia DROP COLUMN title
+```
+
+### Changing last_modified_date from DATE to TIMESTAMPTZ
+
+The `DATE` type silently truncates timestamps to day precision, which breaks the
+"is up to date" comparison when re-ingesting dumps (hours/minutes/seconds are lost).
+
+```sql
+-- 1. Change column type from DATE to TIMESTAMPTZ (existing values become midnight UTC)
+ALTER TABLE kb_wikipedia
+    ALTER COLUMN last_modified_date TYPE TIMESTAMPTZ
+    USING last_modified_date::TIMESTAMPTZ;
+
+-- 2. Backfill existing rows: push the truncated date to end-of-day (23:59:59 UTC)
+--    so that incoming records with the same calendar day but an earlier time
+--    are still correctly detected as "up to date".
+UPDATE kb_wikipedia
+    SET last_modified_date = last_modified_date::date + INTERVAL '23 hours 59 minutes 59 seconds'
+    WHERE last_modified_date = last_modified_date::date;  -- only rows still at midnight
 ```
 
 ## Gathering info
