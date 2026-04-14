@@ -50,8 +50,7 @@ class WikipediaKnowledgeService(KnowledgeService):
                          run_history_service=run_history_service, service_name="wikipedia")
         self._knowledge_wikipedia_service = KnowledgeItemService(logger)
 
-        #think of better env config name
-        interval = int(os.getenv("BATCH_TIME_LOG_INTERVAL", "20"))
+        interval = int(os.getenv("PROCESSING_BATCH_AVERAGE_INTERVAL", "20"))
         self.batch_time_tracker = BatchTimeTracker(interval, self._run_id, self.service_name, logger, run_history_service)
 
     @property
@@ -69,7 +68,6 @@ class WikipediaKnowledgeService(KnowledgeService):
                 self.batch_time_tracker.start_timer()
             self.batch_time_tracker.batch_start()
 
-            # start_time = time.perf_counter()
             gpu_batch_size = self.embedder.get_batch_size()
 
             batch: List[str] = []
@@ -100,9 +98,6 @@ class WikipediaKnowledgeService(KnowledgeService):
             for processed_item in results:
                 self.emit_processed_item(processed_item)
 
-            # end_time = time.perf_counter()
-            # self.logger.info("Generated embeddings for %s items in %.2f seconds per batch (GPU batch size: %s)",
-            #                  len(knowledge_item), (end_time - start_time)/gpu_batch_size, gpu_batch_size)
             self.batch_time_tracker.print_current_batch_time(len(knowledge_item), gpu_batch_size)
             self.batch_time_tracker.tick()
 
