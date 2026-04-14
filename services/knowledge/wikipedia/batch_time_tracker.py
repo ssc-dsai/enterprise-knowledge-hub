@@ -3,15 +3,20 @@ from datetime import datetime
 import time
 
 from services.database.run_history_service import RunHistoryService
+from services.knowledge.models import RunStatus
 
 class BatchTimeTracker:
     """Class to track and log average time per set amount of batch intervals/count"""
+    start: float = None
+    count: int
+    interval: int
+    history_service: RunHistoryService
+    
     def __init__(self, interval: int, run_id: int, service_name: str, logger, history_service: RunHistoryService):
         self.interval = interval
         self.logger = logger
         self.count = 0
         self.history_service = history_service
-        self.start: float
         self.run_id = run_id
         self.service_name = service_name
     
@@ -30,10 +35,10 @@ class BatchTimeTracker:
             now = time.perf_counter()
             elapsed = now - self.start
             
-            average_time_per_batch = elapsed / self.interval
+            average_time_per_processing_batch = elapsed / self.interval
             
-            meta_data: dict = {"average_time_per_batch": average_time_per_batch}
-            self.history_service.insert_history_table_log(self.run_id, self.service_name, "Logging average", meta_data, datetime.now())
+            meta_data: dict = {"average_time_per_processing_batch": average_time_per_processing_batch}
+            self.history_service.insert_history_table_log(self.run_id, self.service_name, RunStatus.BATCH_AVERAGE_TIME, meta_data, datetime.now())
             self.start = now
             
     def start_timer(self) -> None:
@@ -41,9 +46,9 @@ class BatchTimeTracker:
         self.start = time.perf_counter()
         
     def batch_start(self) -> None:
-        self.batch_start = time.perf_counter()
+        self.batch_start_time = time.perf_counter()
 
     def print_current_batch_time(self, knowledge_item_len: int, gpu_batch_size: int) -> None:
-        batch_time = time.perf_counter() - self.batch_start
+        batch_time = time.perf_counter() - self.batch_start_time
         self.logger.info("Generated embeddings for %s items in %.2f seconds per batch (GPU batch size: %s)",
                              knowledge_item_len, (batch_time)/gpu_batch_size, gpu_batch_size)
