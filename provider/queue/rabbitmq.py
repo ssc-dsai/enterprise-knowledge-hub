@@ -117,10 +117,16 @@ class RabbitMQProvider(QueueProvider):
             self.logger.debug("Channel item: %d", key)
             self.logger.debug("Is closed: %s", value.is_closed)
             if not value.is_closed:
-                value.close()
+                try:
+                    value.close()
+                except Exception:
+                    self.logger.exception("Exception encountered closing channel")
 
         for key, value in self._connections.items():
             self.logger.debug("Connection item: %d", key)
             self.logger.debug("Is closed: %s", value.is_closed)
             if not value.is_closed:
-                value.close()
+                try:
+                    value.close()
+                except Exception:
+                    self.logger.exception("Exception encountered closing connection")
