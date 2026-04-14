@@ -78,10 +78,9 @@ def wiki_check(wiki_dump_content_url, wiki_dump_index_url, dump_key):
 
         wiki_dump_update.download_latest_dump(wiki_dump_content_url, wiki_dump_index_url)
 
-        logger.info("inserting into DB")
+        logger.info("inserting log into DB")
         run_history_repository.cronjob_insert_new_log("cronjob-" + dump_key, RunStatus.DUMP_LINK_UPDATED,
                                                       {"dump_date": string_published_date}, datetime.datetime.now())
-
     else:
         logger.info("No new dump detected.")
 

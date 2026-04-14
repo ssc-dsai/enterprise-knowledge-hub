@@ -37,8 +37,8 @@ def download_latest_dump(wiki_dump_content_url, wiki_dump_index_url):
         if response.status_code == 200:
             with open(f"{DOWNLOAD_DIRECTORY}/{filename}", "wb") as f:
                 logger.info("Saving to %s/%s...", DOWNLOAD_DIRECTORY, filename)
-                # for chunk in response.iter_content(chunk_size=8192):
-                #     f.write(chunk)
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
             logger.info("Successfully downloaded %s to %s, launching checksum verification...",
                         filename, DOWNLOAD_DIRECTORY)
             checksum_verification(filename)
@@ -66,7 +66,7 @@ def list_maker(wiki_dump_content_url, wiki_dump_index_url):
     index_download_a = indexsoup.find("a", href=True).get("href")
 
     # For testing, the content file is very large, so you may comment out the below line to only download the index file
-    # link_list.append(content_download_a)
+    link_list.append(content_download_a)
     link_list.append(index_download_a)
     return link_list
 

@@ -39,23 +39,15 @@ cron_engine = create_async_engine(
 app = FastAPI()
 crons = Crons(app, state_backend=SQLAlchemyStateBackend(cron_engine))
 
-# THIS LINE CONFIGURES FASTAPI-CRONS ENDPOINTS, WHICH DO NOT WORK!!!!!!!!!
-app.include_router(get_cron_router(), prefix="/_internal/crons", tags=["internal"])
+app.include_router(get_cron_router(), prefix="/crons", tags=["internal"])
 app.include_router(frontend_router, prefix="/frontend", tags=["Frontend"])
 app.include_router(endpoints, prefix=KNOWLEDGE_BASE, tags=["Knowledge (Indexing Operations)"])
 app.include_router(db_endpoints, prefix="/database", tags=["Database Interaction"])
 
-# THIS WORKS PERFECTLY FINE, WITH OUTPUT SENT TO FASTAPI TERMINAL. 3 FILES ARE THEN CREATED, cron_state.db,
-# cron_state.db-shm, cron_state.db-wal, WHICH STORE THE CRONJOB STATES IN SQLITE- WHICH IS VIEWABLE AND WORKS
-# -HOWEVER, IT ONLY STORES LATEST RUN TIME AND THATS IT, ONE ROW
-@crons.cron("*/2 * * * *", name = "run_knowledge_base_scraper")
+@crons.cron("*/5 * * * *", name = "run_knowledge_base_scraper")
 def run_knowledge_base_scraper():
     """Cronjob that runs the knowledge base scraper to update new knowledge base dumps/files"""
-    # BELOW LINE CALLS APPROPRIATE SCRIPTS, THIS WORKS!
-    # kb_scraper_main()
-    print(crons.jobs)
-    for job in crons.jobs:
-        logger.info("Scheduled job: %s", job.name)
+    kb_scraper_main()
 
 @app.get("/health")
 def hp():

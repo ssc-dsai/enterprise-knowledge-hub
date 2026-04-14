@@ -428,7 +428,7 @@ requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.14.3" },
     { name = "bitsandbytes", specifier = ">=0.49.1" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.124.4" },
-    { name = "fastapi-crons", specifier = ">=2.2.0" },
+    { name = "fastapi-crons", specifier = ">=2.3.0" },
     { name = "flash-attn", marker = "extra == 'flash'", specifier = ">=2.8.3" },
     { name = "langchain", specifier = ">=1.2.1" },
     { name = "llama-cpp-python", marker = "extra == 'llama'", specifier = ">=0.3.16" },
@@ -520,7 +520,7 @@ wheels = [
 
 [[package]]
 name = "fastapi-crons"
-version = "2.2.0"
+version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -532,9 +532,9 @@ dependencies = [
     { name = "rich" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/3f/78/65ee0cac3f6c9d4e299efea6918d6300b1f8732132cbe2a55031724abfaf/fastapi_crons-2.2.0.tar.gz", hash = "sha256:e5c45922fd9f4ceb97a4f700a8544f448752a353f0e38b78150d70f61b3ddd05", size = 62835, upload-time = "2026-03-06T10:00:38.901Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/12/74/90adb7d13e520ed4ba1b0a4f941ce855b36b5ae7103ee7950ef56f940cdc/fastapi_crons-2.3.0.tar.gz", hash = "sha256:fb7312d941dd5b7f4f43aeb0848d1bf7894f5770cf5828df699c44cf9bcfb651", size = 62855, upload-time = "2026-04-13T13:26:02.263Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/03/e6/8db9fe9ce7d35232db7c00f9c2a656079e2040aad13820c8e537a83d0111/fastapi_crons-2.2.0-py3-none-any.whl", hash = "sha256:2041c48a32fa7159cec244c4352cee75fc67d02434ff4474c6f022b2c3320527", size = 76214, upload-time = "2026-03-06T10:00:37.963Z" },
+    { url = "https://files.pythonhosted.org/packages/b4/e1/1490cb3e682ba1b0d895873363b03b5fc7da568f2259681e8ca8d6ef2f4e/fastapi_crons-2.3.0-py3-none-any.whl", hash = "sha256:a8acf30ed3f24fc690aad111b91e7e3379773f62608bf4c90d76b9e59799ba40", size = 76197, upload-time = "2026-04-13T13:26:01.144Z" },
 ]
 
 [[package]]
