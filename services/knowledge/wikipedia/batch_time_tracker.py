@@ -11,7 +11,7 @@ class BatchTimeTracker:
     count: int
     interval: int
     history_service: RunHistoryService
-    
+
     def __init__(self, interval: int, run_id: int, service_name: str, logger, history_service: RunHistoryService):
         self.interval = interval
         self.logger = logger
@@ -19,32 +19,28 @@ class BatchTimeTracker:
         self.history_service = history_service
         self.run_id = run_id
         self.service_name = service_name
-    
+
     def tick(self):
         """
         tick to increment counter
         once we hit wanted interval.  logs average
         """
-        if self.start is None:
-            # place holder, check if raise an exception, it wont stop run.
-            self.logger.info("Start time not set") 
-            return
-        
+
         self.count += 1
         if self.count % self.interval == 0:
             now = time.perf_counter()
             elapsed = now - self.start
-            
+
             average_time_per_processing_batch = elapsed / self.interval
-            
+
             meta_data: dict = {"average_time_per_processing_batch": average_time_per_processing_batch}
             self.history_service.insert_history_table_log(self.run_id, self.service_name, RunStatus.BATCH_AVERAGE_TIME, meta_data, datetime.now())
             self.start = now
-            
+
     def start_timer(self) -> None:
         """start the timer"""
         self.start = time.perf_counter()
-        
+
     def batch_start(self) -> None:
         """This is to reset start time per batch if we wanted to print it out per processing batch."""
         self.batch_start_time = time.perf_counter()
