@@ -66,7 +66,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
             if self.batch_time_tracker.start is None:
-                self.batch_time_tracker.start_time()
+                self.batch_time_tracker.start_timer()
             self.batch_time_tracker.batch_start()
             
             # start_time = time.perf_counter()
