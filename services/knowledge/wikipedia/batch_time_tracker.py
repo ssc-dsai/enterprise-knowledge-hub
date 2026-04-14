@@ -46,9 +46,11 @@ class BatchTimeTracker:
         self.start = time.perf_counter()
         
     def batch_start(self) -> None:
+        """This is to reset start time per batch if we wanted to print it out per processing batch."""
         self.batch_start_time = time.perf_counter()
 
     def print_current_batch_time(self, knowledge_item_len: int, gpu_batch_size: int) -> None:
+        """Print out time per processing batch"""
         batch_time = time.perf_counter() - self.batch_start_time
-        self.logger.info("Generated embeddings for %s items in %.2f seconds per batch (GPU batch size: %s)",
+        self.logger.debug("Generated embeddings for %s items in %.2f seconds per batch (GPU batch size: %s)",
                              knowledge_item_len, (batch_time)/gpu_batch_size, gpu_batch_size)
