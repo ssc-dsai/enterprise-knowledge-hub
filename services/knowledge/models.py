@@ -18,3 +18,4 @@ class RunStatus(StrEnum):
     STORING_STARTED = "Storing Started"
     STORING_COMPLETED = "Storing Completed"
     RUN_ENDED = "Run Completed"
+    BATCH_AVERAGE_TIME = "Processing Batch Average Time"
