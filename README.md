@@ -35,6 +35,20 @@ uv run --env-file .env fastapi dev main.py
 
 You can run tests via `uv run -m pytest` command.
 
+#### Pre-commit hooks
+
+This project uses [pre-commit](https://pre-commit.com/) to run code quality checks (e.g.`pyupgrade`) before each commit. After cloning, run:
+
+```bash
+uv run pre-commit install
+```
+
+This only needs to be done once. From then on, hooks run automatically on `git commit`. To run them manually on all files:
+
+```bash
+uv run pre-commit run --all-files
+```
+
 ### CUDA Support
 
 https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=WSL-Ubuntu&target_version=2.0&target_type=deb_local
@@ -112,7 +126,6 @@ Keep in mind you can hit http://localhost:8000/logging-info endpoint to get info
 - **`base.py`**: Abstract base class for implementing embedding models.
 - **qwen3/**:
   - `embedder_factory.py`: A factory to dynamically select embedding models at runtime.
-  - `llama_embed.py`: Embedding implementation that can extend or customize `embedding/base.py`.
   - `sentence_transformer.py`: Embedding implementation using sentence transformers.
 
 #### queue/

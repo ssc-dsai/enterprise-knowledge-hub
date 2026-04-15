@@ -1,0 +1,19 @@
+{{/*
+  ConfigMap that loads all sql/*.sql files for Postgres initdb.
+  The subchart references this by name via pgvector.initdb.scriptsConfigMap.
+
+  can test this with : helm template ekh . -f values-local.yaml --show-only templates/initdb-configmap.yaml
+*/}}
+{{- if .Values.pgvector.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.pgvector.initdb.scriptsConfigMap }}
+  labels:
+    {{- include "ekh.labels" . | nindent 4 }}
+data:
+  {{- range $path, $bytes := .Files.Glob "sql/*.sql" }}
+  {{ base $path }}: |
+    {{ $.Files.Get $path | nindent 4 }}
+  {{- end }}
+{{- end }}

@@ -1,5 +1,5 @@
 """BatchHandler to enable the ability to handle multiple items at once vs processing one item at a time"""
-from typing import Callable, List, Tuple
+from collections.abc import Callable
 from logging import Logger
 
 from services.knowledge.models import KnowledgeItem
@@ -8,7 +8,7 @@ class BatchHandler: # pylint: disable=too-few-public-methods
     """Handles multiple queue items at once."""
     def __init__(
         self,
-        process_batch: Callable[[List[KnowledgeItem]], None],
+        process_batch: Callable[[list[KnowledgeItem]], None],
         acknowledge: Callable[[str, bool], None],
         batch_size: int,
         logger: Logger
@@ -16,7 +16,7 @@ class BatchHandler: # pylint: disable=too-few-public-methods
         self.process_batch = process_batch
         self.acknowledge = acknowledge
         self.batch_size = batch_size
-        self.item_list: List[Tuple[KnowledgeItem, str]] = []
+        self.item_list: list[tuple[KnowledgeItem, str]] = []
         self.logger: Logger = logger
 
     def __call__(self, item: KnowledgeItem, delivery_tag:str) -> None:

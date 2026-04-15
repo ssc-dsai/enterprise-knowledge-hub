@@ -1,7 +1,6 @@
 """Fake embedding generator"""
 import os
 import hashlib
-from typing import List
 
 import numpy as np
 
@@ -37,7 +36,7 @@ class RNGEmbedder:
 
         return vec.astype(np.float32)
 
-    def encode(self, texts: List[str]) -> np.ndarray:
+    def encode(self, texts: list[str]) -> np.ndarray:
         """
         encode function to mimic base.py encode
         """
