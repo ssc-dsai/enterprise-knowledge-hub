@@ -14,6 +14,9 @@ DOWNLOAD_DIRECTORY = "content/content_storage"
 
 logger = logging.getLogger(__name__)
 
+verify = "/etc/ssl/certs/ca-certificates.crt" if os.getenv("ENABLE_SSL_VERIFICATION",
+                                                           "false").lower() == "true" else False
+
 def download_latest_dump(wiki_dump_content_url, wiki_dump_index_url):
     """Downloads the latest dump from the given wiki dump content and index URLs."""
 
@@ -33,7 +36,7 @@ def download_latest_dump(wiki_dump_content_url, wiki_dump_index_url):
         filename = final_url.split("/")[-1]
         logger.info("Extracted filename: %s", filename)
 
-        response = requests.get(final_url, stream = True, verify="/etc/ssl/certs/ca-certificates.crt", timeout=30)
+        response = requests.get(final_url, stream = True, verify=verify, timeout=30)
         if response.status_code == 200:
             with open(f"{DOWNLOAD_DIRECTORY}/{filename}", "wb") as f:
                 logger.info("Saving to %s/%s...", DOWNLOAD_DIRECTORY, filename)
@@ -78,7 +81,7 @@ def checksum_verification(filename):
     md5_url = f"https://dumps.wikimedia.org/{dump_lang}/{dump_date}/{dump_lang}-{dump_date}-md5sums.txt"
     logger.info("Constructed MD5 URL: %s", md5_url)
 
-    page = requests.get(md5_url, verify="/etc/ssl/certs/ca-certificates.crt", timeout=30)
+    page = requests.get(md5_url, verify=verify, timeout=30)
     if page.status_code == 200:
         soup = BeautifulSoup(page.content, "html.parser")
         md5_text = soup.get_text()

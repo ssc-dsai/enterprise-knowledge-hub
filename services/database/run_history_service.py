@@ -31,3 +31,13 @@ class RunHistoryService():
     def run_history_table_rows(self) -> list[DictRow]:
         """Get all history table rows"""
         return self._repository.run_history_table_rows()
+
+    def cronjob_insert_new_log(self, service_name: str, status: str,
+                               metadata: dict | None, timestamp: datetime) -> None:
+        """Insert a log entry into the history table for cronjobs"""
+        self._repository.cronjob_insert_new_log(service_name, status, metadata, timestamp)
+
+    def cronjob_get_most_recent_dump_date(self, source: str) -> str | None:
+        """Get the most recent dump date for a given source"""
+        return self._repository.cronjob_get_most_recent_dump_date(source)
+

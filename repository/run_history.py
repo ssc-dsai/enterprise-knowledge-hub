@@ -54,7 +54,7 @@ class RunHistoryRepository(BaseRepository):
             INSERT INTO run_history (service_name, status, metadata, timestamp)
             VALUES (%s, %s, %s, %s)
             """
-        ).format(table=sql.Identifier(self._table_name))
+        ).format(table=sql.Identifier(RUN_HISTORY_TABLE_NAME))
 
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(query_sql, (service_name, status, Json(metadata), timestamp))
@@ -72,7 +72,7 @@ class RunHistoryRepository(BaseRepository):
             ORDER BY timestamp DESC
             LIMIT 1
             """
-        ).format(table=sql.Identifier(self._table_name))
+        ).format(table=sql.Identifier(RUN_HISTORY_TABLE_NAME))
 
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(query_sql, (source, "New Dump Link Detected and Downloaded"))

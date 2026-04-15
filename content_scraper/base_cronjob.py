@@ -28,10 +28,11 @@ VALUES
 
 import datetime
 import logging
+import os
 import requests
 from bs4 import BeautifulSoup
 
-from repository.postgrespg import WikipediaPgRepository
+from services.database.run_history_service import RunHistoryService
 from services.knowledge.models import RunStatus
 from content_scraper.scripts import wiki_dump_update
 
@@ -51,16 +52,19 @@ BASE_FRWIKI_CONTENT_URL = (
     "https://dumps.wikimedia.org/frwiki/latest/frwiki-latest-pages-articles-multistream.xml.bz2-rss.xml"
 )
 
-run_history_repository =  WikipediaPgRepository.from_env()
-
 logger = logging.getLogger(__name__)
+_run_history_service = RunHistoryService(logger)
+
+verify = "/etc/ssl/certs/ca-certificates.crt" if os.getenv("ENABLE_SSL_VERIFICATION",
+                                                           "false").lower() == "true" else False
 
 def wiki_check(wiki_dump_content_url, wiki_dump_index_url, dump_key):
     """Checks wikidump rss feed for latest dumpdate, if different, call update function and save new date to file."""
-    page = requests.get(wiki_dump_index_url, verify="/etc/ssl/certs/ca-certificates.crt", timeout=30)
+    page = requests.get(wiki_dump_index_url, verify=verify, timeout=30)
+
     logger.info("Current timestamp: %s", datetime.datetime.now())
 
-    latest_dump_date = run_history_repository.cronjob_get_most_recent_dump_date("cronjob-" + dump_key)
+    latest_dump_date = _run_history_service.cronjob_get_most_recent_dump_date("cronjob-" + dump_key)
 
     if latest_dump_date:
         logger.info("Latest stored dump date in our records: %s", latest_dump_date)
@@ -79,8 +83,8 @@ def wiki_check(wiki_dump_content_url, wiki_dump_index_url, dump_key):
         wiki_dump_update.download_latest_dump(wiki_dump_content_url, wiki_dump_index_url)
 
         logger.info("inserting log into DB")
-        run_history_repository.cronjob_insert_new_log("cronjob-" + dump_key, RunStatus.DUMP_LINK_UPDATED,
-                                                      {"dump_date": string_published_date}, datetime.datetime.now())
+        _run_history_service.cronjob_insert_new_log("cronjob-" + dump_key, RunStatus.DUMP_LINK_UPDATED,
+                                                   {"dump_date": string_published_date}, datetime.datetime.now())
     else:
         logger.info("No new dump detected.")
 
