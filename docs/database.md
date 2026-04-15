@@ -2,95 +2,62 @@
 
 Information on the setup for the Postgres DB we have setup with vectors (pg vectors).
 
-## Setup
+## Database Schema
+
+The canonical schema lives in the Helm chart SQL files and is used directly by the
+pgvector initdb ConfigMap at deploy time:
+
+* [`deployments/ekh/sql/00_init_pgvector.sql`](../deployments/ekh/sql/00_init_pgvector.sql) — enables the `vector` extension
+* [`deployments/ekh/sql/01_init_ekh_schema.sql`](../deployments/ekh/sql/01_init_ekh_schema.sql) — creates tables and indexes
+
+### Alternate index (HNSW instead of ivfflat)
 
 ```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-CREATE TABLE documents (
-   id SERIAL PRIMARY KEY,
-   pid INT,
-   name TEXT,
-   chunk_index INT,
-   title TEXT,
-   content TEXT,
-   source TEXT,
-   last_modified_date DATE,
-   embedding VECTOR(512),
-   CONSTRAINT documents_pid_source_chunk_index_key UNIQUE (pid, source, chunk_index)
-);
-
-CREATE TABLE run_history (
-   id SERIAL PRIMARY KEY,
-   run_id INT,
-   service_name TEXT,
-   status TEXT,
-   metadata json,
-   timestamp TIMESTAMP
-);
-
--- ivfflat index for pgvector
--- using sqrt(12millions) using approximate record size for wikipedia.
-SET maintenance_work_mem = '8GB';
-CREATE INDEX IF NOT EXISTS wikipedia_embedding_index
-   ON documents USING ivfflat (embedding vector_cosine_ops) WITH (lists = 3464);
-
--- OR
--- HNSW index
+-- HNSW index (alternative to ivfflat, better recall but slower build)
 SET maintenance_work_mem = '20GB';
 SET max_parallel_maintenance_workers = 24;
 CREATE INDEX wikipedia_embedding_index
-   ON documents USING hnsw (embedding vector_cosine_ops)
+   ON kb_wikipedia USING hnsw (embedding vector_cosine_ops)
    WITH (m = 16, ef_construction = 64);
 -- indexing progress
 -- https://github.com/pgvector/pgvector/blob/master/README.md#hnsw
 SELECT phase, round(100.0 * blocks_done / nullif(blocks_total, 0), 1) AS "%" FROM pg_stat_progress_create_index;
 
--- Indexes for text search on name and title
-CREATE INDEX IF NOT EXISTS documents_name_idx ON documents (name);
-CREATE INDEX IF NOT EXISTS documents_title_idx ON documents (title);
-CREATE INDEX IF NOT EXISTS documents_source_idx ON documents (source);
-
--- Readonly user created
+-- Readonly user
 CREATE USER readonly_user WITH PASSWORD 'readonly';
 GRANT pg_read_all_data TO readonly_user;
 ```
 
 ## Migrations
 
-### Adding source column/ dropping templates
+### v0.1.0 → v1.10+
 
-First run mistakes! Here are the fixes.
-
-```sql
--- Add the source column to existing table
-ALTER TABLE documents DROP COLUMN IF EXISTS source;
-ALTER TABLE documents ADD COLUMN source TEXT DEFAULT 'enwiki';
-DELETE FROM documents WHERE title LIKE 'Template:%';
-```
-
-### Adding source to unique constraint
-
-When ingesting both English and French Wikipedia dumps, `pid` values can collide across sources.
-The unique constraint must include `source` to allow the same `pid + chunk_index` pair from different sources.
+If you are upgrading from the original `documents` table (v0.1.0) to the current
+`kb_wikipedia` schema, run the following migration in order:
 
 ```sql
--- Drop the old constraint
+-- 1. Add source column
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'enwiki';
+
+-- 2. Fix unique constraint to include source
 ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_pid_chunk_index_key;
-
--- Add the new constraint with source
 ALTER TABLE documents ADD CONSTRAINT documents_pid_source_chunk_index_key UNIQUE (pid, source, chunk_index);
-```
 
-### Changing documents table name
+-- 3. Rename table
+ALTER TABLE documents RENAME TO kb_wikipedia;
 
-```sql
-ALTER TABLE documents RENAME TO kb_wikipedia 
-```
+-- 4. Remove title column
+ALTER TABLE kb_wikipedia DROP COLUMN IF EXISTS title;
 
-### Removing title column
+-- 5. Change last_modified_date from DATE to TIMESTAMPTZ
+ALTER TABLE kb_wikipedia
+    ALTER COLUMN last_modified_date TYPE TIMESTAMPTZ
+    USING last_modified_date::TIMESTAMPTZ;
 
-```sql
-ALTER TABLE kb_wikipedia DROP COLUMN title
+-- 6. Backfill existing rows to end-of-day so "is up to date" checks work
+UPDATE kb_wikipedia
+    SET last_modified_date = last_modified_date::date + INTERVAL '23 hours 59 minutes 59 seconds'
+    WHERE last_modified_date = last_modified_date::date;
 ```
 
 ## Gathering info
