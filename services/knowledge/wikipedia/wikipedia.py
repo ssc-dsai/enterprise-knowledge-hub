@@ -9,7 +9,6 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-import time
 from typing import List
 
 import numpy as np
@@ -51,7 +50,8 @@ class WikipediaKnowledgeService(KnowledgeService):
         self._knowledge_wikipedia_service = KnowledgeItemService(logger)
 
         interval = int(os.getenv("PROCESSING_BATCH_AVERAGE_INTERVAL", "20"))
-        self.batch_time_tracker = BatchTimeTracker(interval, self._run_id, self.service_name, logger, run_history_service)
+        self.batch_time_tracker = BatchTimeTracker(interval, self._run_id, self.service_name, 
+                                                   logger, run_history_service)
 
     @property
     def embedder(self):

@@ -8,6 +8,7 @@ from services.knowledge.models import RunStatus
 class BatchTimeTracker:
     """Class to track and log average time per set amount of batch intervals/count"""
     start: float = None
+    batch_start_time: float = None
     count: int
     interval: int
     history_service: RunHistoryService
