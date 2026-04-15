@@ -33,13 +33,17 @@ class KnowledgeService(ABC):
     _executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=3)
     _futures: list[Future] = field(default_factory=list)
 
-    def run(self) -> None:
+    def run(self, run_id: int | None = None) -> None:
         """Run the knowledge ingestion/processing in parallel threads."""
+
+        # Assign a random run ID for tracking in logs and stats
+        self._run_id = run_id if run_id is not None else int(random() * 1e6)
+
         self.logger.info("Running knowledge ingestion for %s", self.service_name)
         self._ingest_done.clear()
         self._process_done.clear()
         self._stop_event.clear()
-        self._run_id = int(random() * 1e6)  # Assign a random run ID for tracking in logs and stats
+
         # Record the start of this run in the run_history table for observability
         self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                           RunStatus.RUN_STARTED, None, datetime.now())
