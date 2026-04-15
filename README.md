@@ -17,6 +17,8 @@ folder
 Instead of using the crontab, we are using the fastapi-crons library to control cronjobs through our
 fastapi server, with cronjob timings configurable in main.py. Cronjobs automatically run on server start.
 
+To manual test the cronjob, visit the /crons/{job_name}/run endpoint (MORE INFO IN FASTAPI SERVER START DOCS)
+
 ### Database Setup
 
 ```bash
