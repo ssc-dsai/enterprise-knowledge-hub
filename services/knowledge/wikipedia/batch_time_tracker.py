@@ -35,7 +35,8 @@ class BatchTimeTracker:
             average_time_per_processing_batch = elapsed / self.interval
 
             meta_data: dict = {"average_time_per_processing_batch": average_time_per_processing_batch}
-            self.history_service.insert_history_table_log(self.run_id, self.service_name, RunStatus.BATCH_AVERAGE_TIME, meta_data, datetime.now())
+            self.history_service.insert_history_table_log(self.run_id, self.service_name, 
+                                                          RunStatus.BATCH_AVERAGE_TIME, meta_data, datetime.now())
             self.start = now
 
     def start_timer(self) -> None:

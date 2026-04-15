@@ -50,7 +50,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         self._knowledge_wikipedia_service = KnowledgeItemService(logger)
 
         interval = int(os.getenv("PROCESSING_BATCH_AVERAGE_INTERVAL", "20"))
-        self.batch_time_tracker = BatchTimeTracker(interval, self._run_id, self.service_name, 
+        self.batch_time_tracker = BatchTimeTracker(interval, self._run_id, self.service_name,
                                                    logger, run_history_service)
 
     @property
