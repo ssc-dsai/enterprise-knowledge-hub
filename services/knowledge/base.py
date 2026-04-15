@@ -270,7 +270,7 @@ class KnowledgeService(ABC):
         if delivery_tag is not None:
             self.queue_service.read_ack(delivery_tag, successful=successful)
 
-    def request_stop(self) -> None:
+    def request_stop(self) -> int:
         """Stop event for knowledge process"""
         self.logger.info("Stop event requested")
 
@@ -292,6 +292,7 @@ class KnowledgeService(ABC):
         self._futures = []
         self.logger.info("Cleaning up thread local queue connections and channels")
         self.queue_service.cleanup()
+        return self._run_id
 
     def should_stop(self) -> bool:
         """Return true if and only if the internal flag is true."""

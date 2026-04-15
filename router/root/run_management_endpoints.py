@@ -44,9 +44,10 @@ async def stop_wikipedia_run():
     if not _wikipedia_state.is_running():
         return {"message": "No wikipedia run is currently in progress"}
 
-    _wikipedia_service.request_stop()
+    run_id = _wikipedia_service.request_stop()
     _wikipedia_state.stop()
-    return {"message": "Stop event requested for current wikipedia run"}
+    return {"message": "Stop event requested for current wikipedia run",
+            "run_id" : run_id}
 
 @router.get("/wikipedia/run")
 def wikipedia_run(background_tasks: BackgroundTasks):
