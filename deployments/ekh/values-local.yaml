@@ -23,31 +23,15 @@ pgvector:
   port: 5432
   batchSize: 100
   initdb:
-    scripts:
-      00_init_pgvector.sql: |
-        CREATE EXTENSION IF NOT EXISTS vector;
-      # TODO: load from a file instead, we don't have a central one yet, just documentation.
-      01_init_ekh_schema.sql: |
-        CREATE TABLE documents (
-          id SERIAL PRIMARY KEY,
-          pid INT,
-          name TEXT,
-          chunk_index INT,
-          title TEXT,
-          content TEXT,
-          source TEXT,
-          last_modified_date TIMESTAMPTZ,
-          embedding VECTOR(512),
-          CONSTRAINT documents_pid_chunk_index_key UNIQUE (pid, chunk_index)
-        );
-        CREATE INDEX IF NOT EXISTS wikipedia_embedding_index
-          ON documents USING ivfflat (embedding vector_cosine_ops) WITH (lists = 3464);
-  config:
-    postgresqlMaxConnections: 200
-    postgresqlSharedBuffers: "256MB"
-    postgresqlEffectiveCacheSize: "1GB"
-    postgresqlWorkMem: "256MB"
-    postgresqlMaintenanceWorkMem: "4GB"
+    # SQL source files live in sql/*.sql and are loaded into a ConfigMap by templates/initdb-configmap.yaml.
+    scriptsConfigMap: "ekh-initdb"
+  config: # https://artifacthub.io/packages/helm/cloudpirates-postgres/postgres#postgresql-configuration
+    postgresql:
+        max_connections: 200
+        shared_buffers: "256MB"
+        effective_cache_size: "1GB"
+        work_mem: "256MB"
+        maintenance_work_mem: "4GB"
   persistence:
     size: 25Gi
 
