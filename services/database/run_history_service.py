@@ -40,4 +40,3 @@ class RunHistoryService():
     def cronjob_get_most_recent_dump_date(self, source: str) -> str | None:
         """Get the most recent dump date for a given source"""
         return self._repository.cronjob_get_most_recent_dump_date(source)
-
