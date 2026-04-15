@@ -1,20 +1,25 @@
 """Service layer to query embedding in persistance layer"""
+from datetime import datetime
 import logging
 from dataclasses import dataclass
 
 from provider.embedding.qwen3.embedder_factory import get_embedder
-from repository.model import DocumentRecord
-from repository.postgrespg import WikipediaPgRepository
+from repository.model import DocumentRecord, WikipediaDbRecord
+from repository.knowledge_wikipedia import KnowledgeWikipediaRepository
+from repository.pool_provider import PoolProvider
 
 
 @dataclass
-class QueryService():
+class KnowledgeItemService():
     """Service to query wiki embeddings"""
 
     logger: logging.Logger
+    _repository: KnowledgeWikipediaRepository
 
-    def __init__(self, repository: WikipediaPgRepository | None = None):
-        self._repository = repository or WikipediaPgRepository.from_env()
+    def __init__(self, logger):
+        self._logger = logger
+        pool = PoolProvider.get_pool()
+        self._repository = KnowledgeWikipediaRepository(pool)
 
     @property
     def embedder(self):
@@ -32,7 +37,6 @@ class QueryService():
             res = DocumentRecord(
                 chunk_index=res[2],
                 name=res[0],
-                title=res[0],
                 content=res[1],
                 similarity=res[3],)
             parsed_results.append(res)
@@ -46,3 +50,24 @@ class QueryService():
         article_pid = self._repository.get_pid_by_title(title, source)
         full_chunks = self._repository.get_record_full_chunks_content(article_pid, source)
         return full_chunks
+
+    def delete_by_pid_source(self, pid: int, source: str) -> None:
+        """Delete all records by PID and source"""
+        self._repository.delete_by_pid_source(pid, source)
+
+    def insert(self, row: WikipediaDbRecord) -> None:
+        """Insert a record"""
+        self._repository.insert(row)
+
+    def record_is_up_to_date(self, pid: int, source: str, last_date_modified: datetime) -> bool:
+        """
+        Queries the database for the documents with pid and checks if the date is currently
+        more recent than the one in the database
+
+        --- Query needs to return a record (it needs to exists) AND make sure current db date is
+            greater or equal to current passed date
+
+        Returns True if the record EXISTS AND is UP TO DATE, False otherwise
+
+        """
+        return self._repository.record_is_up_to_date(pid, source, last_date_modified)

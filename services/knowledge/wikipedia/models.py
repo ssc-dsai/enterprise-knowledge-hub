@@ -1,6 +1,6 @@
 """Data models for Wikipedia items."""
 from datetime import datetime
-from typing import Any, Dict, Optional, Union, Literal
+from typing import Any, Literal
 import base64
 from enum import StrEnum
 from pydantic import ConfigDict, field_serializer, field_validator
@@ -18,7 +18,7 @@ class Source(StrEnum):
     WIKIPEDIA_FR = "frwiki"
     #MYSSCPLUS = "mysscplus
 
-def _encode_embeddings(embedding: Union[np.ndarray, Tensor, None]) -> Optional[Dict[str, Any]]:
+def _encode_embeddings(embedding: np.ndarray | Tensor | None) -> dict[str, Any] | None:
     """Convert embeddings into a JSON-serializable dict"""
     if embedding is None:
         return None
@@ -45,7 +45,7 @@ def _encode_embeddings(embedding: Union[np.ndarray, Tensor, None]) -> Optional[D
         "data_b64": data_b64,
     }
 
-def _decode_embeddings(payload: Optional[Dict[str, Any]]) -> Union[np.ndarray, Tensor, None]:
+def _decode_embeddings(payload: dict[str, Any] | None) -> np.ndarray | Tensor | None:
     """Reverse of _encode_embeddings"""
     if payload is None:
         return None
@@ -67,7 +67,6 @@ def _decode_embeddings(payload: Optional[Dict[str, Any]]) -> Union[np.ndarray, T
 
 class WikipediaItemRaw(KnowledgeItem):
     """Knowledge item representing a Wikipedia page."""
-    title: str = ""
     content: str = ""  # Wiki markup content
     last_modified_date: datetime | None = None
     pid: int = 0

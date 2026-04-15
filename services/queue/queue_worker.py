@@ -5,7 +5,8 @@ from logging import Logger
 import time
 from threading import Event
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from services.queue.queue_service import QueueService
 
