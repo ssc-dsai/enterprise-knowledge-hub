@@ -45,8 +45,8 @@ app.include_router(frontend_router, prefix="/frontend", tags=["Frontend"])
 app.include_router(endpoints, prefix=KNOWLEDGE_BASE, tags=["Knowledge (Indexing Operations)"])
 app.include_router(db_endpoints, prefix="/database", tags=["Database Interaction"])
 
-# Cronjob to check for new wiki dumps every set amount of time, currently set to once a month:
-@crons.cron("* * 1 * *", name = "run_knowledge_base_scraper")
+# Cronjob to check for new wiki dumps every set amount of time (in ENV file), currently defaulted to once a month:
+@crons.cron(os.getenv("CRON_SCHEDULE", "* * 1 * *"), name="run_knowledge_base_scraper")
 def run_knowledge_base_scraper():
     """Cronjob that runs the knowledge base scraper to update new knowledge base dumps/files"""
     kb_scraper_main()
