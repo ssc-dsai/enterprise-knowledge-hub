@@ -18,3 +18,5 @@ class RunStatus(StrEnum):
     STORING_STARTED = "Storing Started"
     STORING_COMPLETED = "Storing Completed"
     RUN_ENDED = "Run Completed"
+    RUN_STOPPED = "Run Manually Stopped"
+    RUN_CONTINUED = "Run Continued"

@@ -36,17 +36,23 @@ class KnowledgeService(ABC):
     def run(self, run_id: int | None = None) -> None:
         """Run the knowledge ingestion/processing in parallel threads."""
 
-        # Assign a random run ID for tracking in logs and stats
-        self._run_id = run_id if run_id is not None else int(random() * 1e6)
+        if run_id is None:
+            # Assign a random run ID for tracking in logs and stats
+            self._run_id = int(random() * 1e6)
+            self.logger.info("Running knowledge ingestion for %s.  Run ID: %s", self.service_name, self._run_id)
 
-        self.logger.info("Running knowledge ingestion for %s", self.service_name)
+            # Record the start of this run in the run_history table for observability
+            self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.RUN_STARTED, None, datetime.now())
+        else:
+            self._run_id = run_id
+            self.logger.info("Continuing ingestion for %s.  Run ID: %s", self.service_name, self._run_id)
+            self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.RUN_CONTINUED, None, datetime.now())
+
         self._ingest_done.clear()
         self._process_done.clear()
         self._stop_event.clear()
-
-        # Record the start of this run in the run_history table for observability
-        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
-                                                          RunStatus.RUN_STARTED, None, datetime.now())
 
         ingestion_enabled = os.getenv("SVC_KB_ENABLE_INGESTION", "true").lower() in ("1", "true", "yes")
         processing_enabled = os.getenv("SVC_KB_ENABLE_PROCESSING", "true").lower() in ("1", "true", "yes")
@@ -78,8 +84,15 @@ class KnowledgeService(ABC):
         for future in self._futures:
             future.result()
 
-        # Record the end of this run
-        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
+        self.finalize_run()
+
+    def finalize_run(self) -> None:
+        """Final tasks after a run is stopped/completed"""
+        if self._stop_event.is_set():
+            self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.RUN_STOPPED, None, datetime.now())
+        else:
+            self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                           RunStatus.RUN_ENDED, None, datetime.now())
 
     @abstractmethod
