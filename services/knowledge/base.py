@@ -38,7 +38,7 @@ class KnowledgeService(ABC):
 
         if run_id is None:
             # Assign a random run ID for tracking in logs and stats
-            self._run_id = int(random() * 1e6)
+            self._run_id = self.get_run_id()
             self.logger.info("Running knowledge ingestion for %s.  Run ID: %s", self.service_name, self._run_id)
 
             # Record the start of this run in the run_history table for observability
@@ -94,6 +94,11 @@ class KnowledgeService(ABC):
         else:
             self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                           RunStatus.RUN_ENDED, None, datetime.now())
+
+    @abstractmethod
+    def get_run_id(self) -> int:
+        """Get a unique id for run"""
+        raise NotImplementedError("Subclasses must implement the get_run_id method.")
 
     @abstractmethod
     def fetch_from_source(self) -> Iterator[KnowledgeItem]:

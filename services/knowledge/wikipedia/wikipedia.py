@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 import time
+import hashlib
 
 import numpy as np
 from dotenv import load_dotenv
@@ -165,6 +166,34 @@ class WikipediaKnowledgeService(KnowledgeService):
     def store_item(self, item: WikipediaItemProcessed) -> None:
         record_to_insert = WikipediaDbRecord.from_item(item)
         self._knowledge_wikipedia_service.insert(record_to_insert.as_mapping())
+
+    def compute_run_id(self, files: list[Path]) -> int:
+        """
+        Gets a unique run_id based on files in folder and time
+        32-bit hash truncated to fit PostgreSQL INTEGER (31-bit signed pos range)
+        """
+        hash = hashlib.sha256()
+
+        for file in sorted(files):
+            stat = file.stat()
+            hash.update(file.name.encode())
+            hash.update(str(stat.st_size).encode())
+            hash.update(str(stat.st_mtime_ns).encode())
+
+        # I dont want to change column in pg, so truncating to 32 bits (4 bytes).
+        # I know.  small chance of collision.  But we're not running in the millions (assuming 1 run a month)
+        # & 0x7FFFFFFF is to truncate to fit into PG integer (31 bit)
+        return int.from_bytes(hash.digest()[:4], "big", signed=False) & 0x7FFFFFFF
+
+    def get_run_id(self) -> int:
+        """
+        Get unique run_id based on index files provided in content folder
+        """
+        index_files: list[Path] = []
+        for index_path in self._discover_index_files():
+            index_files.append(index_path)
+
+        return self.compute_run_id(index_files)
 
     def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItemRaw]: #pylint: disable=too-many-locals,too-many-branches,too-many-statements
         """Process a single index file and yield WikipediaItems."""
