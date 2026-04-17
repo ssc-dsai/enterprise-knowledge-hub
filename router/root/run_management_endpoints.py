@@ -51,7 +51,11 @@ async def stop_wikipedia_run():
 
 @router.get("/wikipedia/run")
 def wikipedia_run(background_tasks: BackgroundTasks, run_id: int | None = None):
-    """Endpoint to trigger Wikipedia full run"""
+    """
+    Endpoint to trigger Wikipedia full run
+    run_id per run will have same unique computed run_id as long as file name, size and timestamp are the same.
+    Optional run_id, to manually input a run_id.  Overrides computed run_id
+    """
     if not _wikipedia_state.try_start():
         return {
             "message": "Wikipedia run already in progress.",

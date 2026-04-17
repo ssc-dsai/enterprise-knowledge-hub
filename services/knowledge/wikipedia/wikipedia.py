@@ -171,6 +171,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         """
         Gets a unique run_id based on files in folder and time
         32-bit hash truncated to fit PostgreSQL INTEGER (31-bit signed pos range)
+        Hash based on filename, size and timestamp (.name, .st_size, .st_mtime_ns)
         """
         hash = hashlib.sha256()
 
