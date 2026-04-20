@@ -30,8 +30,8 @@ VALUES
 import datetime
 import logging
 import os
-import requests
 import hashlib
+import requests
 from bs4 import BeautifulSoup
 
 from services.database.run_history_service import RunHistoryService
