@@ -41,3 +41,43 @@ class RunHistoryRepository(BaseRepository):
         with self._pool.connection() as conn, conn.cursor() as cur:
             cur.execute(query_sql, (run_id, service_name, status, Json(metadata), timestamp))
             conn.commit()
+
+    def cronjob_insert_new_log(self, service_name: str, status: str,
+                               metadata: dict | None, timestamp: datetime) -> datetime | None:
+        """
+        Queries the database for the most recent last_modified_date for a given source (e.g. wikipedia dump)
+
+        Returns the most recent last_modified_date for the given source, or None if no records are found
+        """
+        query_sql = sql.SQL(
+            """
+            INSERT INTO run_history (service_name, status, metadata, timestamp)
+            VALUES (%s, %s, %s, %s)
+            """
+        ).format(table=sql.Identifier(RUN_HISTORY_TABLE_NAME))
+
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (service_name, status, Json(metadata), timestamp))
+
+    def cronjob_get_most_recent_dump_date(self, source: str) -> str | None:
+        """
+        Queries the database for the most recent last_modified_date for a given source (e.g. wikipedia dump)
+
+        Returns the most recent last_modified_date for the given source, or none if no records are found
+        """
+        query_sql = sql.SQL(
+            """
+            SELECT metadata->>'dump_date' AS dump_date FROM run_history
+            WHERE service_name = %s AND status = %s
+            ORDER BY timestamp DESC
+            LIMIT 1
+            """
+        ).format(table=sql.Identifier(RUN_HISTORY_TABLE_NAME))
+
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (source, "New Dump Link Detected and Downloaded"))
+            row = cur.fetchone()
+
+        if row and row[0]:
+            return row[0]
+        return None

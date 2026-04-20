@@ -9,7 +9,7 @@ class KnowledgeItem(BaseModel):
     name: str = ""
 
 class RunStatus(StrEnum):
-    """Enumeration of run status for the run_history table."""
+    """Enumeration of run status (and cronjob status) for the run_history table."""
     RUN_STARTED = "Run Started"
     INGESTION_STARTED = "Ingestion Started"
     INGESTION_COMPLETED = "Ingestion Completed"
@@ -18,3 +18,4 @@ class RunStatus(StrEnum):
     STORING_STARTED = "Storing Started"
     STORING_COMPLETED = "Storing Completed"
     RUN_ENDED = "Run Completed"
+    DUMP_LINK_UPDATED = "New Dump Link Detected and Downloaded"
