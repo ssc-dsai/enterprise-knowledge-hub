@@ -8,7 +8,7 @@ Here is the sequence diagram of our EKH service.
 title: Enterprise Knowledge Hub Service flow
 ---
 sequenceDiagram
-    create actor u as User
+    actor u as User
     participant API@{ "type": "boundary" } as EKH API
     u-->>API: Start run (Wikipedia)
 
