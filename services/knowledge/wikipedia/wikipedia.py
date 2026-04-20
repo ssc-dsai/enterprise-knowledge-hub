@@ -173,18 +173,18 @@ class WikipediaKnowledgeService(KnowledgeService):
         32-bit hash truncated to fit PostgreSQL INTEGER (31-bit signed pos range)
         Hash based on filename, size and timestamp (.name, .st_size, .st_mtime_ns)
         """
-        hash = hashlib.sha256()
+        run_id_hash = hashlib.sha256()
 
         for file in sorted(files):
             stat = file.stat()
-            hash.update(file.name.encode())
-            hash.update(str(stat.st_size).encode())
-            hash.update(str(stat.st_mtime_ns).encode())
+            run_id_hash.update(file.name.encode())
+            run_id_hash.update(str(stat.st_size).encode())
+            run_id_hash.update(str(stat.st_mtime_ns).encode())
 
         # I dont want to change column in pg, so truncating to 32 bits (4 bytes).
         # I know.  small chance of collision.  But we're not running in the millions (assuming 1 run a month)
         # & 0x7FFFFFFF is to truncate to fit into PG integer (31 bit)
-        return int.from_bytes(hash.digest()[:4], "big", signed=False) & 0x7FFFFFFF
+        return int.from_bytes(run_id_hash.digest()[:4], "big", signed=False) & 0x7FFFFFFF
 
     def get_run_id(self) -> int:
         """
