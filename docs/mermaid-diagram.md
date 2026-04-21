@@ -40,7 +40,7 @@ sequenceDiagram
     API->>ingest: ingest()
     activate ingest
     ingest->>impl: fetch_from_source()
-    impl-->: decompress .bz2 archive
+    impl-->archive: decompress .bz2 archive
     Note right of impl: Read source material<br/>from the bz2 multipart archive
     impl->>ingest: return KnowledgeItem(s)
     ingest->>queue: write KnowledgeItem(s)
