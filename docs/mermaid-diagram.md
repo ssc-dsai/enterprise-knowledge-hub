@@ -23,12 +23,10 @@ Note that those 3 steps are performed in parallel due to the nature of it. **Ing
 
 ```mermaid
 ---
-title: Enterprise Knowledge Hub Service flow
+title: Ingestion flow
 ---
 sequenceDiagram
-    actor u as User
     participant API@{ "type": "boundary" } as EKH API
-    u-->>API: Start run (Wikipedia)
 
     box Knowledge Service
     participant ingest as Ingesting
@@ -36,8 +34,6 @@ sequenceDiagram
     end
 
     participant queue@{ "type" : "queue" } as Queue
-
-    participant db@{ "type": "database" } as Database
 
     API->>ingest: ingest()
     activate ingest
@@ -52,25 +48,25 @@ sequenceDiagram
 
 ```mermaid
 ---
-title: Enterprise Knowledge Hub Service flow
+title: Processing flow
 ---
 sequenceDiagram
-    actor u as User
     participant API@{ "type": "boundary" } as EKH API
-    u-->>API: Start run (Wikipedia)
 
     box Knowledge Service
     participant process as Processing
     participant impl as Wikipedia
     end
 
-    participant queue@{ "type" : "queue" } as Queue
+    participant GPU@{ "type" : "entity" }
 
-    participant db@{ "type": "database" } as Database
+    participant queue@{ "type" : "queue" } as Queue
 
     API->>process: process()
     activate process
     process->>impl: process_item()
+    impl-->GPU
+    Note left of impl: GPU via pytorch processing text <br/> and converting them to embeddings
     impl->>process: return WikipediaItemProcessed
     Note left of impl: GPU processing of<br/>material
     process->>queue: emit_processed_item()
@@ -81,12 +77,10 @@ sequenceDiagram
 
 ```mermaid
 ---
-title: Enterprise Knowledge Hub Service flow
+title: Storing flow
 ---
 sequenceDiagram
-    actor u as User
     participant API@{ "type": "boundary" } as EKH API
-    u-->>API: Start run (Wikipedia)
 
     box Knowledge Service
     participant store as Storing
@@ -103,3 +97,7 @@ sequenceDiagram
     store->>db: store_item()
     deactivate store
 ```
+
+### Knowledge Service Query
+
+TODO
