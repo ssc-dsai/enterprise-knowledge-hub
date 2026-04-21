@@ -17,7 +17,7 @@ from router.root.run_management_endpoints import KNOWLEDGE_BASE
 from router.root.run_management_endpoints import router as endpoints
 from router.root.search_retrieve_endpoints import router as db_endpoints
 
-from content_scraper.base_cronjob import main as kb_scraper_main
+from services.content_scraper.base_cronjob import main as kb_scraper_main
 
 load_dotenv()
 
