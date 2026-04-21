@@ -1,7 +1,25 @@
-# EKH Sequence diagram
+# Enterprise Knowledge Hub (EKH) Flow
 
-Here is the sequence diagram of our EKH service.
+The purpose of this document is to show how the EKH works.
 
+## Knowledge Service
+
+The two main purpose of this service is to create embeddings from source material and allow user to query those embeddings:
+
+  * `knowledge/<impl>/run` will create the information and store it in a database
+  * `knowledge/<impl>/search` will allow use to query the embeddings
+
+### Knowledge Service Run
+
+The knowledge service runs aim to:
+
+  1) **ingest** content; read from the source (ex: wikipedia articles)
+  2) **process** content; use GPU and an embedding model to generate vectors
+  3) **store** content; store the vectors generated above in a database
+
+Note that those 3 steps are performed in parallel due to the nature of it. **Ingestion** adds item to a queue, **process** reads item from the queue and writes the outcome in a different queue, and **store** reads the procssed items to store them in a database. 
+
+#### Ingest
 
 ```mermaid
 ---
@@ -30,6 +48,29 @@ sequenceDiagram
     impl->>ingest: return KnowledgeItem(s)
     ingest->>queue: write KnowledgeItem(s)
     deactivate ingest
+```
+
+#### Process
+
+```mermaid
+---
+title: Enterprise Knowledge Hub Service flow
+---
+sequenceDiagram
+    actor u as User
+    participant API@{ "type": "boundary" } as EKH API
+    u-->>API: Start run (Wikipedia)
+
+    box Knowledge Service
+    participant ingest as Ingesting
+    participant process as Processing
+    participant store as Storing
+    participant impl as Wikipedia
+    end
+
+    participant queue@{ "type" : "queue" } as Queue
+
+    participant db@{ "type": "database" } as Database
 
     API->>process: process()
     activate process
@@ -38,10 +79,33 @@ sequenceDiagram
     Note left of impl: GPU processing of<br/>material
     process->>queue: emit_processed_item()
     deactivate process
+```
+
+#### Store
+
+```mermaid
+---
+title: Enterprise Knowledge Hub Service flow
+---
+sequenceDiagram
+    actor u as User
+    participant API@{ "type": "boundary" } as EKH API
+    u-->>API: Start run (Wikipedia)
+
+    box Knowledge Service
+    participant ingest as Ingesting
+    participant process as Processing
+    participant store as Storing
+    participant impl as Wikipedia
+    end
+
+    participant queue@{ "type" : "queue" } as Queue
+
+    participant db@{ "type": "database" } as Database
 
     API->>store: store()
     activate store
     store->>queue: read WikipediaItemProcessed
     store->>db: store_item()
     deactivate store
- 
+```
