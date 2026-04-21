@@ -64,6 +64,7 @@ sequenceDiagram
 
     API->>process: process()
     activate process
+    process->>queue: Read from raw queue
     process->>impl: process_item()
     impl-->GPU: generate embeddings
     Note right of impl: GPU via pytorch processing text <br/> and converting them to embeddings
@@ -71,6 +72,8 @@ sequenceDiagram
     process->>queue: emit_processed_item()
     deactivate process
 ```
+
+> Note: Processing is batched via BatchHandler for Wikipedia, thus several items at a time are processed.
 
 #### Store
 
