@@ -32,8 +32,6 @@ sequenceDiagram
 
     box Knowledge Service
     participant ingest as Ingesting
-    participant process as Processing
-    participant store as Storing
     participant impl as Wikipedia
     end
 
@@ -62,9 +60,7 @@ sequenceDiagram
     u-->>API: Start run (Wikipedia)
 
     box Knowledge Service
-    participant ingest as Ingesting
     participant process as Processing
-    participant store as Storing
     participant impl as Wikipedia
     end
 
@@ -93,8 +89,6 @@ sequenceDiagram
     u-->>API: Start run (Wikipedia)
 
     box Knowledge Service
-    participant ingest as Ingesting
-    participant process as Processing
     participant store as Storing
     participant impl as Wikipedia
     end
