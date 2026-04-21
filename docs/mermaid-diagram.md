@@ -33,12 +33,15 @@ sequenceDiagram
     participant impl as Wikipedia
     end
 
+    participant archive@{ "type" : "entity" }
+
     participant queue@{ "type" : "queue" } as Queue
 
     API->>ingest: ingest()
     activate ingest
     ingest->>impl: fetch_from_source()
-    Note left of impl: Read source material
+    impl-->: decompress .bz2 archive
+    Note right of impl: Read source material<br/>from the bz2 multipart archive
     impl->>ingest: return KnowledgeItem(s)
     ingest->>queue: write KnowledgeItem(s)
     deactivate ingest
