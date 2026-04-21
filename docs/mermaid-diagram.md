@@ -65,10 +65,9 @@ sequenceDiagram
     API->>process: process()
     activate process
     process->>impl: process_item()
-    impl-->GPU
+    impl-->GPU: generate embeddings
     Note left of impl: GPU via pytorch processing text <br/> and converting them to embeddings
     impl->>process: return WikipediaItemProcessed
-    Note left of impl: GPU processing of<br/>material
     process->>queue: emit_processed_item()
     deactivate process
 ```
