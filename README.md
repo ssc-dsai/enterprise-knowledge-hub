@@ -133,9 +133,6 @@ Keep in mind you can hit http://localhost:8000/logging-info endpoint to get info
 ### provider/
 #### embedding/
 - **`base.py`**: Abstract base class for implementing embedding models.
-- **`rng_embedder.py`**:
-- **`tokenizer.py`**:
-
 - **qwen3/**:
   - `embedder_factory.py`: A factory to dynamically select embedding models at runtime.
   - `sentence_transformer.py`: Embedding implementation using sentence transformers.
@@ -145,12 +142,8 @@ Keep in mind you can hit http://localhost:8000/logging-info endpoint to get info
 - **`RabbitMQ.py`**: Handles RabbitMQ interaction, implementing queue operations defined in base.py.
 ---
 ### repository/
-- **`base.py`**:
-- **`knowledge_wikipedia.py`**:
 - **`model.py`**: Defines the PostgreSQL data model for records.
-- **`pool_provider.py`**: Handles PostgreSQL communication and database interaction.
-- **`run_history.py`**:
-
+- **`postgrespg.py`**: Handles PostgreSQL communication and database interaction.
 ---
 ### router/
 
@@ -166,17 +159,12 @@ Keep in mind you can hit http://localhost:8000/logging-info endpoint to get info
 ### services/
 
 #### database/
-<!-- - **`database_service.py`**: Implements logic for database interaction, including search and retrieval. -->
-- **`knowledge_item_service.py`**:
-- **`run_history_service.py`**:
+- **`database_service.py`**: Implements logic for database interaction, including search and retrieval.
 
 #### knowledge/
 - **`base.py`**: Core logic for building and running knowledge bases.
 - **`models.py`**: Data models for knowledge base items.
-- **`batch_handler.py`**:
-
-- **wikipedia/**:
-    - **`wikipedia.py`**: Processes Wikipedia XML files and converts them to a format suitable for use in the system (implementing the abstract class)
+- **`wikipedia.py`**: Processes Wikipedia XML files and converts them to a format suitable for use in the system (implementing the abstract class)
 
 #### queue/
 - **`queue_service.py`**: Handles read and write operations in the queue system.
