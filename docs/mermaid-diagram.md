@@ -40,9 +40,11 @@ sequenceDiagram
     API->>ingest: ingest()
     activate ingest
     ingest->>impl: fetch_from_source()
+    activate impl
     impl-->archive: decompress .bz2 archive
     Note right of impl: Read source material<br/>from the bz2 multipart archive
     impl->>ingest: return KnowledgeItem(s)
+    deactivate impl
     ingest->>queue: write KnowledgeItem(s)
     deactivate ingest
 ```
@@ -69,9 +71,11 @@ sequenceDiagram
     activate process
     process->>queue: Read from raw queue
     process->>impl: process_item()
+    activate impl
     impl-->GPU: generate embeddings
     Note right of impl: GPU via pytorch processing text <br/> and converting them to embeddings
     impl->>process: return WikipediaItemProcessed
+    deactivate impl
     process->>queue: emit_processed_item()
     deactivate process
 ```
