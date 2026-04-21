@@ -66,7 +66,7 @@ sequenceDiagram
     activate process
     process->>impl: process_item()
     impl-->GPU: generate embeddings
-    Note left of impl: GPU via pytorch processing text <br/> and converting them to embeddings
+    Note right of impl: GPU via pytorch processing text <br/> and converting them to embeddings
     impl->>process: return WikipediaItemProcessed
     process->>queue: emit_processed_item()
     deactivate process
