@@ -1,4 +1,7 @@
-"""BatchHandler to enable the ability to handle multiple items at once vs processing one item at a time"""
+"""
+BatchHandler class to process multiple KnowledgeItems together, improving efficiency and reducing overhead in
+queue processing.
+"""
 from collections.abc import Callable
 from logging import Logger
 

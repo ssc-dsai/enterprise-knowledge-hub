@@ -13,7 +13,7 @@ The latest dump dates are stored in the run history table
 TO TEST USING PSQL, we insert logs with a different dump_date in the metadata field, and check if the cronjob detects
 the new dump (triggered through a fastapi-crons endpoint) and updates the log accordingly:
 
-=============================(SET PROPER TIMEZONE FIRST)========================
+=====================(SET PROPER TIMEZONE FIRST, SO COPY/PASTE THE BELOW 3 QUERIES INTO POSTGRES)======================
 
 SET TIMEZONE = 'America/Toronto';
 
@@ -25,8 +25,9 @@ INSERT INTO run_history (service_name, status, metadata, timestamp)
 VALUES
 ('cronjob-enwiki', 'New Dump Link Detected and Downloaded', '{"dump_date": "Wed, 07 Apr 2040 20:29:35 GMT"}', NOW());
 
-"""
+=======================================================================================================================
 
+"""
 import datetime
 import logging
 import os

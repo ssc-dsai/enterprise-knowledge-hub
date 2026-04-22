@@ -1,4 +1,4 @@
-"""Persistant layer models"""
+"""Persistence models forknowledge base, defining the structure of records stored in the database and providing"""
 from __future__ import annotations
 
 from dataclasses import dataclass

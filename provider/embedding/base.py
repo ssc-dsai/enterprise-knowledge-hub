@@ -1,5 +1,4 @@
 """Base interface for embedding backends."""
-
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -10,7 +9,6 @@ from provider.embedding.tokenizer import ThreadTokenizer
 # Qwen3 embedding models require instruction prefixes for queries
 # See: https://huggingface.co/Qwen/Qwen3-Embedding-0.6B
 QWEN3_QUERY_INSTRUCTION = "Instruct: Given a query, retrieve relevant Wikipedia passages that answer the query\nQuery: "
-
 
 class EmbeddingBackendProvider(ABC):
     """Contract for embedding providers to implement."""
