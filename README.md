@@ -11,8 +11,8 @@ To start the docker container: `docker compose up -d`
 * Wikipedia; ensure you `mkdir wikipedia` within the `./content/` folder and drop your files there.
 
 ### Cronjob Setup (Knowledge base links and sources update)
-IMPORTANT: For knowledge base scraping cronjob to run, you require a `mkdir content_Storage` within the `./content`
-folder
+IMPORTANT: For knowledge base scraping cronjob to run, you require a `mkdir wikipedia` within the `./content`
+folder, if not already made
 
 Instead of using the crontab, we are using the fastapi-crons library to control cronjobs through our
 fastapi server, with cronjob timings configurable in main.py. Cronjobs automatically run on server start.

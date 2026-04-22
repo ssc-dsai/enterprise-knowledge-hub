@@ -303,7 +303,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         for node in sorted(self._content_folder_path.rglob("*.txt.bz2")):
             if not node.is_file():
                 continue
-            if node.suffix == PROGRESS_SUFFIX:
+            if node.suffix == PROGRESS_SUFFIX or node.name.endswith(".partial_download"):
                 continue  # Skip progress files
             # Use fullmatch to ensure entire filename matches (excludes :Zone.Identifier files)
             match = INDEX_FILENAME.fullmatch(node.name)
