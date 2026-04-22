@@ -20,8 +20,10 @@ from provider.embedding.qwen3.embedder_factory import get_embedder
 from repository.model import WikipediaDbRecord
 from services.database.knowledge_item_service import KnowledgeItemService
 from services.knowledge.base import KnowledgeService
-from services.knowledge.models import KnowledgeItem
+from services.knowledge.batch_handler import BatchHandler
+from services.knowledge.models import KnowledgeItem, RunStatus
 from services.knowledge.wikipedia.models import WikipediaItemProcessed, Source, WikipediaItemRaw
+from services.queue.queue_worker import QueueWorker
 
 load_dotenv()
 
@@ -57,6 +59,64 @@ class WikipediaKnowledgeService(KnowledgeService):
     def get_batch_size(self):
         return self._batch_size
 
+    # Override process to enable batch processing with BatchHandler
+    def process(self) -> None:
+        """Process ingested data. Keeps polling until producer is done and queue is empty."""
+
+        self.logger.info("Processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
+        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
+                                                              RunStatus.PROCESSING_STARTED, None, datetime.now())
+
+        try:
+            batch_size = self.get_batch_size()
+
+            worker = QueueWorker(
+                queue_service=self.queue_service,
+                logger=self.logger,
+                stop_event=self._stop_event,
+                poll_interval=self._poll_interval
+            )
+
+            def acknowledge(delivery_tag: int, successful: bool):
+                self.queue_service.read_ack(delivery_tag, successful)
+
+            handler = BatchHandler(self.process_item, acknowledge, batch_size, self.logger)
+
+            def should_exit(drained_any: bool) -> bool:
+                #Ingest done, AND check ingestion queue was empty this iteration
+                return self._ingest_done.is_set() and not drained_any
+
+            worker.run(
+                queue_name=self._ingest_queue_name(),
+                service_name=self.service_name,
+                handler=handler,
+                should_exit=should_exit
+            )
+
+            # flushes last batch that hangs in memory, due to not reaching batch size.
+            if handler.item_list:
+                handler.flush()
+
+            count = worker.message_count
+        except Exception:
+            self.logger.exception("Error during processing for queue: %s. (%s)",
+                            self._ingest_queue_name(), self.service_name)
+
+        try:
+            self.finalize_process()
+            self._process_done.set() # Signal that _process_done is finished
+        except Exception:
+            self.logger.exception("Error during finalize_process for queue: %s. (%s)",
+                                self._ingest_queue_name(), self.service_name)
+
+
+        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
+                                                              RunStatus.PROCESSING_COMPLETED,
+                                                              {"count": count,
+                                                               "msg": "Messages Processed"}, datetime.now())
+        self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(),
+                                                                                self.service_name)
+
     def process_item(self, knowledge_item: list[KnowledgeItem]) -> list[WikipediaItemProcessed]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
@@ -66,7 +126,6 @@ class WikipediaKnowledgeService(KnowledgeService):
             batch: list[str] = []
             for item in knowledge_item:
                 batch.append(item['content'])
-
 
             # PLACEHOLDER for actual embedding generation. For now, we just generate dummy embeddings.
             # embeddings = [np.random.rand(512).tolist() for _ in batch]
@@ -164,7 +223,8 @@ class WikipediaKnowledgeService(KnowledgeService):
         self.queue_service.write(self._processed_queue_name(), item)
 
     def store_item(self, item: WikipediaItemProcessed) -> None:
-        record_to_insert = WikipediaDbRecord.from_item(item)
+        item_validated = WikipediaItemProcessed.model_validate(item)
+        record_to_insert = WikipediaDbRecord.from_item(item_validated)
         self._knowledge_wikipedia_service.insert(record_to_insert.as_mapping())
 
     def compute_run_id(self, files: list[Path]) -> int:

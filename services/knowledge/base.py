@@ -11,8 +11,6 @@ from datetime import datetime
 
 from services.database.run_history_service import RunHistoryService
 from services.knowledge.models import KnowledgeItem
-from services.knowledge.batch_handler import BatchHandler
-from services.knowledge.wikipedia.models import WikipediaItemProcessed
 from services.knowledge.models import RunStatus
 from services.queue.queue_worker import QueueWorker
 from services.queue.queue_service import QueueService
@@ -120,7 +118,7 @@ class KnowledgeService(ABC):
         raise NotImplementedError("Subclasses must implement the emit_processed_item method.")
 
     @abstractmethod
-    def store_item(self, item: WikipediaItemProcessed) -> None:
+    def store_item(self, item: KnowledgeItem) -> None:
         """Insert the object into repository"""
         raise NotImplementedError("Subclasses must implement the store_item method.")
 
@@ -169,13 +167,10 @@ class KnowledgeService(ABC):
         """Process ingested data. Keeps polling until producer is done and queue is empty."""
 
         self.logger.info("Processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
-
         self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                               RunStatus.PROCESSING_STARTED, None, datetime.now())
 
         try:
-            batch_size = self.get_batch_size()
-
             worker = QueueWorker(
                 queue_service=self.queue_service,
                 logger=self.logger,
@@ -183,10 +178,13 @@ class KnowledgeService(ABC):
                 poll_interval=self._poll_interval
             )
 
-            def acknowledge(delivery_tag: int, successful: bool):
-                self.queue_service.read_ack(delivery_tag, successful)
+            def handler(item: KnowledgeItem, delivery_tag: str) -> bool:
+                self.process_item(item)
+                self.emit_processed_item(item)
+                self.logger.debug("DeliveryTag: %s", delivery_tag)
 
-            handler = BatchHandler(self.process_item, acknowledge, batch_size, self.logger)
+                # this is to tell queueworker to handle ack
+                return True
 
             def should_exit(drained_any: bool) -> bool:
                 #Ingest done, AND check ingestion queue was empty this iteration
@@ -198,10 +196,6 @@ class KnowledgeService(ABC):
                 handler=handler,
                 should_exit=should_exit
             )
-
-            # flushes last batch that hangs in memory, due to not reaching batch size.
-            if handler.item_list:
-                handler.flush()
 
             count = worker.message_count
         except Exception:
@@ -241,12 +235,12 @@ class KnowledgeService(ABC):
                 poll_interval=self._poll_interval
             )
 
-            def handler(item: WikipediaItemProcessed, delivery_tag: str) -> bool:
+            def handler(item: KnowledgeItem, delivery_tag: str) -> bool:
                 if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
-                    self.store_item(WikipediaItemProcessed.model_validate(item))
+                    self.store_item(item)
                 self.logger.debug("DeliveryTag: %s", delivery_tag)
                 # this is to tell queueworker to handle ack
-                return False
+                return True
 
             def should_exit(drained_any: bool) -> bool:
                 # process is done, AND check processed queue was empty this iteration
