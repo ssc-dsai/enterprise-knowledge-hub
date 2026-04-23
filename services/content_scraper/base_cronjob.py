@@ -55,7 +55,7 @@ BASE_FRWIKI_CONTENT_URL = (
     "https://dumps.wikimedia.org/frwiki/latest/frwiki-latest-pages-articles-multistream.xml.bz2-rss.xml"
 )
 
-ENABLE_SSL_VERIFICATION = os.getenv("ENABLE_SSL_VERIFICATION", "True")
+ENABLE_SSL_VERIFICATION = os.getenv("ENABLE_SSL_VERIFICATION", True)
 
 logger = logging.getLogger(__name__)
 _run_history_service = RunHistoryService(logger)
