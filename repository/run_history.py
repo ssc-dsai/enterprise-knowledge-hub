@@ -51,7 +51,7 @@ class RunHistoryRepository(BaseRepository):
         """
         query_sql = sql.SQL(
             """
-            INSERT INTO run_history (service_name, status, metadata, timestamp)
+            INSERT INTO {table} (service_name, status, metadata, timestamp)
             VALUES (%s, %s, %s, %s)
             """
         ).format(table=sql.Identifier(RUN_HISTORY_TABLE_NAME))
@@ -67,7 +67,7 @@ class RunHistoryRepository(BaseRepository):
         """
         query_sql = sql.SQL(
             """
-            SELECT metadata->>'dump_date' AS dump_date FROM run_history
+            SELECT metadata->>'dump_date' AS dump_date FROM {table}
             WHERE service_name = %s AND status = %s
             ORDER BY timestamp DESC
             LIMIT 1
@@ -81,3 +81,22 @@ class RunHistoryRepository(BaseRepository):
         if row and row[0]:
             return row[0]
         return None
+
+    # change dictrow to a model
+    def select_first_instance_of_run_id(self, run_id: int) -> DictRow | None:
+        """
+        Returns the first record that contains run_id
+        """
+        query_sql=sql.SQL(
+            """
+            SELECT run_id FROM {table}
+            WHERE run_id = %s
+            limit 1
+            """
+        ).format(table=sql.Identifier(RUN_HISTORY_TABLE_NAME))
+
+        with self._pool.connection() as conn, conn.cursor() as cur:
+            cur.execute(query_sql, (run_id))
+            row = cur.fetchone()
+
+        return row

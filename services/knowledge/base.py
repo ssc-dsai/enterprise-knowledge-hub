@@ -36,16 +36,17 @@ class KnowledgeService(ABC):
         if run_id is None:
             # Assign a random run ID for tracking in logs and stats
             self._run_id = self.get_run_id()
-            self.logger.info("Running knowledge ingestion for %s.  Run ID: %s", self.service_name, self._run_id)
-
-            # Record the start of this run in the run_history table for observability
-            self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
-                                                          RunStatus.RUN_STARTED, None, datetime.now())
         else:
             self._run_id = run_id
+
+        if self.run_history_service.select_first_instance_of_run_id(self._run_id):
             self.logger.info("Continuing ingestion for %s.  Run ID: %s", self.service_name, self._run_id)
             self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                           RunStatus.RUN_CONTINUED, None, datetime.now())
+        else:
+            self.logger.info("Running knowledge ingestion for %s.  Run ID: %s", self.service_name, self._run_id)
+            self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.RUN_STARTED, None, datetime.now())
 
         self._ingest_done.clear()
         self._process_done.clear()
