@@ -13,7 +13,7 @@ The latest dump dates are stored in the run history table
 TO TEST USING PSQL, we insert logs with a different dump_date in the metadata field, and check if the cronjob detects
 the new dump (triggered through a fastapi-crons endpoint) and updates the log accordingly:
 
-=============================(SET PROPER TIMEZONE FIRST)========================
+=====================(SET PROPER TIMEZONE FIRST, SO COPY/PASTE THE BELOW 3 QUERIES INTO POSTGRES)======================
 
 SET TIMEZONE = 'America/Toronto';
 
@@ -25,8 +25,9 @@ INSERT INTO run_history (service_name, status, metadata, timestamp)
 VALUES
 ('cronjob-enwiki', 'New Dump Link Detected and Downloaded', '{"dump_date": "Wed, 07 Apr 2040 20:29:35 GMT"}', NOW());
 
-"""
+=======================================================================================================================
 
+"""
 import datetime
 import logging
 import os
@@ -37,7 +38,7 @@ from bs4 import BeautifulSoup
 from services.database.run_history_service import RunHistoryService
 from services.knowledge.models import RunStatus
 
-DOWNLOAD_DIRECTORY = "content/content_storage"
+DOWNLOAD_DIRECTORY = "content/wikipedia"
 
 # Enwiki dump RSS Feed URLs
 BASE_ENWIKI_INDEX_URL = (
@@ -75,6 +76,11 @@ def wiki_download_latest_dump(wiki_dump_content_url, wiki_dump_index_url):
 
     logger.info("============Downloading latest dump...============")
 
+    # ensure download directory exists
+    if not os.path.exists(DOWNLOAD_DIRECTORY):
+        os.makedirs(DOWNLOAD_DIRECTORY)
+        logger.info("Created download directory at %s", DOWNLOAD_DIRECTORY)
+
     list_of_links = wiki_list_maker(wiki_dump_content_url, wiki_dump_index_url)
     logger.info("List of download links retrieved: %s", list_of_links)
 
@@ -89,13 +95,17 @@ def wiki_download_latest_dump(wiki_dump_content_url, wiki_dump_index_url):
         filename = final_url.split("/")[-1]
         logger.info("Extracted filename: %s", filename)
 
+        downloading_file_name = filename.replace(".bz2", ".partial_download")
+        downloading_file_path = f"{DOWNLOAD_DIRECTORY}/{downloading_file_name}"
+
         response = requests.get(final_url, stream = True, verify=ENABLED_SSL_VERIFICATION,
                                 timeout=30)
         if response.status_code == 200:
-            with open(f"{DOWNLOAD_DIRECTORY}/{filename}", "wb") as f:
+            with open(f"{DOWNLOAD_DIRECTORY}/{downloading_file_name}", "wb") as f:
                 logger.info("Saving to %s/%s...", DOWNLOAD_DIRECTORY, filename)
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
+            os.rename(downloading_file_path, f"{DOWNLOAD_DIRECTORY}/{filename}")
             logger.info("Successfully downloaded %s to %s, launching checksum verification...",
                         filename, DOWNLOAD_DIRECTORY)
             wiki_checksum_verification_hash_extractor(filename)

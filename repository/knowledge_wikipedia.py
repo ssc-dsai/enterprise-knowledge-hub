@@ -1,4 +1,4 @@
-"""Postgres/pgvector helper utilities."""
+"""Postgres/pgvector repository for Wikipedia knowledge base."""
 from __future__ import annotations
 
 from datetime import datetime

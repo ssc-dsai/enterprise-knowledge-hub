@@ -1,5 +1,4 @@
 """Qwen3 embeddings backed by sentence-transformers."""
-
 # pylint: disable=duplicate-code
 import logging
 import os
@@ -157,9 +156,3 @@ class Qwen3SentenceTransformer(EmbeddingBackendProvider):
             start_idx += max_tokens - overlap_tokens
 
         return chunks
-
-    def encode_rng(self, text:list[str]) -> np.ndarray:
-        """
-        Return dummy RNG vectors instead of using GPU processing.
-        Not real vectors.
-        """

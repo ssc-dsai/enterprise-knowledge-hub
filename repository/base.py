@@ -1,4 +1,4 @@
-"""Base class for repository classes"""
+"""Base repository class for databases, providing pool ."""
 from psycopg_pool import ConnectionPool
 
 INSERT_BATCH_SIZE = 500
