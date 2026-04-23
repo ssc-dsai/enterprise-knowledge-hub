@@ -1,6 +1,7 @@
-"""Wikipedia knowledge service implementation.
-    has custom way of ingesting data (from wikimedia dumps in bz2 format).
-    has vectorization processing logic at the process step. to a vector db
+"""
+Wikipedia knowledge service implementation.
+has custom way of ingesting data (from wikimedia dumps in bz2 format).
+has vectorization processing logic at the process step to a vector db
 """
 import bz2
 import os
@@ -66,9 +67,6 @@ class WikipediaKnowledgeService(KnowledgeService):
             for item in knowledge_item:
                 batch.append(item['content'])
 
-
-            # PLACEHOLDER for actual embedding generation. For now, we just generate dummy embeddings.
-            # embeddings = [np.random.rand(512).tolist() for _ in batch]
             embeddings = self.embedder.embed(batch)
             arr = np.asarray(embeddings)
 

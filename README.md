@@ -29,7 +29,7 @@ On first run **ensure you have this table created**, please see setup section in
 
 ### Running locally
 
-**Requires UV**, see [isntallation](https://docs.astral.sh/uv/getting-started/installation/)
+**Requires UV**, see [installation](https://docs.astral.sh/uv/getting-started/installation/)
 
 ```bash
 uv venv
@@ -133,6 +133,9 @@ Keep in mind you can hit http://localhost:8000/logging-info endpoint to get info
 ### provider/
 #### embedding/
 - **`base.py`**: Abstract base class for implementing embedding models.
+- **`rng_embedder.py`**: Fake embedding generator for testing.
+- **`tokenizer.py`**: Tokenizer module.
+
 - **qwen3/**:
   - `embedder_factory.py`: A factory to dynamically select embedding models at runtime.
   - `sentence_transformer.py`: Embedding implementation using sentence transformers.
@@ -142,8 +145,13 @@ Keep in mind you can hit http://localhost:8000/logging-info endpoint to get info
 - **`RabbitMQ.py`**: Handles RabbitMQ interaction, implementing queue operations defined in base.py.
 ---
 ### repository/
-- **`model.py`**: Defines the PostgreSQL data model for records.
-- **`postgrespg.py`**: Handles PostgreSQL communication and database interaction.
+- **`base.py`**: Base repository class for databases.
+- **`knowledge_wikipedia.py`**: Postgres/pgvector repository for Wikipedia knowledge base.
+- **`model.py`**: Persistence models for knowledge base, defining the structure of records stored in
+the database (PostgreSQL).
+- **`pool_provider.py`**: Handles PostgreSQL communication and database interaction.
+- **`run_history.py`**: Postgres/pgvector repository for run-history table.
+
 ---
 ### router/
 
@@ -151,20 +159,32 @@ Keep in mind you can hit http://localhost:8000/logging-info endpoint to get info
 - **`index.html`**: The user-facing (developers only) UI served by the Enterprise Knowledge Hub.
 - **`frontend.py`**: Python backend for serving the frontend.
 
+- **templates/**:
+    - `status.html`: Template page for the dev frontend's status page (run-history table).
+
 #### root/
-- **`search_retrieve_endpoints.py`**: Contains APIs to search and retrieve data from the knowledge database.
-- **`run_management_endpoints.py`**: APIs to manage creation, deletion, updates, and index runs.
+- **`search_retrieve_endpoints.py`**: Contains endpoints to search and retrieve data from the knowledge database.
+- **`run_management_endpoints.py`**: Endpoints to manage creation, deletion, updates, and index runs.
 - **`run_state.py`**: Manages the state of index processing runs.
 ---
 ### services/
 
+#### content_scraper/
+- **`base_cronjob.py`**: Meant to hold the scripts for knowledgebase content updating cronjob (for example, downloading new wikipedia dumps when available)
+
 #### database/
-- **`database_service.py`**: Implements logic for database interaction, including search and retrieval.
+- **`knowledge_item_service.py`**: Service to query and log to knowledge base table.
+- **`run_history_service.py`**: Service to interact with run history table.
 
 #### knowledge/
 - **`base.py`**: Core logic for building and running knowledge bases.
 - **`models.py`**: Data models for knowledge base items.
-- **`wikipedia.py`**: Processes Wikipedia XML files and converts them to a format suitable for use in the system (implementing the abstract class)
+- **`batch_handler.py`**: BatchHandler class to process multiple items together, improving efficiency and reducing overhead in
+queue processing.
+
+- **wikipedia/**:
+    - **`wikipedia.py`**: Processes Wikipedia XML files and converts them to a format suitable for use in the system (implementing the abstract class)
+    - **`models.py`**: Data models for Wikipedia items.
 
 #### queue/
 - **`queue_service.py`**: Handles read and write operations in the queue system.

@@ -1,4 +1,6 @@
-"""Queue service to handle queue operations."""
+"""
+Queue Service module to manage queue operations using a QueueProvider.
+"""
 from collections.abc import Iterator
 from dataclasses import dataclass
 import logging
