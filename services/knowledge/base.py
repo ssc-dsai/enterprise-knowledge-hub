@@ -164,6 +164,19 @@ class KnowledgeService(ABC):
                                                                 "msg": "Records Ingested"}, datetime.now())
         self.logger.info("Done ingestion for %s", self.service_name)
 
+    def process_handler(self, item: KnowledgeItem, delivery_tag: str) -> bool:
+        """Handler definition for process step"""
+        self.process_item(item)
+        self.emit_processed_item(item)
+        self.logger.debug("DeliveryTag: %s", delivery_tag)
+
+        # this is to tell queueworker to handle ack
+        return True
+
+    def process_should_exit(self, drained_any: bool) -> bool:
+        """Exit loop condition for process step"""
+        return self._ingest_done.is_set() and not drained_any
+
     def process(self) -> None:
         """Process ingested data. Keeps polling until producer is done and queue is empty."""
 
@@ -179,23 +192,11 @@ class KnowledgeService(ABC):
                 poll_interval=self._poll_interval
             )
 
-            def handler(item: KnowledgeItem, delivery_tag: str) -> bool:
-                self.process_item(item)
-                self.emit_processed_item(item)
-                self.logger.debug("DeliveryTag: %s", delivery_tag)
-
-                # this is to tell queueworker to handle ack
-                return True
-
-            def should_exit(drained_any: bool) -> bool:
-                #Ingest done, AND check ingestion queue was empty this iteration
-                return self._ingest_done.is_set() and not drained_any
-
             worker.run(
                 queue_name=self._ingest_queue_name(),
                 service_name=self.service_name,
-                handler=handler,
-                should_exit=should_exit
+                handler=self.process_handler,
+                should_exit=self.process_should_exit
             )
 
             count = worker.message_count
@@ -218,6 +219,19 @@ class KnowledgeService(ABC):
         self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(),
                                                                                 self.service_name)
 
+    def store_handler(self, item: KnowledgeItem, delivery_tag: str) -> bool:
+        """Handler definition for store step"""
+        if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
+            self.store_item(item)
+        self.logger.debug("DeliveryTag: %s", delivery_tag)
+        # this is to tell queueworker to handle ack
+        return True
+
+    def store_should_exit(self, drained_any: bool) -> bool:
+        """Exit loop condition for store step"""
+        # process is done, AND check processed queue was empty this iteration
+        return self._ingest_done.is_set() and self._process_done.is_set() and not drained_any
+
     def store(self) -> None:
         """
             Process {service_name}.processed queue
@@ -236,22 +250,11 @@ class KnowledgeService(ABC):
                 poll_interval=self._poll_interval
             )
 
-            def handler(item: KnowledgeItem, delivery_tag: str) -> bool:
-                if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
-                    self.store_item(item)
-                self.logger.debug("DeliveryTag: %s", delivery_tag)
-                # this is to tell queueworker to handle ack
-                return True
-
-            def should_exit(drained_any: bool) -> bool:
-                # process is done, AND check processed queue was empty this iteration
-                return self._ingest_done.is_set() and self._process_done.is_set() and not drained_any
-
             worker.run(
                 queue_name=self._processed_queue_name(),
                 service_name=self.service_name,
-                handler=handler,
-                should_exit=should_exit
+                handler=self.store_handler,
+                should_exit=self.store_should_exit
             )
 
             count = worker.message_count
