@@ -59,6 +59,16 @@ class WikipediaKnowledgeService(KnowledgeService):
     def get_batch_size(self):
         return self._batch_size
 
+    # Override process handler
+    def process_handler(self):
+        """Handler definition for process step"""
+        def acknowledge(delivery_tag: int, successful: bool):
+                self.queue_service.read_ack(delivery_tag, successful)
+        batch_size = self.get_batch_size()
+        if not hasattr(self, "_batch_handler_instance"):
+            self._batch_handler_instance = BatchHandler(self.process_item, acknowledge, batch_size, self.logger)
+        return self._batch_handler_instance
+
     # Override process to enable batch processing with BatchHandler
     def process(self) -> None:
         """Process ingested data. Keeps polling until producer is done and queue is empty."""
@@ -68,7 +78,6 @@ class WikipediaKnowledgeService(KnowledgeService):
                                                               RunStatus.PROCESSING_STARTED, None, datetime.now())
 
         try:
-            batch_size = self.get_batch_size()
 
             worker = QueueWorker(
                 queue_service=self.queue_service,
