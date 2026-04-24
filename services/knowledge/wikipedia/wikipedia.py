@@ -59,6 +59,7 @@ class WikipediaKnowledgeService(KnowledgeService):
     def get_batch_size(self):
         return self._batch_size
 
+    # TODO AR: need to think about last flash.  in this implementation
     # Override process handler
     def process_handler(self):
         """Handler definition for process step"""
@@ -69,62 +70,6 @@ class WikipediaKnowledgeService(KnowledgeService):
             self._batch_handler_instance = BatchHandler(self.process_item, acknowledge, batch_size, self.logger)
         return self._batch_handler_instance
 
-    # Override process to enable batch processing with BatchHandler
-    def process(self) -> None:
-        """Process ingested data. Keeps polling until producer is done and queue is empty."""
-
-        self.logger.info("Processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
-        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
-                                                              RunStatus.PROCESSING_STARTED, None, datetime.now())
-
-        try:
-
-            worker = QueueWorker(
-                queue_service=self.queue_service,
-                logger=self.logger,
-                stop_event=self._stop_event,
-                poll_interval=self._poll_interval
-            )
-
-            def acknowledge(delivery_tag: int, successful: bool):
-                self.queue_service.read_ack(delivery_tag, successful)
-
-            handler = BatchHandler(self.process_item, acknowledge, batch_size, self.logger)
-
-            def should_exit(drained_any: bool) -> bool:
-                #Ingest done, AND check ingestion queue was empty this iteration
-                return self._ingest_done.is_set() and not drained_any
-
-            worker.run(
-                queue_name=self._ingest_queue_name(),
-                service_name=self.service_name,
-                handler=handler,
-                should_exit=should_exit
-            )
-
-            # flushes last batch that hangs in memory, due to not reaching batch size.
-            if handler.item_list:
-                handler.flush()
-
-            count = worker.message_count
-        except Exception:
-            self.logger.exception("Error during processing for queue: %s. (%s)",
-                            self._ingest_queue_name(), self.service_name)
-
-        try:
-            self.finalize_process()
-            self._process_done.set() # Signal that _process_done is finished
-        except Exception:
-            self.logger.exception("Error during finalize_process for queue: %s. (%s)",
-                                self._ingest_queue_name(), self.service_name)
-
-
-        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
-                                                              RunStatus.PROCESSING_COMPLETED,
-                                                              {"count": count,
-                                                               "msg": "Messages Processed"}, datetime.now())
-        self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(),
-                                                                                self.service_name)
 
     def process_item(self, knowledge_item: list[KnowledgeItem]) -> list[WikipediaItemProcessed]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
