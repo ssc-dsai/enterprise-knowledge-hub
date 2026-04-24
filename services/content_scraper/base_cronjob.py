@@ -62,12 +62,10 @@ def configure_ssl_verification():
     """Configures SSL verification based on the environment variable."""
     env_val = os.getenv("ENABLE_SSL_VERIFICATION", "")
     if env_val in ["", "True", "true", "1"]:
-        ENABLE_SSL_VERIFICATION = True
-        logger.info("SSL verification is enabled to true.")
+        enable_ssl_verification = True
     else:
-        ENABLE_SSL_VERIFICATION = env_val
-        logger.info("SSL verification is custom path.")
-    return ENABLE_SSL_VERIFICATION
+        enable_ssl_verification = env_val
+    return enable_ssl_verification
 
 ENABLED_SSL_VERIFICATION = configure_ssl_verification()
 
