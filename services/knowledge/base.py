@@ -165,7 +165,10 @@ class KnowledgeService(ABC):
         self.logger.info("Done ingestion for %s", self.service_name)
 
     def process_handler(self, item: KnowledgeItem, delivery_tag: str) -> bool:
-        """Handler definition for process step"""
+        """
+        Handler definition for process step
+        Return: bool is meant to tell QueueWorker to ack or not
+        """
         self.process_item(item)
         self.emit_processed_item(item)
         self.logger.debug("DeliveryTag: %s", delivery_tag)

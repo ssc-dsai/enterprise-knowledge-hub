@@ -59,16 +59,29 @@ class WikipediaKnowledgeService(KnowledgeService):
     def get_batch_size(self):
         return self._batch_size
 
-    # TODO AR: need to think about last flash.  in this implementation
-    # Override process handler
-    def process_handler(self):
-        """Handler definition for process step"""
-        def acknowledge(delivery_tag: int, successful: bool):
-                self.queue_service.read_ack(delivery_tag, successful)
-        batch_size = self.get_batch_size()
+    def process_handler(self, item: KnowledgeItem, delivery_tag: str) -> bool:
+        """
+        Override base implementaiton
+        Handler definition for process step — delegates to BatchHandler for batching.
+        """
         if not hasattr(self, "_batch_handler_instance"):
-            self._batch_handler_instance = BatchHandler(self.process_item, acknowledge, batch_size, self.logger)
-        return self._batch_handler_instance
+            def acknowledge(dt: int, successful: bool):
+                self.queue_service.read_ack(dt, successful)
+            self._batch_handler_instance = BatchHandler(
+                self.process_item, acknowledge, self.get_batch_size(), self.logger
+            )
+        self._batch_handler_instance(item, delivery_tag)
+
+        # BatchHandler manages ack internally. Tells QueueWorker not to ack
+        return False
+
+    def finalize_process(self) -> None:
+        """
+        Optional hook from base.py
+        Flush any remaining items in the batch before the process loop ends.
+        """
+        if hasattr(self, "_batch_handler_instance") and self._batch_handler_instance.item_list:
+            self._batch_handler_instance.flush()
 
 
     def process_item(self, knowledge_item: list[KnowledgeItem]) -> list[WikipediaItemProcessed]:
