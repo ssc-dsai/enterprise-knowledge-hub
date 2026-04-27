@@ -55,11 +55,19 @@ BASE_FRWIKI_INDEX_URL = (
 BASE_FRWIKI_CONTENT_URL = (
     "https://dumps.wikimedia.org/frwiki/latest/frwiki-latest-pages-articles-multistream.xml.bz2-rss.xml"
 )
-
-ENABLE_SSL_VERIFICATION = os.getenv("ENABLE_SSL_VERIFICATION", "True")
-
 logger = logging.getLogger(__name__)
 _run_history_service = RunHistoryService(logger)
+
+def configure_ssl_verification():
+    """Configures SSL verification based on the environment variable."""
+    env_val = os.getenv("ENABLE_SSL_VERIFICATION", "")
+    if env_val in ["", "True", "true", "1"]:
+        enable_ssl_verification = True
+    else:
+        enable_ssl_verification = env_val
+    return enable_ssl_verification
+
+ENABLED_SSL_VERIFICATION = configure_ssl_verification()
 
 def wiki_download_latest_dump(wiki_dump_content_url, wiki_dump_index_url):
     """Downloads the latest dump from the given wiki dump content and index URLs."""
@@ -88,7 +96,7 @@ def wiki_download_latest_dump(wiki_dump_content_url, wiki_dump_index_url):
         downloading_file_name = filename.replace(".bz2", ".partial_download")
         downloading_file_path = f"{DOWNLOAD_DIRECTORY}/{downloading_file_name}"
 
-        response = requests.get(final_url, stream = True, verify=ENABLE_SSL_VERIFICATION,
+        response = requests.get(final_url, stream = True, verify=ENABLED_SSL_VERIFICATION,
                                 timeout=30)
         if response.status_code == 200:
             with open(f"{DOWNLOAD_DIRECTORY}/{downloading_file_name}", "wb") as f:
@@ -107,9 +115,9 @@ def wiki_list_maker(wiki_dump_content_url, wiki_dump_index_url):
 
     link_list = []
 
-    content_file = requests.get(wiki_dump_content_url, verify=ENABLE_SSL_VERIFICATION,
+    content_file = requests.get(wiki_dump_content_url, verify=ENABLED_SSL_VERIFICATION,
                                 timeout=30)
-    index_file = requests.get(wiki_dump_index_url, verify=ENABLE_SSL_VERIFICATION, timeout=30)
+    index_file = requests.get(wiki_dump_index_url, verify=ENABLED_SSL_VERIFICATION, timeout=30)
 
     content_soup = BeautifulSoup(content_file.content, "xml")
     index_soup = BeautifulSoup(index_file.content, "xml")
@@ -135,7 +143,7 @@ def wiki_checksum_verification_hash_extractor(filename):
     md5_url = f"https://dumps.wikimedia.org/{dump_lang}/{dump_date}/{dump_lang}-{dump_date}-md5sums.txt"
     logger.info("Constructed MD5 URL: %s", md5_url)
 
-    page = requests.get(md5_url, verify=ENABLE_SSL_VERIFICATION, timeout=30)
+    page = requests.get(md5_url, verify=ENABLED_SSL_VERIFICATION, timeout=30)
     if page.status_code == 200:
         soup = BeautifulSoup(page.content, "html.parser")
         md5_text = soup.get_text()
@@ -176,8 +184,7 @@ def wiki_hashing_verification_md5(filename, good_hash):
 
 def wiki_rss_feed_check(wiki_dump_content_url, wiki_dump_index_url, dump_key):
     """Checks wikidump rss feed for latest dumpdate, if different, call update function and save new date to file."""
-    page = requests.get(wiki_dump_index_url, verify=ENABLE_SSL_VERIFICATION, timeout=30)
-
+    page = requests.get(wiki_dump_index_url, verify=ENABLED_SSL_VERIFICATION, timeout=30)
     logger.info("Current timestamp: %s", datetime.datetime.now())
 
     latest_dump_date = _run_history_service.cronjob_get_most_recent_dump_date("cronjob-" + dump_key)
