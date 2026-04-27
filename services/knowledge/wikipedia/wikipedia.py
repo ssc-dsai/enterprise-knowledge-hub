@@ -21,9 +21,8 @@ from repository.model import WikipediaDbRecord
 from services.database.knowledge_item_service import KnowledgeItemService
 from services.knowledge.base import KnowledgeService
 from services.knowledge.batch_handler import BatchHandler
-from services.knowledge.models import KnowledgeItem, RunStatus
+from services.knowledge.models import KnowledgeItem
 from services.knowledge.wikipedia.models import WikipediaItemProcessed, Source, WikipediaItemRaw
-from services.queue.queue_worker import QueueWorker
 
 load_dotenv()
 
@@ -50,6 +49,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         super().__init__(queue_service=queue_service, logger=logger,
                          run_history_service=run_history_service, service_name="wikipedia")
         self._knowledge_wikipedia_service = KnowledgeItemService(logger)
+        self._batch_handler_instance = None
 
     @property
     def embedder(self):
@@ -213,7 +213,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         # & 0x7FFFFFFF is to truncate to fit into PG integer (31 bit)
         return int.from_bytes(run_id_hash.digest()[:4], "big", signed=False) & 0x7FFFFFFF
 
-    def get_run_id(self) -> int:
+    def _get_run_id(self) -> int:
         """
         Get unique run_id based on index files provided in content folder
         """

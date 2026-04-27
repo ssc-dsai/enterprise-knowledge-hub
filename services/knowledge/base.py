@@ -35,7 +35,7 @@ class KnowledgeService(ABC):
 
         if run_id is None:
             # Assign a random run ID for tracking in logs and stats
-            self._run_id = self.get_run_id()
+            self._run_id = self._get_run_id()
         else:
             self._run_id = run_id
 
@@ -82,9 +82,9 @@ class KnowledgeService(ABC):
         for future in self._futures:
             future.result()
 
-        self.finalize_run()
+        self._finalize_run()
 
-    def finalize_run(self) -> None:
+    def _finalize_run(self) -> None:
         """Final tasks after a run is stopped/completed"""
         if self._stop_event.is_set():
             self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
@@ -94,7 +94,7 @@ class KnowledgeService(ABC):
                                                           RunStatus.RUN_ENDED, None, datetime.now())
 
     @abstractmethod
-    def get_run_id(self) -> int:
+    def _get_run_id(self) -> int:
         """Get a unique id for run"""
         raise NotImplementedError("Subclasses must implement the get_run_id method.")
 
