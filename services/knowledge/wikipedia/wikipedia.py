@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 import hashlib
+import time
 
 import numpy as np
 from dotenv import load_dotenv
@@ -68,7 +69,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         Override base implementaiton
         Handler definition for process step — delegates to BatchHandler for batching.
         """
-        if not hasattr(self, "_batch_handler_instance"):
+        if self._batch_handler_instance is None:
             def acknowledge(dt: int, successful: bool):
                 self.queue_service.read_ack(dt, successful)
             self._batch_handler_instance = BatchHandler(
@@ -84,7 +85,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         Optional hook from base.py
         Flush any remaining items in the batch before the process loop ends.
         """
-        if hasattr(self, "_batch_handler_instance") and self._batch_handler_instance.item_list:
+        if self._batch_handler_instance is not None and self._batch_handler_instance.item_list:
             self._batch_handler_instance.flush()
 
 
