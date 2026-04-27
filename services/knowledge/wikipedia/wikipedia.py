@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 import hashlib
-import time
 
 import numpy as np
 from dotenv import load_dotenv
