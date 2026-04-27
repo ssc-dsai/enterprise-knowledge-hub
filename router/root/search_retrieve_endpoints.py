@@ -27,8 +27,9 @@ def search_database(
 @router.get("/retrieve/{title}")
 def retrieve_wiki_articles(
     title: str,
-    source: str
+    source: str = 'enwiki' # this needs to be fixed assume enwiki for now.
 ):
     """Get wiki article content"""
+    print("HELLO")
     print(f"(search_retrieve endpoints) Retrieving wiki articles for title: {title}")
     return _knowledge_item_service.get_article_content_by_title(title, source)
