@@ -1,4 +1,4 @@
-"""Base class for knowledge services."""
+"""Base class for knowledge services, providing a template for ingestion, processing, and storing of knowledge items."""
 import os
 from abc import ABC, abstractmethod
 from collections.abc import Iterator

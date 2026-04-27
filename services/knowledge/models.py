@@ -19,5 +19,6 @@ class RunStatus(StrEnum):
     STORING_COMPLETED = "Storing Completed"
     RUN_ENDED = "Run Completed"
     DUMP_LINK_UPDATED = "New Dump Link Detected and Downloaded"
+    BATCH_AVERAGE_TIME = "Processing Batch Average Time"
     RUN_STOPPED = "Run Manually Stopped"
     RUN_CONTINUED = "Run Continued"

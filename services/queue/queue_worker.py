@@ -1,5 +1,5 @@
 """
-Docstring for services.queue.queue_worker
+Worker class for handling queue operations
 """
 from logging import Logger
 import time

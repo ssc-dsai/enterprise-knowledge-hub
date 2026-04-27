@@ -1,6 +1,7 @@
-"""Wikipedia knowledge service implementation.
-    has custom way of ingesting data (from wikimedia dumps in bz2 format).
-    has vectorization processing logic at the process step. to a vector db
+"""
+Wikipedia knowledge service implementation.
+has custom way of ingesting data (from wikimedia dumps in bz2 format).
+has vectorization processing logic at the process step to a vector db
 """
 import bz2
 import os
@@ -9,7 +10,6 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-import time
 import hashlib
 
 import numpy as np
@@ -22,6 +22,7 @@ from services.database.knowledge_item_service import KnowledgeItemService
 from services.knowledge.base import KnowledgeService
 from services.knowledge.batch_handler import BatchHandler
 from services.knowledge.models import KnowledgeItem
+from services.knowledge.wikipedia.batch_time_tracker import BatchTimeTracker
 from services.knowledge.wikipedia.models import WikipediaItemProcessed, Source, WikipediaItemRaw
 
 load_dotenv()
@@ -50,6 +51,9 @@ class WikipediaKnowledgeService(KnowledgeService):
                          run_history_service=run_history_service, service_name="wikipedia")
         self._knowledge_wikipedia_service = KnowledgeItemService(logger)
         self._batch_handler_instance = None
+        interval = int(os.getenv("PROCESSING_BATCH_AVERAGE_INTERVAL", "20"))
+        self.batch_time_tracker = BatchTimeTracker(interval, self._run_id, self.service_name,
+                                                   logger, run_history_service)
 
     @property
     def embedder(self):
@@ -87,15 +91,16 @@ class WikipediaKnowledgeService(KnowledgeService):
     def process_item(self, knowledge_item: list[KnowledgeItem]) -> list[WikipediaItemProcessed]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
-            start_time = time.perf_counter()
+            if self.batch_time_tracker.start is None:
+                self.batch_time_tracker.start_timer()
+            self.batch_time_tracker.batch_start()
+
             gpu_batch_size = self.embedder.get_batch_size()
 
             batch: list[str] = []
             for item in knowledge_item:
                 batch.append(item['content'])
 
-            # PLACEHOLDER for actual embedding generation. For now, we just generate dummy embeddings.
-            # embeddings = [np.random.rand(512).tolist() for _ in batch]
             embeddings = self.embedder.embed(batch)
             arr = np.asarray(embeddings)
 
@@ -117,9 +122,8 @@ class WikipediaKnowledgeService(KnowledgeService):
             for processed_item in results:
                 self.emit_processed_item(processed_item)
 
-            end_time = time.perf_counter()
-            self.logger.info("Generated embeddings for %s items in %.2f seconds per batch (GPU batch size: %s)",
-                             len(knowledge_item), (end_time - start_time)/gpu_batch_size, gpu_batch_size)
+            self.batch_time_tracker.print_current_batch_time(len(knowledge_item), gpu_batch_size)
+            self.batch_time_tracker.tick()
 
         except Exception as e:
             self.logger.error("Error processing embedding for Wikipedia item: %s", e)
@@ -360,7 +364,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         for node in sorted(self._content_folder_path.rglob("*.txt.bz2")):
             if not node.is_file():
                 continue
-            if node.suffix == PROGRESS_SUFFIX:
+            if node.suffix == PROGRESS_SUFFIX or node.name.endswith(".partial_download"):
                 continue  # Skip progress files
             # Use fullmatch to ensure entire filename matches (excludes :Zone.Identifier files)
             match = INDEX_FILENAME.fullmatch(node.name)

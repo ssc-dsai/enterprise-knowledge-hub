@@ -13,7 +13,7 @@ The latest dump dates are stored in the run history table
 TO TEST USING PSQL, we insert logs with a different dump_date in the metadata field, and check if the cronjob detects
 the new dump (triggered through a fastapi-crons endpoint) and updates the log accordingly:
 
-=============================(SET PROPER TIMEZONE FIRST)========================
+=====================(SET PROPER TIMEZONE FIRST, SO COPY/PASTE THE BELOW 3 QUERIES INTO POSTGRES)======================
 
 SET TIMEZONE = 'America/Toronto';
 
@@ -25,8 +25,9 @@ INSERT INTO run_history (service_name, status, metadata, timestamp)
 VALUES
 ('cronjob-enwiki', 'New Dump Link Detected and Downloaded', '{"dump_date": "Wed, 07 Apr 2040 20:29:35 GMT"}', NOW());
 
-"""
+=======================================================================================================================
 
+"""
 import datetime
 import logging
 import os
@@ -37,7 +38,7 @@ from bs4 import BeautifulSoup
 from services.database.run_history_service import RunHistoryService
 from services.knowledge.models import RunStatus
 
-DOWNLOAD_DIRECTORY = "content/content_storage"
+DOWNLOAD_DIRECTORY = "content/wikipedia"
 
 # Enwiki dump RSS Feed URLs
 BASE_ENWIKI_INDEX_URL = (
@@ -54,16 +55,29 @@ BASE_FRWIKI_INDEX_URL = (
 BASE_FRWIKI_CONTENT_URL = (
     "https://dumps.wikimedia.org/frwiki/latest/frwiki-latest-pages-articles-multistream.xml.bz2-rss.xml"
 )
-
-ENABLE_SSL_VERIFICATION = os.getenv("ENABLE_SSL_VERIFICATION", "True")
-
 logger = logging.getLogger(__name__)
 _run_history_service = RunHistoryService(logger)
+
+def configure_ssl_verification():
+    """Configures SSL verification based on the environment variable."""
+    env_val = os.getenv("ENABLE_SSL_VERIFICATION", "")
+    if env_val in ["", "True", "true", "1"]:
+        enable_ssl_verification = True
+    else:
+        enable_ssl_verification = env_val
+    return enable_ssl_verification
+
+ENABLED_SSL_VERIFICATION = configure_ssl_verification()
 
 def wiki_download_latest_dump(wiki_dump_content_url, wiki_dump_index_url):
     """Downloads the latest dump from the given wiki dump content and index URLs."""
 
     logger.info("============Downloading latest dump...============")
+
+    # ensure download directory exists
+    if not os.path.exists(DOWNLOAD_DIRECTORY):
+        os.makedirs(DOWNLOAD_DIRECTORY)
+        logger.info("Created download directory at %s", DOWNLOAD_DIRECTORY)
 
     list_of_links = wiki_list_maker(wiki_dump_content_url, wiki_dump_index_url)
     logger.info("List of download links retrieved: %s", list_of_links)
@@ -79,13 +93,17 @@ def wiki_download_latest_dump(wiki_dump_content_url, wiki_dump_index_url):
         filename = final_url.split("/")[-1]
         logger.info("Extracted filename: %s", filename)
 
-        response = requests.get(final_url, stream = True, verify=ENABLE_SSL_VERIFICATION,
+        downloading_file_name = filename.replace(".bz2", ".partial_download")
+        downloading_file_path = f"{DOWNLOAD_DIRECTORY}/{downloading_file_name}"
+
+        response = requests.get(final_url, stream = True, verify=ENABLED_SSL_VERIFICATION,
                                 timeout=30)
         if response.status_code == 200:
-            with open(f"{DOWNLOAD_DIRECTORY}/{filename}", "wb") as f:
+            with open(f"{DOWNLOAD_DIRECTORY}/{downloading_file_name}", "wb") as f:
                 logger.info("Saving to %s/%s...", DOWNLOAD_DIRECTORY, filename)
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
+            os.rename(downloading_file_path, f"{DOWNLOAD_DIRECTORY}/{filename}")
             logger.info("Successfully downloaded %s to %s, launching checksum verification...",
                         filename, DOWNLOAD_DIRECTORY)
             wiki_checksum_verification_hash_extractor(filename)
@@ -97,9 +115,9 @@ def wiki_list_maker(wiki_dump_content_url, wiki_dump_index_url):
 
     link_list = []
 
-    content_file = requests.get(wiki_dump_content_url, verify=ENABLE_SSL_VERIFICATION,
+    content_file = requests.get(wiki_dump_content_url, verify=ENABLED_SSL_VERIFICATION,
                                 timeout=30)
-    index_file = requests.get(wiki_dump_index_url, verify=ENABLE_SSL_VERIFICATION, timeout=30)
+    index_file = requests.get(wiki_dump_index_url, verify=ENABLED_SSL_VERIFICATION, timeout=30)
 
     content_soup = BeautifulSoup(content_file.content, "xml")
     index_soup = BeautifulSoup(index_file.content, "xml")
@@ -125,7 +143,7 @@ def wiki_checksum_verification_hash_extractor(filename):
     md5_url = f"https://dumps.wikimedia.org/{dump_lang}/{dump_date}/{dump_lang}-{dump_date}-md5sums.txt"
     logger.info("Constructed MD5 URL: %s", md5_url)
 
-    page = requests.get(md5_url, verify=ENABLE_SSL_VERIFICATION, timeout=30)
+    page = requests.get(md5_url, verify=ENABLED_SSL_VERIFICATION, timeout=30)
     if page.status_code == 200:
         soup = BeautifulSoup(page.content, "html.parser")
         md5_text = soup.get_text()
@@ -166,8 +184,7 @@ def wiki_hashing_verification_md5(filename, good_hash):
 
 def wiki_rss_feed_check(wiki_dump_content_url, wiki_dump_index_url, dump_key):
     """Checks wikidump rss feed for latest dumpdate, if different, call update function and save new date to file."""
-    page = requests.get(wiki_dump_index_url, verify=ENABLE_SSL_VERIFICATION, timeout=30)
-
+    page = requests.get(wiki_dump_index_url, verify=ENABLED_SSL_VERIFICATION, timeout=30)
     logger.info("Current timestamp: %s", datetime.datetime.now())
 
     latest_dump_date = _run_history_service.cronjob_get_most_recent_dump_date("cronjob-" + dump_key)

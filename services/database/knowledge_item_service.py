@@ -1,4 +1,7 @@
-"""Service layer to query embedding in persistance layer"""
+"""
+Knowledge item service to handle operations related to knowledge items, such as searching, retrieving content, and
+managing records in the database.
+"""
 from datetime import datetime
 import logging
 from dataclasses import dataclass

@@ -1,4 +1,4 @@
-"""Run history module"""
+"""Run history service class for run_history table"""
 from dataclasses import dataclass
 from datetime import datetime
 import logging
