@@ -10,7 +10,6 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-import time
 
 import numpy as np
 from dotenv import load_dotenv
@@ -21,6 +20,7 @@ from repository.model import WikipediaDbRecord
 from services.database.knowledge_item_service import KnowledgeItemService
 from services.knowledge.base import KnowledgeService
 from services.knowledge.models import KnowledgeItem
+from services.knowledge.wikipedia.batch_time_tracker import BatchTimeTracker
 from services.knowledge.wikipedia.models import WikipediaItemProcessed, Source, WikipediaItemRaw
 
 load_dotenv()
@@ -49,6 +49,10 @@ class WikipediaKnowledgeService(KnowledgeService):
                          run_history_service=run_history_service, service_name="wikipedia")
         self._knowledge_wikipedia_service = KnowledgeItemService(logger)
 
+        interval = int(os.getenv("PROCESSING_BATCH_AVERAGE_INTERVAL", "20"))
+        self.batch_time_tracker = BatchTimeTracker(interval, self._run_id, self.service_name,
+                                                   logger, run_history_service)
+
     @property
     def embedder(self):
         """Get embedder"""
@@ -60,7 +64,10 @@ class WikipediaKnowledgeService(KnowledgeService):
     def process_item(self, knowledge_item: list[KnowledgeItem]) -> list[WikipediaItemProcessed]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
         try:
-            start_time = time.perf_counter()
+            if self.batch_time_tracker.start is None:
+                self.batch_time_tracker.start_timer()
+            self.batch_time_tracker.batch_start()
+
             gpu_batch_size = self.embedder.get_batch_size()
 
             batch: list[str] = []
@@ -88,9 +95,8 @@ class WikipediaKnowledgeService(KnowledgeService):
             for processed_item in results:
                 self.emit_processed_item(processed_item)
 
-            end_time = time.perf_counter()
-            self.logger.info("Generated embeddings for %s items in %.2f seconds per batch (GPU batch size: %s)",
-                             len(knowledge_item), (end_time - start_time)/gpu_batch_size, gpu_batch_size)
+            self.batch_time_tracker.print_current_batch_time(len(knowledge_item), gpu_batch_size)
+            self.batch_time_tracker.tick()
 
         except Exception as e:
             self.logger.error("Error processing embedding for Wikipedia item: %s", e)
