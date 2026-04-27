@@ -96,7 +96,7 @@ class RunHistoryRepository(BaseRepository):
         ).format(table=sql.Identifier(RUN_HISTORY_TABLE_NAME))
 
         with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, (run_id))
+            cur.execute(query_sql, [run_id])
             row = cur.fetchone()
 
         return row
