@@ -10,6 +10,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+import hashlib
 
 import numpy as np
 from dotenv import load_dotenv
@@ -19,6 +20,7 @@ from provider.embedding.qwen3.embedder_factory import get_embedder
 from repository.model import WikipediaDbRecord
 from services.database.knowledge_item_service import KnowledgeItemService
 from services.knowledge.base import KnowledgeService
+from services.knowledge.batch_handler import BatchHandler
 from services.knowledge.models import KnowledgeItem
 from services.knowledge.wikipedia.batch_time_tracker import BatchTimeTracker
 from services.knowledge.wikipedia.models import WikipediaItemProcessed, Source, WikipediaItemRaw
@@ -48,7 +50,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         super().__init__(queue_service=queue_service, logger=logger,
                          run_history_service=run_history_service, service_name="wikipedia")
         self._knowledge_wikipedia_service = KnowledgeItemService(logger)
-
+        self._batch_handler_instance = None
         interval = int(os.getenv("PROCESSING_BATCH_AVERAGE_INTERVAL", "20"))
         self.batch_time_tracker = BatchTimeTracker(interval, self._run_id, self.service_name,
                                                    logger, run_history_service)
@@ -60,6 +62,31 @@ class WikipediaKnowledgeService(KnowledgeService):
 
     def get_batch_size(self):
         return self._batch_size
+
+    def process_handler(self, item: KnowledgeItem, delivery_tag: str) -> bool:
+        """
+        Override base implementaiton
+        Handler definition for process step — delegates to BatchHandler for batching.
+        """
+        if self._batch_handler_instance is None:
+            def acknowledge(dt: int, successful: bool):
+                self.queue_service.read_ack(dt, successful)
+            self._batch_handler_instance = BatchHandler(
+                self.process_item, acknowledge, self.get_batch_size(), self.logger
+            )
+        self._batch_handler_instance(item, delivery_tag)
+
+        # BatchHandler manages ack internally. Tells QueueWorker not to ack
+        return False
+
+    def finalize_process(self) -> None:
+        """
+        Optional hook from base.py
+        Flush any remaining items in the batch before the process loop ends.
+        """
+        if self._batch_handler_instance is not None and self._batch_handler_instance.item_list:
+            self._batch_handler_instance.flush()
+
 
     def process_item(self, knowledge_item: list[KnowledgeItem]) -> list[WikipediaItemProcessed]:
         """Process ingested WikipediaItem from the queue and return one row per text chunk."""
@@ -167,8 +194,38 @@ class WikipediaKnowledgeService(KnowledgeService):
         self.queue_service.write(self._processed_queue_name(), item)
 
     def store_item(self, item: WikipediaItemProcessed) -> None:
-        record_to_insert = WikipediaDbRecord.from_item(item)
+        item_validated = WikipediaItemProcessed.model_validate(item)
+        record_to_insert = WikipediaDbRecord.from_item(item_validated)
         self._knowledge_wikipedia_service.insert(record_to_insert.as_mapping())
+
+    def compute_run_id(self, files: list[Path]) -> int:
+        """
+        Gets a unique run_id based on files in folder and time
+        32-bit hash truncated to fit PostgreSQL INTEGER (31-bit signed pos range)
+        Hash based on filename, size and timestamp (.name, .st_size, .st_mtime_ns)
+        """
+        run_id_hash = hashlib.sha256()
+
+        for file in sorted(files):
+            stat = file.stat()
+            run_id_hash.update(file.name.encode())
+            run_id_hash.update(str(stat.st_size).encode())
+            run_id_hash.update(str(stat.st_mtime_ns).encode())
+
+        # I dont want to change column in pg, so truncating to 32 bits (4 bytes).
+        # I know.  small chance of collision.  But we're not running in the millions (assuming 1 run a month)
+        # & 0x7FFFFFFF is to truncate to fit into PG integer (31 bit)
+        return int.from_bytes(run_id_hash.digest()[:4], "big", signed=False) & 0x7FFFFFFF
+
+    def _get_run_id(self) -> int:
+        """
+        Get unique run_id based on index files provided in content folder
+        """
+        index_files: list[Path] = []
+        for index_path in self._discover_index_files():
+            index_files.append(index_path)
+
+        return self.compute_run_id(index_files)
 
     def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItemRaw]: #pylint: disable=too-many-locals,too-many-branches,too-many-statements
         """Process a single index file and yield WikipediaItems."""

@@ -29,10 +29,10 @@ _wikipedia_service = WikipediaKnowledgeService(queue_service=_queue_service, log
                                                run_history_service=_run_history_service)
 _wikipedia_state = RunState()
 
-def _run_wikipedia_task():
+def _run_wikipedia_task(run_id: int | None = None):
     """Wrapper that manages the running state flag."""
     try:
-        _wikipedia_service.run()
+        _wikipedia_service.run(run_id)
     finally:
         _wikipedia_state.stop()
 
@@ -44,20 +44,25 @@ async def stop_wikipedia_run():
     if not _wikipedia_state.is_running():
         return {"message": "No wikipedia run is currently in progress"}
 
-    _wikipedia_service.request_stop()
+    run_id = _wikipedia_service.request_stop()
     _wikipedia_state.stop()
-    return {"message": "Stop event requested for current wikipedia run"}
+    return {"message": "Stop event requested for current wikipedia run",
+            "run_id" : run_id}
 
 @router.get("/wikipedia/run")
-def wikipedia_run(background_tasks: BackgroundTasks):
-    """Endpoint to trigger Wikipedia full run"""
+def wikipedia_run(background_tasks: BackgroundTasks, run_id: int | None = None):
+    """
+    Endpoint to trigger Wikipedia full run
+    run_id per run will have same unique computed run_id as long as file name, size and timestamp are the same.
+    Optional run_id, to manually input a run_id.  Overrides computed run_id
+    """
     if not _wikipedia_state.try_start():
         return {
             "message": "Wikipedia run already in progress.",
             "details": "Follow progress at frontend/status"
         }
 
-    background_tasks.add_task(_run_wikipedia_task)
+    background_tasks.add_task(_run_wikipedia_task, run_id)
     return {
         "message": "Wikipedia run started.",
         "details": "Follow progress at frontend/status"

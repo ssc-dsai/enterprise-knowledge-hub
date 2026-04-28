@@ -9,6 +9,8 @@ import numpy as np
 
 from services.knowledge.wikipedia.models import WikipediaItemProcessed
 
+# TO DO AR: i forgot why this was used TypedDict.  Probably an old implementation?  Not used many places.
+# Check at some point to move to dataclass?
 class DocumentRecord(TypedDict):
     """Model for records in kb_wikipedia table"""
     name: str

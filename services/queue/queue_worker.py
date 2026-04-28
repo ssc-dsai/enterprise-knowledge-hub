@@ -46,9 +46,9 @@ class QueueWorker:
                             self.logger.info("Stop event is true. Stopping process: %s - %s", service_name, queue_name)
                             self._acknowledge(delivery_tag, successful=False)
                             break
-                        is_handler_manages_ack = handler(item, delivery_tag)
+                        is_ack_here = handler(item, delivery_tag)
                         # if handler manages acknowledgement back to queue then ignore
-                        if is_handler_manages_ack is False:
+                        if is_ack_here:
                             self._acknowledge(delivery_tag, successful=True)
                         else:
                             pass
