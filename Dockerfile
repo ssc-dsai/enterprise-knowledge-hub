@@ -9,6 +9,7 @@ FROM nvidia/cuda:12.9.1-cudnn-devel-ubuntu24.04 AS builder-cuda
 # Version that must match the GPU you are running this service on --> https://developer.nvidia.com/cuda/gpus
 ARG CUDA_ARCH
 ARG JOBS_AND_THREADS=8
+ARG BUILD_FLASH=FALSE
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential ca-certificates curl git python3.12 python3.12-dev \
@@ -37,7 +38,9 @@ RUN export MAX_JOBS=${JOBS_AND_THREADS} && \
     export FLASH_ATTENTION_FORCE_CXX11_ABI="FALSE" && \
     export FLASH_ATTENTION_SKIP_CUDA_BUILD="FALSE" && \
     export FLASH_ATTN_CUDA_ARCHS="$(echo ${CUDA_ARCH} | tr -d '.')" && \
-    uv sync ${CUDA_ARCH:+--extra flash} --locked
+    FLASH_EXTRA="" && \
+    if [ "${BUILD_FLASH}" = "TRUE" ]; then FLASH_EXTRA="--extra flash"; fi && \
+    uv sync ${FLASH_EXTRA} --locked
 
 # ── CPU builder ────────────────────────────────────────────────────────────────
 FROM python:3.12-trixie AS builder-cpu
