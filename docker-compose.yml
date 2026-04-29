@@ -1,11 +1,7 @@
 services:
   ekh: # comment this service out if you plan to run/debug locally without docker
-    build:
-      context: .
-    # uncomment those lines for a real cuda build + flash attn build
-      args:
-        BASE_IMAGE: cpu # or cuda
-    #     CUDA_ARCH: "8.6"
+    # if you want to build this image yourself, refer to the .github/workflows/docker-build.yml file
+    image: ghcr.io/ssc-dsai/enterprise-knowledge-hub:${EKH_IMAGE_TAG:-1.2.4-cuda-8.9}
     container_name: ekh
     restart: unless-stopped
     env_file:
@@ -15,35 +11,38 @@ services:
     expose:
       - "8000"
     volumes:
-      - ./content:/app/content
+      - ./content:/app/content:rw
+      - /home/shared/repos:/home/shared/repos:ro
+    shm_size: '4g'
+    mem_limit: 8g
+    memswap_limit: 10g
+    pids_limit: 512
     deploy: # this section requires nvidia container toolkit to work
     # installation: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
       resources:
         reservations:
+          cpus: "2"
           devices:
             - driver: nvidia
               count: all
-              capabilities: [gpu]
+              capabilities: [gpu, compute, utility]
     depends_on:
       - postgres
       - rabbitmq
   postgres:
     image: pgvector/pgvector:pg16-trixie
     container_name: postgres-ekh
-    shm_size: 4g
     restart: unless-stopped
     env_file:
       - .env
-    command:
-      - postgres
-      - -c
-      - maintenance_work_mem=4GB
-      - -c
-      - max_parallel_maintenance_workers=4
     ports:
       - 5432:5432
     volumes:
       - postgres_data_ekh:/var/lib/postgresql/data
+    mem_limit: 4g
+    memswap_limit: 6g
+    shm_size: 2g
+    pids_limit: 256
   pgadmin:
     image: dpage/pgadmin4
     container_name: pgadmin-ekh
@@ -52,6 +51,8 @@ services:
       - .env
     ports:
       - "8081:80"
+    mem_limit: 256m
+    memswap_limit: 512m
     depends_on:
       - postgres
   rabbitmq:
@@ -65,6 +66,10 @@ services:
     volumes:
       - rabbitmq_data_ekh:/var/lib/rabbitmq
       - rabbitmq_logs_ekh:/var/log/rabbitmq
+    mem_limit: 2g
+    memswap_limit: 3g
+    pids_limit: 256
+    shm_size: '1g'
 volumes:
   postgres_data_ekh:
   rabbitmq_data_ekh:
