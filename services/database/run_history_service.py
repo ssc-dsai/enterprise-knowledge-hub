@@ -40,3 +40,7 @@ class RunHistoryService():
     def cronjob_get_most_recent_dump_date(self, source: str) -> str | None:
         """Get the most recent dump date for a given source"""
         return self._repository.cronjob_get_most_recent_dump_date(source)
+
+    def select_first_instance_of_run_id(self, run_id: int) -> DictRow:
+        """Get the first record with run_id"""
+        return self._repository.select_first_instance_of_run_id(run_id)
