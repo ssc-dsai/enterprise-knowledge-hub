@@ -7,6 +7,7 @@ from psycopg.rows import DictRow
 
 from repository.pool_provider import PoolProvider
 from repository.run_history import RunHistoryRepository
+from repository.run_history_model import RunHistory
 
 
 @dataclass
@@ -14,19 +15,27 @@ class RunHistoryService():
     """Run history service class for run_history table"""
 
     logger: logging.Logger
-    _repository: RunHistoryRepository
+    # _repository: RunHistoryRepository
 
     def __init__(self, logger):
         self._logger = logger
-        pool = PoolProvider.get_pool()
-        self._repository = RunHistoryRepository(pool)
+        # pool = PoolProvider.get_pool()
 
     def insert_history_table_log(self, run_id: int, service_name: str, status: str, metadata: dict | None,
                                  timestamp: datetime) -> None:
         # pylint: disable=too-many-arguments
         # pylint: disable=too-many-positional-arguments
         """Insert a log entry into the history table"""
-        self._repository.insert_history_table_log(run_id, service_name, status, metadata, timestamp)
+        print('INSERTING+===============')
+        return RunHistory.insert(
+                                run_id=run_id,
+                                status=status,
+                                service_name=service_name,
+                                metadata=metadata,
+                                timestamp=timestamp
+        ).execute()
+        # self._repository.insert_history_table_log(run_id, service_name, status, metadata, timestamp)
+
 
     def run_history_table_rows(self) -> list[DictRow]:
         """Get all history table rows"""
