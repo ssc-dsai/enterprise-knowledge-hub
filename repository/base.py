@@ -1,13 +1,32 @@
 """Base repository class for databases, providing pool ."""
-from psycopg_pool import ConnectionPool
 
-INSERT_BATCH_SIZE = 500
+from peewee import Model
+from typing import List, Optional, Type
 
-# pylint: disable=too-few-public-methods
 class BaseRepository:
     """Base repository class for postgres"""
 
-    _batch_size: int = INSERT_BATCH_SIZE
+    def __init__(self, model: Type[Model]):
+        self.model = model
 
-    def __init__(self, pool: ConnectionPool):
-        self._pool = pool
+    def get_by_id(self, pk: int) -> Optional[Model]:
+        """Get by id"""
+        return self.model.get_or_none(self.model.id == pk)
+
+    def list_all(self) -> List[Model]:
+        """Get all"""
+        return [row for row in self.model.select()]
+
+    def create(self, **data) -> Model:
+        """Insert and return model"""
+        return self.model.create(**data)
+
+    def update(self, pk: int, **data) -> bool:
+        """Update query"""
+        query = self.model.update(**data).where(self.model.id == pk)
+        return query.execute() > 0
+
+    def delete(self, pk: int) -> bool:
+        """Delete query"""
+        query = self.model.delete().where(self.model.id == pk)
+        return query.execute() > 0

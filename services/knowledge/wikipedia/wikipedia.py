@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from wikitextparser import remove_markup
 
 from provider.embedding.qwen3.embedder_factory import get_embedder
-from repository.model import WikipediaDbRecord
+from repository.knowledge_wikipedia_model import KnowledgeBaseWikipedia
 from services.database.knowledge_item_service import KnowledgeItemService
 from services.knowledge.base import KnowledgeService
 from services.knowledge.models import KnowledgeItem
@@ -167,7 +167,7 @@ class WikipediaKnowledgeService(KnowledgeService):
         self.queue_service.write(self._processed_queue_name(), item)
 
     def store_item(self, item: WikipediaItemProcessed) -> None:
-        record_to_insert = WikipediaDbRecord.from_item(item)
+        record_to_insert = KnowledgeBaseWikipedia.from_item(item)
         self._knowledge_wikipedia_service.insert(record_to_insert.as_mapping())
 
     def _process_index_file(self, index_path: Path, dump_path: Path) -> Iterator[WikipediaItemRaw]: #pylint: disable=too-many-locals,too-many-branches,too-many-statements

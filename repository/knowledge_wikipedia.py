@@ -2,52 +2,20 @@
 from __future__ import annotations
 
 from datetime import datetime
-from collections.abc import Sequence
 
 import numpy as np
-from psycopg.rows import dict_row
-from psycopg import sql
+from peewee import Expression, SQL
 
 from repository.base import BaseRepository
-from repository.model import DocumentRecord, WikipediaDbRecord
-
+from repository.knowledge_wikipedia_model import KnowledgeBaseWikipedia
 
 KB_TABLE_NAME = "kb_wikipedia"
 
 class KnowledgeWikipediaRepository(BaseRepository):
     """Repository to write Wikipedia records"""
 
-    def insert(self, row: WikipediaDbRecord) -> None:
-        """Insert row"""
-        insert_sql = sql.SQL(
-            """
-            INSERT INTO {table} (pid, chunk_index, name, content, last_modified_date, embedding, source)
-            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(content)s,
-                %(last_modified_date)s, %(embedding)s, %(source)s)
-            """
-        ).format(table=sql.Identifier(KB_TABLE_NAME))
-        with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(insert_sql, (row))
-            conn.commit()
-
-    def insert_many(self, rows: Sequence[WikipediaDbRecord]) -> None:
-        """Insert rows using executemany batching (no psycopg2 extras required)."""
-        if not rows:
-            return
-
-        insert_sql = sql.SQL(
-            """
-            INSERT INTO {table} (pid, chunk_index, name, content, last_modified_date, embedding, source)
-            VALUES (%(pid)s, %(chunk_index)s, %(name)s, %(content)s, %(last_modified_date)s, %(embedding)s, %(source)s) #pylint: disable=line-too-long
-            """
-        ).format(table=sql.Identifier(KB_TABLE_NAME))
-
-        params = [row.as_mapping() for row in rows]
-        with self._pool.connection() as conn, conn.cursor() as cur:
-            for i in range(0, len(params), self._batch_size):
-                batch = params[i : i + self._batch_size]
-                cur.executemany(insert_sql.as_string(conn), batch)
-            conn.commit()
+    def __init__(self):
+        super().__init__(KnowledgeBaseWikipedia)
 
     def search_by_embedding(
         self,
@@ -63,68 +31,72 @@ class KnowledgeWikipediaRepository(BaseRepository):
             probes: Number of IVFFlat lists to search. Higher = better recall but slower.
                     With 3464 lists, recommended range is 60-350 (sqrt(lists) to lists/10).
         """
-        embedding_vector = embedding[0] if isinstance(embedding[0], (list, tuple, np.ndarray)) else embedding
 
+        # Based on:
         # SET doesn't support parameterized values, so format directly (int is safe)
-        set_probes_sql = sql.SQL("SET LOCAL ivfflat.probes = {}").format(sql.Literal(probes))
+        # set_probes_sql = sql.SQL("SET LOCAL ivfflat.probes = {}").format(sql.Literal(probes))
 
         # Use a larger limit for index scan, then filter by similarity threshold
         # The WHERE clause filters after the index scan finds candidates
-        query_sql = sql.SQL(
-            """
-            SELECT name, content, chunk_index, 1 - (embedding <=> %s::vector) AS similarity
-            FROM {table}
-            ORDER BY embedding <=> %s::vector
-            LIMIT %s
-            """
-        ).format(table=sql.Identifier(KB_TABLE_NAME))
+        # query_sql = sql.SQL(
+        #     """
+        #     SELECT name, content, chunk_index, 1 - (embedding <=> %s::vector) AS similarity
+        #     FROM {table}
+        #     ORDER BY embedding <=> %s::vector
+        #     LIMIT %s
+        #     """
 
-        with self._pool.connection() as conn:
-            with conn.transaction():
-                with conn.cursor() as cur:
-                    cur.execute(set_probes_sql)
-                    cur.execute(query_sql, (embedding_vector, embedding_vector, limit))
-                    rows = cur.fetchall()
-        return rows
+        embedding_vector = embedding[0] if isinstance(embedding[0], (list, tuple, np.ndarray)) else embedding
+        db = self.model._meta.database
 
-    def get_pid_by_title(self, title: str, source: str) -> int | None:
-        """Query for pid based on title"""
+        def cosine_distance(column, embedding):
+            if hasattr(embedding, 'tolist'):
+                embedding = embedding.tolist()
+            return Expression(column, '<=>', SQL("%s::vector", [embedding]))
 
-        query_sql = sql.SQL(
-            """
-            SELECT pid FROM {table}
-            WHERE name = %s
-            AND source = %s
-            """
-        ).format(table=sql.Identifier(KB_TABLE_NAME))
+        # atomic ensures all done in one transaction
+        with db.atomic():
+            db.execute_sql(f"SET LOCAL ivfflat.probes = {int(probes)}")
+            query = (self.model
+                    .select(
+                        self.model.name,
+                        self.model.content,
+                        self.model.chunk_index,
+                        (1 - cosine_distance(self.model.embedding, embedding_vector)).alias('similarity')
+                    )
+                    .order_by(cosine_distance(self.model.embedding, embedding_vector))
+                    .limit(limit))
+            results = list(query.dicts())
 
-        with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, (title, source))
-            row = cur.fetchone()
+        return results
 
-        if row:
-            return row[0]
-        return None
+    def get_first_by_title_source(self, title: str, source: str) -> KnowledgeBaseWikipedia | None:
+        """Query for based on title"""
 
-    def get_record_full_chunks_content(self, pid: int, source: str) -> list[DocumentRecord]:
+        query = (self.model
+                 .select()
+                 .where(
+                     (self.model.name == title) &
+                     (self.model.source == source)
+                 )
+                 .get_or_none())
+
+        return query
+
+    def get_by_pid_source(self, pid: int, source: str) -> list[KnowledgeBaseWikipedia]:
         """Query for entire record chunks based on article title/name"""
 
-        query_sql = sql.SQL(
-            """
-            SELECT name, content FROM {table}
-            WHERE pid = %s
-            AND source = %s
-            """
-        ).format(table=sql.Identifier(KB_TABLE_NAME))
+        query = (self.model
+                 .select()
+                 .where(
+                     (self.model.pid == pid) &
+                     (self.model.source == source)
+                 ))
 
-        pattern=pid
 
-        with self._pool.connection() as conn, conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(query_sql, (pattern, source))
-            rows = cur.fetchall()
-        return rows
+        return query
 
-    def record_is_up_to_date(self, pid: int, source: str, last_date_modified: datetime) -> bool:
+    def get_by_pid_source_modified_date(self, pid: int, source: str, last_date_modified: datetime) -> KnowledgeBaseWikipedia | None:
         """
         Queries the database for the documents with pid and checks if the date is currently
         more recent than the one in the database
@@ -134,32 +106,25 @@ class KnowledgeWikipediaRepository(BaseRepository):
 
         Returns True if the record EXISTS AND is UP TO DATE, False otherwise
         """
-        query_sql = sql.SQL(
-            """
-            SELECT pid FROM {table}
-            WHERE pid = %s and source LIKE %s and last_modified_date >= %s
-            LIMIT 1
-            """
-        ).format(table=sql.Identifier(KB_TABLE_NAME))
 
-        with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, (pid, source, last_date_modified))
-            row = cur.fetchone()
-
-        if row:
-            return True # exists and is up to date
-        return False # either doesn't exist or is outdated
+        query = (self.model
+                 .select()
+                 .where(
+                     (self.model.pid == pid) &
+                     (self.model.source ** source) &
+                     (self.model.last_modified_date >= last_date_modified)
+                 )
+                 .get_or_none()
+                 )
+        return query
 
     def delete_by_pid_source(self, pid: int, source: str) -> None:
         """Delete chunks for a given pid and source"""
-        query_sql = sql.SQL(
-            """
-            DELETE FROM {table}
-            WHERE pid = %s
-            AND source = %s
-            """
-        ).format(table=sql.Identifier(KB_TABLE_NAME))
+        query = (self.model
+                 .delete()
+                 .where(
+                     (self.model.pid == pid) &
+                     (self.model.source == source)
+                 ))
+        query.execute()
 
-        with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, (pid, source))
-            conn.commit()

@@ -30,6 +30,7 @@ class KnowledgeBaseWikipedia(Model): #pylint: disable=too-many-instance-attribut
     last_modified_date: datetime | None = TimestampTZField(null=True)
     embedding: list[float] = VectorField(dimensions=512)
     source: str | None = TextField(null=True)
+    similarity: float | None
 
     class Meta:
         database = db

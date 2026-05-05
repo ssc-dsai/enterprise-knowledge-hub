@@ -1,4 +1,4 @@
-from peewee import PostgresqlDatabase,DatabaseProxy
+from peewee import DatabaseProxy
 import os
 
 def get_conn_info():
@@ -14,9 +14,5 @@ def get_conn_info():
         "user": user,
         "password": password
     }
-
-def get_postgresqldatabase_peewee():
-    conninfo = get_conn_info()
-    return PostgresqlDatabase(conninfo["dbname"], user=conninfo["user"], password=conninfo["password"], host=conninfo["host"], port=conninfo["port"])
 
 db = DatabaseProxy()
