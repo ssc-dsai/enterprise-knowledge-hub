@@ -13,13 +13,6 @@ from services.knowledge.wikipedia.models import WikipediaItemProcessed
 
 KB_TABLE_NAME = "kb_wikipedia"
 
-class DocumentRecord(TypedDict):
-    """Model for records in kb_wikipedia table"""
-    name: str
-    content: str
-    chunk_index: int
-    similarity: float | None
-
 class KnowledgeBaseWikipedia(Model): #pylint: disable=too-many-instance-attributes
     """Serializable record for Postgres storage."""
     id: int = AutoField()
