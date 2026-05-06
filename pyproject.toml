@@ -30,6 +30,9 @@ flash = [
     "flash-attn>=2.8.3",
 ]
 
+[project.scripts]
+ekh-migrate = "repository.migration.run_migrations:main"
+
 [dependency-groups]
 dev = [
     "pre-commit>=4.2.0",
