@@ -4,6 +4,7 @@ Contains the main FastAPI application for the Enterprise Knowledge Hub.
 import logging
 import logging.config
 import os
+from contextlib import asynccontextmanager
 
 import yaml
 from dotenv import load_dotenv
@@ -12,7 +13,7 @@ from fastapi_crons import Crons, get_cron_router
 from fastapi_crons.state.sqlalchemy import SQLAlchemyStateBackend
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from repository.database import initialize_database
+from repository.database import close_database, connect_database
 from router.frontend.frontend import router as frontend_router
 from router.root.run_management_endpoints import KNOWLEDGE_BASE
 from router.root.run_management_endpoints import router as endpoints
@@ -21,8 +22,6 @@ from router.root.search_retrieve_endpoints import router as db_endpoints
 from services.content_scraper.base_cronjob import main as kb_scraper_main
 
 load_dotenv()
-
-initialize_database()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -40,7 +39,14 @@ cron_engine = create_async_engine(
      'localhost')}:{os.getenv('POSTGRES_PORT', '5432')}/{os.getenv('POSTGRES_DB')}"
     )
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    connect_database()
+    yield
+    close_database()
+
+
+app = FastAPI(lifespan=lifespan)
 crons = Crons(app, state_backend=SQLAlchemyStateBackend(cron_engine))
 
 app.include_router(get_cron_router(), prefix="/crons", tags=["internal"])
