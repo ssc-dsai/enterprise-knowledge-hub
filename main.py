@@ -11,26 +11,18 @@ from fastapi import FastAPI
 from fastapi_crons import Crons, get_cron_router
 from fastapi_crons.state.sqlalchemy import SQLAlchemyStateBackend
 from sqlalchemy.ext.asyncio import create_async_engine
-from playhouse.postgres_ext import PooledPostgresqlExtDatabase
 
+from repository.database import initialize_database
 from router.frontend.frontend import router as frontend_router
 from router.root.run_management_endpoints import KNOWLEDGE_BASE
 from router.root.run_management_endpoints import router as endpoints
 from router.root.search_retrieve_endpoints import router as db_endpoints
 
 from services.content_scraper.base_cronjob import main as kb_scraper_main
-from migration.initial_baseline import run_init_migration
-from repository.database import get_conn_info
-from repository.database import db
 
 load_dotenv()
 
-### Init database ###
-conninfo = get_conn_info()
-pgdb = PooledPostgresqlExtDatabase(conninfo["dbname"], user=conninfo["user"], password=conninfo["password"],
-                          host=conninfo["host"], port=conninfo["port"], max_connections=8, stale_timeout=300,)
-db.initialize(pgdb)
-run_init_migration(db)
+initialize_database()
 
 logging.basicConfig(
     level=logging.INFO,
