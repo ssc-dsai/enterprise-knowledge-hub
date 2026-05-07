@@ -1,19 +1,19 @@
 """Base repository class"""
 
-from typing import List, Optional, Type
+from typing import List, Optional
 from peewee import Model
 
 class BaseRepository:
     """Base repository class"""
 
-    def __init__(self, model: Type[Model]):
+    def __init__(self, model: type[Model]):
         self.model = model
 
-    def get_by_id(self, pk: int) -> Optional[Model]:
+    def get_by_id(self, pk: int) -> Model | None:
         """Get by id"""
         return self.model.get_or_none(self.model.id == pk)
 
-    def list_all(self) -> List[Model]:
+    def list_all(self) -> list[Model]:
         """Get all"""
         return list(self.model.select())
 
