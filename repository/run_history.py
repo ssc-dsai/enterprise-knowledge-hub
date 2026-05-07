@@ -1,5 +1,4 @@
 """Run history table repository"""
-
 from repository.base import BaseRepository
 from repository.run_history_model import RunHistory
 
@@ -13,8 +12,7 @@ class RunHistoryRepository(BaseRepository):
         """
             Return first based on source and status
         """
-        query = (self.model
-                .select()
+        query = (self.model.select()
                 .where(
                     (self.model.service_name == source) &
                     (self.model.status == status)

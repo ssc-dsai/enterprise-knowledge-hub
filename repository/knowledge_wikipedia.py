@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-
 import numpy as np
 from peewee import Expression, SQL
 
@@ -47,7 +46,7 @@ class KnowledgeWikipediaRepository(BaseRepository):
         #     """
 
         embedding_vector = embedding[0] if isinstance(embedding[0], (list, tuple, np.ndarray)) else embedding
-        db = self.model._meta.database
+        db = self.model._meta.database # pylint: disable=protected-access
 
         def cosine_distance(column, embedding):
             if hasattr(embedding, 'tolist'):
@@ -57,8 +56,7 @@ class KnowledgeWikipediaRepository(BaseRepository):
         # atomic ensures all done in one transaction
         with db.atomic():
             db.execute_sql(f"SET LOCAL ivfflat.probes = {int(probes)}")
-            query = (self.model
-                    .select(
+            query = (self.model.select(
                         self.model.name,
                         self.model.content,
                         self.model.chunk_index,
@@ -73,9 +71,7 @@ class KnowledgeWikipediaRepository(BaseRepository):
     def get_first_by_title_source(self, title: str, source: str) -> KnowledgeBaseWikipedia | None:
         """Query for based on title"""
 
-        query = (self.model
-                 .select()
-                 .where(
+        query = (self.model.select().where(
                      (self.model.name == title) &
                      (self.model.source == source)
                  )
@@ -86,17 +82,15 @@ class KnowledgeWikipediaRepository(BaseRepository):
     def get_by_pid_source(self, pid: int, source: str) -> list[KnowledgeBaseWikipedia]:
         """Query for entire record chunks based on article title/name"""
 
-        query = (self.model
-                 .select()
-                 .where(
+        query = (self.model.select().where(
                      (self.model.pid == pid) &
                      (self.model.source == source)
                  ))
 
-
         return query
 
-    def get_by_pid_source_modified_date(self, pid: int, source: str, last_date_modified: datetime) -> KnowledgeBaseWikipedia | None:
+    def get_by_pid_source_modified_date(self, pid: int, source: str,
+                                        last_date_modified: datetime) -> KnowledgeBaseWikipedia | None:
         """
         Queries the database for the documents with pid and checks if the date is currently
         more recent than the one in the database
@@ -107,9 +101,7 @@ class KnowledgeWikipediaRepository(BaseRepository):
         Returns True if the record EXISTS AND is UP TO DATE, False otherwise
         """
 
-        query = (self.model
-                 .select()
-                 .where(
+        query = (self.model.select().where(
                      (self.model.pid == pid) &
                      (self.model.source ** source) &
                      (self.model.last_modified_date >= last_date_modified)
@@ -120,11 +112,8 @@ class KnowledgeWikipediaRepository(BaseRepository):
 
     def delete_by_pid_source(self, pid: int, source: str) -> None:
         """Delete chunks for a given pid and source"""
-        query = (self.model
-                 .delete()
-                 .where(
+        query = (self.model.delete().where(
                      (self.model.pid == pid) &
                      (self.model.source == source)
                  ))
         query.execute()
-

@@ -1,10 +1,10 @@
-"""Base repository class for databases, providing pool ."""
+"""Base repository class"""
 
-from peewee import Model
 from typing import List, Optional, Type
+from peewee import Model
 
 class BaseRepository:
-    """Base repository class for postgres"""
+    """Base repository class"""
 
     def __init__(self, model: Type[Model]):
         self.model = model
@@ -15,7 +15,7 @@ class BaseRepository:
 
     def list_all(self) -> List[Model]:
         """Get all"""
-        return [row for row in self.model.select()]
+        return list(self.model.select())
 
     def create(self, **data) -> Model:
         """Insert and return model"""

@@ -1,11 +1,11 @@
+"""Bootstrap module"""
 import os
 
 from peewee import DatabaseProxy
 from playhouse.postgres_ext import PooledPostgresqlExtDatabase
-from repository.migration.initial_baseline import run_init_migration
 
 db = DatabaseProxy()
-_is_initialized = False
+_is_initialized = False  # pylint: disable=invalid-name
 
 def get_conn_info():
     """Get connection info to postgres from env file"""
@@ -35,22 +35,17 @@ def build_database() -> PooledPostgresqlExtDatabase:
         stale_timeout=300,
     )
 
-def initialize_database(*, run_migrations: bool = False) -> None:
+def initialize_database() -> None:
     """"Init database and guard against it being run multiple times."""
-    global _is_initialized
+    global _is_initialized  # pylint: disable=global-statement
     if _is_initialized:
         return
 
     db.initialize(build_database())
     _is_initialized = True
 
-    if run_migrations:
-        run_init_migration(db)
-
-def connect_database() -> None:
-    initialize_database(run_migrations=False)
-
 def close_database() -> None:
+    """close db connection"""
     if not _is_initialized:
         return
     if not db.is_closed():

@@ -1,32 +1,29 @@
 """Persistence models forknowledge base, defining the structure of records stored in the database and providing"""
 from __future__ import annotations
 
-from typing import TypedDict
-from datetime import datetime
 from torch import Tensor
-from peewee import SQL, AutoField, IntegerField, TextField, Model
+from peewee import SQL, IntegerField, TextField
 import numpy as np
 
-from repository.base_model import TimestampTZField, VectorField
-from repository.database import db
+from repository.base_model import BaseEmbeddingModel, VectorField
 from services.knowledge.wikipedia.models import WikipediaItemProcessed
 
 KB_TABLE_NAME = "kb_wikipedia"
 
-class KnowledgeBaseWikipedia(Model): #pylint: disable=too-many-instance-attributes
-    """Serializable record for Postgres storage."""
-    id: int = AutoField()
+class KnowledgeBaseWikipedia(BaseEmbeddingModel): #pylint: disable=too-many-instance-attributes
+    """kb_wikipedia model"""
     pid: int = IntegerField()
     chunk_index: int = IntegerField()
     name: str = TextField()
     content: str = TextField()
-    last_modified_date: datetime | None = TimestampTZField(null=True)
     embedding: list[float] = VectorField(dimensions=512)
     source: str | None = TextField(null=True)
+
+    #Computed field.  Not in table
     similarity: float | None
 
-    class Meta:
-        database = db
+    class Meta:  # pylint: disable=too-few-public-methods
+        """Configuration for the model"""
         db_table = KB_TABLE_NAME
         constraints = [
             SQL(

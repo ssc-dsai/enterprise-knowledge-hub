@@ -13,7 +13,9 @@ from fastapi_crons import Crons, get_cron_router
 from fastapi_crons.state.sqlalchemy import SQLAlchemyStateBackend
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from repository.database import close_database, connect_database
+from repository.database import close_database, initialize_database
+from repository.migration.initial_baseline import run_init_migration
+from repository.database import db
 from router.frontend.frontend import router as frontend_router
 from router.root.run_management_endpoints import KNOWLEDGE_BASE
 from router.root.run_management_endpoints import router as endpoints
@@ -28,7 +30,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
 )
 
-if(log_config := os.getenv("LOGGING_CONFIG_FILE", "config/default-logging.yaml")):
+if(log_config := os.getenv("LOGGING_CONFIG_FILE")):
     with open(log_config, encoding="UTF-8") as f:
         logging.config.dictConfig(yaml.safe_load(f))
 
@@ -41,7 +43,9 @@ cron_engine = create_async_engine(
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    connect_database()
+    """fastapi lifecycle hook"""
+    initialize_database()
+    run_init_migration(db)
     yield
     close_database()
 
