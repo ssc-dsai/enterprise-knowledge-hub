@@ -28,7 +28,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
 )
 
-if(log_config := os.getenv("LOGGING_CONFIG_FILE")):
+if(log_config := os.getenv("LOGGING_CONFIG_FILE", "config/default-logging.yaml")):
     with open(log_config, encoding="UTF-8") as f:
         logging.config.dictConfig(yaml.safe_load(f))
 
