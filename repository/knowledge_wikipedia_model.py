@@ -1,36 +1,39 @@
 """Persistence models forknowledge base, defining the structure of records stored in the database and providing"""
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TypedDict
-from datetime import datetime
 from torch import Tensor
+from peewee import SQL, IntegerField, TextField
 import numpy as np
 
+from repository.base_model import BaseEmbeddingModel, VectorField
 from services.knowledge.wikipedia.models import WikipediaItemProcessed
 
-# TO DO AR: i forgot why this was used TypedDict.  Probably an old implementation?  Not used many places.
-# Check at some point to move to dataclass?
-class DocumentRecord(TypedDict):
-    """Model for records in kb_wikipedia table"""
-    name: str
-    content: str
-    chunk_index: int
+KB_TABLE_NAME = "kb_wikipedia"
+
+class KnowledgeBaseWikipedia(BaseEmbeddingModel): #pylint: disable=too-many-instance-attributes
+    """kb_wikipedia model"""
+    pid: int = IntegerField()
+    chunk_index: int = IntegerField()
+    name: str = TextField()
+    content: str = TextField()
+    embedding: list[float] = VectorField(dimensions=512)
+    source: str | None = TextField(null=True)
+
+    #Computed field.  Not in table
     similarity: float | None
 
-@dataclass(slots=True)
-class WikipediaDbRecord: #pylint: disable=too-many-instance-attributes
-    """Serializable record for Postgres storage."""
-    pid: int
-    chunk_index: int
-    name: str
-    content: str
-    last_modified_date: datetime | None
-    embedding: list[float]
-    source: str | None = None
+    class Meta:  # pylint: disable=too-few-public-methods
+        """Configuration for the model"""
+        db_table = KB_TABLE_NAME
+        constraints = [
+            SQL(
+                'CONSTRAINT documents_pid_source_chunk_index_key '
+                'UNIQUE (pid, source, chunk_index)'
+            )
+        ]
 
     @classmethod
-    def from_item(cls, item: WikipediaItemProcessed) -> WikipediaDbRecord:
+    def from_item(cls, item: WikipediaItemProcessed) -> KnowledgeBaseWikipedia:
         """Build a record from a domain object, coercing embeddings to floats."""
         embedding = cls._to_floats(item.embeddings)
         return cls(

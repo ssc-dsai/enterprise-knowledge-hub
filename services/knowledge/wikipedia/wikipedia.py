@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 from wikitextparser import remove_markup
 
 from provider.embedding.qwen3.embedder_factory import get_embedder
-from repository.model import WikipediaDbRecord
+from repository.knowledge_wikipedia_model import KnowledgeBaseWikipedia
 from services.database.knowledge_item_service import KnowledgeItemService
 from services.knowledge.base import KnowledgeService
 from services.knowledge.batch_handler import BatchHandler
@@ -195,7 +195,7 @@ class WikipediaKnowledgeService(KnowledgeService):
 
     def store_item(self, item: WikipediaItemProcessed) -> None:
         item_validated = WikipediaItemProcessed.model_validate(item)
-        record_to_insert = WikipediaDbRecord.from_item(item_validated)
+        record_to_insert = KnowledgeBaseWikipedia.from_item(item_validated)
         self._knowledge_wikipedia_service.insert(record_to_insert.as_mapping())
 
     def compute_run_id(self, files: list[Path]) -> int:
