@@ -6,14 +6,11 @@ from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, Future
 from typing import Any
 import logging
-from random import random
 import threading
 from datetime import datetime
 
 from services.database.run_history_service import RunHistoryService
 from services.knowledge.models import KnowledgeItem
-from services.knowledge.batch_handler import BatchHandler
-from services.knowledge.wikipedia.models import WikipediaItemProcessed
 from services.knowledge.models import RunStatus
 from services.queue.queue_worker import QueueWorker
 from services.queue.queue_service import QueueService
@@ -33,16 +30,27 @@ class KnowledgeService(ABC):
     _executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=3)
     _futures: list[Future] = field(default_factory=list)
 
-    def run(self) -> None:
+    def run(self, run_id: int | None = None) -> None:
         """Run the knowledge ingestion/processing in parallel threads."""
-        self.logger.info("Running knowledge ingestion for %s", self.service_name)
+
+        if run_id is None:
+            # Assign a random run ID for tracking in logs and stats
+            self._run_id = self._get_run_id()
+        else:
+            self._run_id = run_id
+
+        if self.run_history_service.select_first_instance_of_run_id(self._run_id):
+            self.logger.info("Continuing ingestion for %s.  Run ID: %s", self.service_name, self._run_id)
+            self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.RUN_CONTINUED, None, datetime.now())
+        else:
+            self.logger.info("Running knowledge ingestion for %s.  Run ID: %s", self.service_name, self._run_id)
+            self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.RUN_STARTED, None, datetime.now())
+
         self._ingest_done.clear()
         self._process_done.clear()
         self._stop_event.clear()
-        self._run_id = int(random() * 1e6)  # Assign a random run ID for tracking in logs and stats
-        # Record the start of this run in the run_history table for observability
-        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
-                                                          RunStatus.RUN_STARTED, None, datetime.now())
 
         ingestion_enabled = os.getenv("SVC_KB_ENABLE_INGESTION", "true").lower() in ("1", "true", "yes")
         processing_enabled = os.getenv("SVC_KB_ENABLE_PROCESSING", "true").lower() in ("1", "true", "yes")
@@ -74,9 +82,21 @@ class KnowledgeService(ABC):
         for future in self._futures:
             future.result()
 
-        # Record the end of this run
-        self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
+        self._finalize_run()
+
+    def _finalize_run(self) -> None:
+        """Final tasks after a run is stopped/completed"""
+        if self._stop_event.is_set():
+            self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
+                                                          RunStatus.RUN_STOPPED, None, datetime.now())
+        else:
+            self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                           RunStatus.RUN_ENDED, None, datetime.now())
+
+    @abstractmethod
+    def _get_run_id(self) -> int:
+        """Get a unique id for run"""
+        raise NotImplementedError("Subclasses must implement the get_run_id method.")
 
     @abstractmethod
     def fetch_from_source(self) -> Iterator[KnowledgeItem]:
@@ -99,7 +119,7 @@ class KnowledgeService(ABC):
         raise NotImplementedError("Subclasses must implement the emit_processed_item method.")
 
     @abstractmethod
-    def store_item(self, item: WikipediaItemProcessed) -> None:
+    def store_item(self, item: KnowledgeItem) -> None:
         """Insert the object into repository"""
         raise NotImplementedError("Subclasses must implement the store_item method.")
 
@@ -144,17 +164,30 @@ class KnowledgeService(ABC):
                                                                 "msg": "Records Ingested"}, datetime.now())
         self.logger.info("Done ingestion for %s", self.service_name)
 
+    def process_handler(self, item: KnowledgeItem, delivery_tag: str) -> bool:
+        """
+        Handler definition for process step
+        Return: bool is meant to tell QueueWorker to ack or not
+        """
+        self.process_item(item)
+        self.emit_processed_item(item)
+        self.logger.debug("DeliveryTag: %s", delivery_tag)
+
+        # this is to tell queueworker to handle ack
+        return True
+
+    def process_should_exit(self, drained_any: bool) -> bool:
+        """Exit loop condition for process step"""
+        return self._ingest_done.is_set() and not drained_any
+
     def process(self) -> None:
         """Process ingested data. Keeps polling until producer is done and queue is empty."""
 
         self.logger.info("Processing ingested data from queue: %s. (%s)", self._ingest_queue_name(), self.service_name)
-
         self.run_history_service.insert_history_table_log(self._run_id, self.service_name,
                                                               RunStatus.PROCESSING_STARTED, None, datetime.now())
 
         try:
-            batch_size = self.get_batch_size()
-
             worker = QueueWorker(
                 queue_service=self.queue_service,
                 logger=self.logger,
@@ -162,25 +195,12 @@ class KnowledgeService(ABC):
                 poll_interval=self._poll_interval
             )
 
-            def acknowledge(delivery_tag: int, successful: bool):
-                self.queue_service.read_ack(delivery_tag, successful)
-
-            handler = BatchHandler(self.process_item, acknowledge, batch_size, self.logger)
-
-            def should_exit(drained_any: bool) -> bool:
-                #Ingest done, AND check ingestion queue was empty this iteration
-                return self._ingest_done.is_set() and not drained_any
-
             worker.run(
                 queue_name=self._ingest_queue_name(),
                 service_name=self.service_name,
-                handler=handler,
-                should_exit=should_exit
+                handler=self.process_handler,
+                should_exit=self.process_should_exit
             )
-
-            # flushes last batch that hangs in memory, due to not reaching batch size.
-            if handler.item_list:
-                handler.flush()
 
             count = worker.message_count
         except Exception:
@@ -202,6 +222,19 @@ class KnowledgeService(ABC):
         self.logger.info("Done processing ingested data from queue: %s. (%s)", self._ingest_queue_name(),
                                                                                 self.service_name)
 
+    def store_handler(self, item: KnowledgeItem, delivery_tag: str) -> bool:
+        """Handler definition for store step"""
+        if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
+            self.store_item(item)
+        self.logger.debug("DeliveryTag: %s", delivery_tag)
+        # this is to tell queueworker to handle ack
+        return True
+
+    def store_should_exit(self, drained_any: bool) -> bool:
+        """Exit loop condition for store step"""
+        # process is done, AND check processed queue was empty this iteration
+        return self._ingest_done.is_set() and self._process_done.is_set() and not drained_any
+
     def store(self) -> None:
         """
             Process {service_name}.processed queue
@@ -220,22 +253,11 @@ class KnowledgeService(ABC):
                 poll_interval=self._poll_interval
             )
 
-            def handler(item: WikipediaItemProcessed, delivery_tag: str) -> bool:
-                if os.getenv("DB_SKIP_STORE", "false").lower() not in ("1", "true", "yes"):
-                    self.store_item(WikipediaItemProcessed.model_validate(item))
-                self.logger.debug("DeliveryTag: %s", delivery_tag)
-                # this is to tell queueworker to handle ack
-                return False
-
-            def should_exit(drained_any: bool) -> bool:
-                # process is done, AND check processed queue was empty this iteration
-                return self._ingest_done.is_set() and self._process_done.is_set() and not drained_any
-
             worker.run(
                 queue_name=self._processed_queue_name(),
                 service_name=self.service_name,
-                handler=handler,
-                should_exit=should_exit
+                handler=self.store_handler,
+                should_exit=self.store_should_exit
             )
 
             count = worker.message_count
@@ -270,7 +292,7 @@ class KnowledgeService(ABC):
         if delivery_tag is not None:
             self.queue_service.read_ack(delivery_tag, successful=successful)
 
-    def request_stop(self) -> None:
+    def request_stop(self) -> int:
         """Stop event for knowledge process"""
         self.logger.info("Stop event requested")
 
@@ -292,6 +314,7 @@ class KnowledgeService(ABC):
         self._futures = []
         self.logger.info("Cleaning up thread local queue connections and channels")
         self.queue_service.cleanup()
+        return self._run_id
 
     def should_stop(self) -> bool:
         """Return true if and only if the internal flag is true."""

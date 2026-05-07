@@ -9,7 +9,7 @@ on:
 env:
   IMAGE_NAME: enterprise-knowledge-hub
   REGISTRY: ghcr.io
-  JOBS_AND_THREADS: 8 # this currently runs the cuda jobs in 30ish minutes
+  JOBS_AND_THREADS: 16 # 8 workers would run this job in 30 ish minute (flash-attn lib build)
 
 jobs:
   build-cpu:
@@ -109,6 +109,7 @@ jobs:
             BASE_IMAGE=cuda
             CUDA_ARCH=${{ env.CUDA_ARCH }}
             JOBS_AND_THREADS=${{ env.JOBS_AND_THREADS }}
+            BUILD_FLASH=TRUE
           tags: |
             ${{ env.REGISTRY }}/${{ github.repository }}:${{ steps.version.outputs.version }}-cuda-${{ env.CUDA_ARCH }}
             ${{ env.REGISTRY }}/${{ github.repository }}:sha-${{ github.sha }}-cuda-${{ env.CUDA_ARCH }}
