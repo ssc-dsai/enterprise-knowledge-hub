@@ -23,20 +23,15 @@ class RunHistoryRepository(BaseRepository):
                 .get_or_none())
         return query
 
-    def select_first_instance_of_run_id(self, run_id: int) -> DictRow | None:
+    def select_first_instance_of_run_id(self, run_id: int) -> RunHistory | None:
         """
         Returns the first record that contains run_id
         """
-        query_sql=sql.SQL(
-            """
-            SELECT run_id FROM {table}
-            WHERE run_id = %s
-            limit 1
-            """
-        ).format(table=sql.Identifier(RUN_HISTORY_TABLE_NAME))
+        query = (self.model
+                .select()
+                .where(
+                    self.model.run_id == run_id
+                )
+                .get_or_none())
 
-        with self._pool.connection() as conn, conn.cursor() as cur:
-            cur.execute(query_sql, [run_id])
-            row = cur.fetchone()
-
-        return row
+        return query

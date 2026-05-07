@@ -51,6 +51,6 @@ class RunHistoryService():
         result = self._repository.get_by_source_and_status(source, status)
         return result.metadata.get('dump_date')
 
-    def select_first_instance_of_run_id(self, run_id: int) -> DictRow:
+    def select_first_instance_of_run_id(self, run_id: int) -> RunHistory | None:
         """Get the first record with run_id"""
         return self._repository.select_first_instance_of_run_id(run_id)
