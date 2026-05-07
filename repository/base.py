@@ -1,6 +1,5 @@
 """Base repository class"""
 
-from typing import List, Optional
 from peewee import Model
 
 class BaseRepository:
