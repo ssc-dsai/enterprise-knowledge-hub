@@ -1,0 +1,12 @@
+# This is the default logging configuration, DO NOT modify this file directly.
+# Instead copy this file to something like logging.yaml and set the
+# ----> LOGGING_CONFIG_FILE environment variable to point to it.
+version: 1
+# if set to true it will only use logging config from this file,
+# thus potentially disabling other important default logging configuration
+disable_existing_loggers: false
+loggers:
+  pika.adapters:
+    level: WARNING
+root:
+  level: INFO

@@ -1,0 +1,19 @@
+# Override for high-memory VMs with GPU (e.g. L40)
+# Usage: docker compose -f docker-compose.yml -f docker-compose.gpu.yml up
+services:
+  ekh:
+    shm_size: '16g'
+    mem_limit: 32g
+    memswap_limit: 36g
+    deploy:
+      resources:
+        reservations:
+          cpus: "4"
+  postgres:
+    mem_limit: 32g
+    memswap_limit: 36g
+    shm_size: 16g
+  rabbitmq:
+    mem_limit: 16g
+    memswap_limit: 18g
+    shm_size: '4g'

@@ -62,21 +62,32 @@ uv run pre-commit run --all-files
 
 https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=WSL-Ubuntu&target_version=2.0&target_type=deb_local
 
-### L40 GPU configurations
+### L40 GPU configurations (old)
 
 Those are the configs we used for our first run on the L40 GPU
 
 ```bash
+WIKIPEDIA_EMBEDDING_MAX_DIMENSION=512
 WIKIPEDIA_EMBEDDING_MODEL_BACKEND=SENTENCE_TRANSFORMER
-WIKIPEDIA_EMBEDDING_MODEL_CLEANUP=False
-WIKIPEDIA_EMBEDDING_MODEL_BATCH_SIZE=8
+WIKIPEDIA_EMBEDDING_MODEL_BATCH_SIZE=48
 WIKIPEDIA_EMBEDDING_MODEL_MAX_LENGTH=4096
-WIKIPEDIA_EMBEDDING_MODEL_MAX_DIM=512 #do not change, tied to DB PgVector column config
-POSTGRES_BATCH_SIZE=1000
-PYTORCH_ALLOC_CONF="max_split_size_mb:128,garbage_collection_threshold:0.6,expandable_segments:True"
-PYTORCH_CUDA_GPU_CAP=0.9
+SENTENCE_TRANSFORMER_MODEL_NAME="/home/shared/repos/Qwen3-Embedding-0.6B"
+
+WIKIPEDIA_PROCESS_BATCH_SIZE=288 # 392 also works
+
+PYTORCH_ALLOC_CONF="garbage_collection_threshold:0.6,expandable_segments:False"
 MODEL_SHOW_PROGRESS=False
 ```
+
+### Running on the ICELAB VM
+
+The default `docker-compose.yml` uses dev-friendly resource limits. On the ICELAB VM (L40 GPU), use the GPU override file to apply high-memory settings:
+
+```bash
+EKH_IMAGE_TAG=1.2.4-cuda-8.9 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+```
+
+This sets the image tag and merges the resource overrides (32g memory, 16g shm, 4 CPUs, etc.) on top of the base config.
 
 ## Notes and help
 
