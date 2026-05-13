@@ -8,6 +8,7 @@ import os
 import yaml
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi_crons import Crons, get_cron_router
 from fastapi_crons.state.sqlalchemy import SQLAlchemyStateBackend
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -44,6 +45,14 @@ app.include_router(get_cron_router(), prefix="/crons", tags=["internal"])
 app.include_router(frontend_router, prefix="/frontend", tags=["Frontend"])
 app.include_router(endpoints, prefix=KNOWLEDGE_BASE, tags=["Knowledge (Indexing Operations)"])
 app.include_router(db_endpoints, prefix="/database", tags=["Database Interaction"])
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Cronjob to check for new wiki dumps every set amount of time (in ENV file), currently defaulted to once a month:
 @crons.cron(os.getenv("CRON_WIKIPEDIA_SCRAPE", "* * 1 * *"), name="run_knowledge_base_scraper")
