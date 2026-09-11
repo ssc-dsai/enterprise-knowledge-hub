@@ -29,18 +29,9 @@ from urllib.request import urlopen
 import psycopg
 from dotenv import load_dotenv
 
-# Constants for run_history status values and stage mapping
+# Constants for run_history status values used to detect run completion
 RUN_ENDED = "Run Completed"
 RUN_STOPPED = "Run Manually Stopped"
-INGESTION_STARTED = "Ingestion Started"
-PROCESSING_STARTED = "Processing Started"
-STORING_STARTED = "Storing Started"
-
-START_STAGE_BY_STATUS = {
-    INGESTION_STARTED: "ingest",
-    PROCESSING_STARTED: "process",
-    STORING_STARTED: "store",
-}
 
 
 @dataclass
@@ -112,6 +103,27 @@ def _fetch_run_rows(conn: psycopg.Connection, run_id: int, service_name: str) ->
                 metadata=_parse_metadata(row[1]),
             )
         )
+    return result
+
+
+def _fetch_stage_metrics(conn: psycopg.Connection, run_id: int, service_name: str) -> list[dict[str, Any]]:
+    """Fetch stage progress metadata from run_metrics (where completed/total/throughput actually live)."""
+    sql = (
+        "SELECT rm.metadata "
+        "FROM run_metrics rm "
+        "JOIN run_history rh ON rh.id = rm.run_history_id "
+        "WHERE rh.run_id = %s AND rh.service_name = %s "
+        "ORDER BY rm.timestamp ASC"
+    )
+    with conn.cursor() as cur:
+        cur.execute(sql, (run_id, service_name))
+        rows = cur.fetchall()
+
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        metadata = _parse_metadata(row[0])
+        if metadata is not None:
+            result.append(metadata)
     return result
 
 
@@ -195,19 +207,8 @@ def _fetch_database_volume_bytes(conn: psycopg.Connection) -> int | None:
     return int(value)
 
 
-def _iter_stage_progress_rows(rows: list[ProgressRow]) -> list[tuple[str, dict[str, Any]]]:
-    """Project run_history rows to stage names and normalized metadata dicts."""
-    projected: list[tuple[str, dict[str, Any]]] = []
-    for row in rows:
-        stage = START_STAGE_BY_STATUS.get(row.status)
-        if stage is None:
-            continue
-        projected.append((stage, row.metadata or {}))
-    return projected
-
-
 def _append_stage_progress_rows(
-    rows: list[ProgressRow],
+    stage_metrics: list[dict[str, Any]],
     output_path: Path,
     experiment_name: str | None,
     run_id: int,
@@ -215,13 +216,13 @@ def _append_stage_progress_rows(
     database_volume_bytes: int | None,
 ) -> None:
     """Append all stage progress rows for the current poll sample."""
-    for stage, metadata in _iter_stage_progress_rows(rows):
+    for metadata in stage_metrics:
         _append_csv_row(
             output_path,
             experiment_name,
             run_id,
             service_name,
-            stage,
+            metadata.get("stage"),
             metadata.get("status"),
             metadata.get("completed"),
             metadata.get("total"),
@@ -246,10 +247,11 @@ def _monitor_run_progress(
     with _open_db_connection() as conn:
         while True:
             rows = _fetch_run_rows(conn, run_id, service_name)
+            stage_metrics = _fetch_stage_metrics(conn, run_id, service_name)
             database_volume_bytes = _fetch_database_volume_bytes(conn)
             ended = any(row.status in (RUN_ENDED, RUN_STOPPED) for row in rows)
             _append_stage_progress_rows(
-                rows=rows,
+                stage_metrics=stage_metrics,
                 output_path=output_path,
                 experiment_name=experiment_name,
                 run_id=run_id,

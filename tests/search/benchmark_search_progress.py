@@ -57,7 +57,7 @@ def _append_csv_row(path: Path, experiment_name: str | None, slug: str, dimensio
 def _search(api_base_url: str, slug: str, query: str, limit: int) -> dict[str, Any]:
     """Call the generic search endpoint for a given slug."""
     params = urlencode({"query": query, "limit": limit})
-    url = f"{api_base_url.rstrip('/')}/{slug}/search?{params}"
+    url = f"{api_base_url.rstrip('/')}/database/{slug}/search?{params}"
     with urlopen(url, timeout=60) as response:  # nosec B310
         return json.loads(response.read())
 
