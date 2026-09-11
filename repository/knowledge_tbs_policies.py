@@ -45,7 +45,7 @@ class KnowledgeTBSPoliciesRepository(EmbeddingRepository):
         ).fetchone()
         if exists is None:
             db.execute_sql(
-                f"CREATE INDEX IF NOT EXISTS {index_name} ON kb_tbs_policies "
+                f"CREATE INDEX CONCURRENTLY IF NOT EXISTS {index_name} ON kb_tbs_policies "
                 f"USING ivfflat ((embedding::vector({dimensions})) vector_cosine_ops) "
                 f"WITH (lists = {lists}) WHERE embedding_dims = {dimensions};"
             )

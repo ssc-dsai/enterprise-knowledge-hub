@@ -30,7 +30,8 @@ class KnowledgeService(ABC):
     _process_done: threading.Event = field(default_factory=threading.Event, init=False)
     _stop_event: threading.Event = field(default_factory=threading.Event, init=False)
     _poll_interval: float = 0.5  # seconds to wait before retrying empty queue
-    _executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=3)
+    # default_factory avoids sharing one executor across every KnowledgeService instance
+    _executor: ThreadPoolExecutor = field(default_factory=lambda: ThreadPoolExecutor(max_workers=3))
     _futures: list[Future] = field(default_factory=list)
     _progress_metrics: ProgressMetricsTracker = field(default=None, init=False)
 
