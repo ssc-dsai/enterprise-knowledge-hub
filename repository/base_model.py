@@ -12,7 +12,7 @@ class VectorField(Field):
     """Vector column ORM representation for Peewee"""
     field_type = "VECTOR"
 
-    def __init__(self, dimensions=None, *args, **kwargs):
+    def __init__(self, *args, dimensions=None, **kwargs):
         self.dimensions = dimensions
         super().__init__(*args, **kwargs)
 

@@ -46,9 +46,12 @@ class TBSPolicyItemService:
         """Delete all chunks for a page_id and source."""
         self._repository.delete_by_page_id_source(page_id, source)
 
-    def record_is_up_to_date(self, page_id: int, source: str, last_date_modified: datetime) -> bool:
-        """Return True if the record exists and is at least as recent as last_date_modified."""
+    def record_is_up_to_date(self, page_id: int, source: str, last_date_modified: datetime,
+                             embedding_dims: int | None = None) -> bool:
+        """Return True if the record exists at embedding_dims and is at least as recent as last_date_modified."""
         if last_date_modified is None:
             return False
-        result = self._repository.get_by_page_id_source_modified_date(page_id, source, last_date_modified)
+        result = self._repository.get_by_page_id_source_modified_date(
+            page_id, source, last_date_modified, embedding_dims
+        )
         return result is not None

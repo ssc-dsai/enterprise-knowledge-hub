@@ -331,7 +331,7 @@ class TestTBSPoliciesFetch(unittest.TestCase):
         svc.session.get = MagicMock(side_effect=[mock_hierarchy_resp, mock_100_resp, mock_200_resp])
 
         # Mark page 100 as up-to-date, page 200 as stale
-        def is_up_to_date(page_id, _source, _last_mod):
+        def is_up_to_date(page_id, _source, _last_mod, _embedding_dims=None):
             return page_id == 100
         svc._tbs_policy_service.record_is_up_to_date.side_effect = is_up_to_date
 

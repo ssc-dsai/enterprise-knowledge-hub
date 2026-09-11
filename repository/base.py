@@ -104,14 +104,20 @@ class EmbeddingRepository(BaseRepository):
         return list(query)
 
     def get_by_id_source_modified_date(self, id_value: int, source: str,
-                                       last_date_modified: datetime) -> Model | None:
-        """Get a record by identifier and source if modified after last_date_modified."""
-        query = (self.model.select().where(
-                     (self._id_column() == id_value) &
-                     (self.model.source == source) &
-                     (self.model.last_modified_date >= last_date_modified)
-                 )
-                 .get_or_none())
+                                       last_date_modified: datetime,
+                                       embedding_dims: int | None = None) -> Model | None:
+        """Get a record by identifier and source if modified after last_date_modified.
+
+        If embedding_dims is given, only matches a row already stored at that dimension.
+        """
+        conditions = (
+            (self._id_column() == id_value) &
+            (self.model.source == source) &
+            (self.model.last_modified_date >= last_date_modified)
+        )
+        if embedding_dims is not None:
+            conditions &= (self.model.embedding_dims == embedding_dims)
+        query = self.model.select().where(conditions).get_or_none()
         return query
 
     def delete_by_id_source(self, id_value: int, source: str) -> None:

@@ -92,9 +92,10 @@ class TBSPoliciesKnowledgeService(KnowledgeService):
                 if item is None:
                     continue
 
-                # Skip pages already stored with the same or newer last_modified_date
+                # Skip pages already stored at the current dimension with the same or newer last_modified_date
+                current_dims = int(os.getenv("EMBEDDING_DIMENSIONS", "512"))
                 if self._tbs_policy_service.record_is_up_to_date(
-                    item.page_id, item.source, item.last_modified_date
+                    item.page_id, item.source, item.last_modified_date, current_dims
                 ):
                     self.logger.debug("Page id=%d (%s) is up to date, skipping.", page_id, item.name)
                     continue
