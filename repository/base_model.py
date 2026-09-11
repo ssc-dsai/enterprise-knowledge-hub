@@ -12,12 +12,12 @@ class VectorField(Field):
     """Vector column ORM representation for Peewee"""
     field_type = "VECTOR"
 
-    def __init__(self, dimensions, *args, **kwargs):
+    def __init__(self, dimensions=None, *args, **kwargs):
         self.dimensions = dimensions
         super().__init__(*args, **kwargs)
 
     def get_modifiers(self):
-        return [self.dimensions]
+        return [self.dimensions] if self.dimensions else None
 
 class BaseEmbeddingModel(Model):
     """Base model for embedding tables"""

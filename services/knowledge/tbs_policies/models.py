@@ -25,6 +25,7 @@ class TBSPolicyItemProcessed(TBSPolicyItemRaw):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     embeddings: np.ndarray | Tensor | None = None
+    embedding_dims: int = 0
 
     @field_serializer("embeddings")
     def serialize_embeddings(self, value):

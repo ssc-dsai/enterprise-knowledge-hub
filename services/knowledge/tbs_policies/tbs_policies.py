@@ -248,6 +248,7 @@ class TBSPoliciesKnowledgeService(KnowledgeService):
             chunk_index=item_data.get('chunk_index', 1),
             chunk_count=item_data.get('chunk_count', 1),
             embeddings=vec,
+            embedding_dims=int(vec.shape[0]),
         )
         self.emit_processed_item(processed)
 
